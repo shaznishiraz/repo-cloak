@@ -25,7 +25,7 @@ import { copyFiles } from '../core/copier.js';
 import { createAnonymizer } from '../core/anonymizer.js';
 import { createMapping, saveMapping, loadRawMapping, mergeMapping, hasMapping, decryptMapping } from '../core/mapper.js';
 import { getOrCreateSecret, hasSecret, decryptReplacements } from '../core/crypto.js';
-import { isGitRepo, getChangedFiles } from '../core/git.js';
+import { isGitRepo, getChangedFiles, getRecentCommits, getFilesChangedInCommits } from '../core/git.js';
 
 export async function pull(options = {}) {
     try {
@@ -358,60 +358,160 @@ export async function pull(options = {}) {
                 showError('No files found in existing mapping.');
                 return;
             }
+        } else if (!isGitRepo(sourceDir) && (options.commit || options.listCommits !== undefined)) {
+            showError('Source directory is not a Git repository. Cannot use commit flags.');
+            return;
         } else if (isGitRepo(sourceDir)) {
-            const { useGit } = await inquirer.prompt([
-                {
-                    type: 'confirm',
-                    name: 'useGit',
-                    message: 'Git repository detected. Do you want to select changed/added files?',
-                    default: false
-                }
-            ]);
-
-            if (useGit) {
-                const spinner = ora('Scanning changed files...').start();
-                const gitFiles = await getChangedFiles(sourceDir);
+            if (options.commit) {
+                const spinner = ora('Fetching files from commits...').start();
+                const commitFiles = await getFilesChangedInCommits(sourceDir, options.commit);
                 spinner.stop();
 
-                if (gitFiles.length === 0) {
-                    console.log(chalk.yellow('   No changed or added files found in Git status.'));
-                    const { fallback } = await inquirer.prompt([
-                        {
-                            type: 'confirm',
-                            name: 'fallback',
-                            message: 'Do you want to manually select files instead?',
-                            default: true
-                        }
-                    ]);
+                if (commitFiles.length === 0) {
+                    showError('No files found in the specified commits.');
+                    return;
+                }
 
-                    if (!fallback) {
-                        return;
-                    }
+                // Filter to absolute paths and exist check
+                const validCommitFiles = commitFiles
+                    .map(f => resolve(sourceDir, f))
+                    .filter(f => existsSync(f));
+
+                if (validCommitFiles.length > 0) {
+                    console.log(chalk.green(`   Found ${validCommitFiles.length} files in specified commits.`));
+                    selectedFiles = validCommitFiles;
+                    useGitFiles = true;
                 } else {
-                    // Filter to absolute paths and exist check
-                    const validGitFiles = gitFiles
-                        .map(f => resolve(sourceDir, f))
-                        .filter(f => existsSync(f));
+                    showError('None of the files from the specified commits exist locally.');
+                    return;
+                }
+            } else if (options.listCommits !== undefined) {
+                const count = options.listCommits === true ? 10 : parseInt(options.listCommits, 10) || 10;
+                const commits = await getRecentCommits(sourceDir, count);
 
-                    if (validGitFiles.length > 0) {
-                        console.log(chalk.green(`   Found ${validGitFiles.length} changed files.`));
+                if (commits.length === 0) {
+                    showError('No commits found in the repository.');
+                    return;
+                }
 
-                        // Let user confirm/deselect git files
-                        const { confirmGitFiles } = await inquirer.prompt([
+                const { selectedCommits } = await inquirer.prompt([
+                    {
+                        type: 'checkbox',
+                        name: 'selectedCommits',
+                        message: 'Select commits to extract files from:',
+                        choices: commits.map(c => ({
+                            name: `${c.hash} - ${c.message}`,
+                            value: c.hash
+                        }))
+                    }
+                ]);
+
+                if (selectedCommits.length === 0) {
+                    showError('No commits selected. Aborting.');
+                    return;
+                }
+
+                const spinner = ora('Fetching files from selected commits...').start();
+                const commitFiles = await getFilesChangedInCommits(sourceDir, selectedCommits);
+                spinner.stop();
+                
+                if (commitFiles.length === 0) {
+                    showError('No files found in the selected commits.');
+                    return;
+                }
+
+                const validCommitFiles = commitFiles
+                    .map(f => resolve(sourceDir, f))
+                    .filter(f => existsSync(f));
+
+                if (validCommitFiles.length > 0) {
+                    console.log(chalk.green(`   Found ${validCommitFiles.length} files in selected commits.`));
+                    selectedFiles = validCommitFiles;
+                    useGitFiles = true;
+                } else {
+                    showError('None of the files from the selected commits exist locally.');
+                    return;
+                }
+            } else {
+                const { gitAction } = await inquirer.prompt([
+                    {
+                        type: 'list',
+                        name: 'gitAction',
+                        message: 'Git repository detected. How would you like to select files?',
+                        choices: [
+                            { name: 'Uncommitted changes (working directory)', value: 'uncommitted' },
+                            { name: 'Files from recent commits', value: 'commits' },
+                            { name: 'Manual selection (bypasses git)', value: 'manual' }
+                        ]
+                    }
+                ]);
+
+                if (gitAction === 'commits') {
+                    const commits = await getRecentCommits(sourceDir, 10);
+                    if (commits.length === 0) {
+                        console.log(chalk.yellow('   No commits found in the repository.'));
+                    } else {
+                        const { selectedCommits } = await inquirer.prompt([
                             {
                                 type: 'checkbox',
-                                name: 'confirmGitFiles',
-                                message: 'Select changed files to extract:',
-                                choices: validGitFiles.map(f => ({
-                                    name: relative(sourceDir, f),
-                                    value: f,
-                                    checked: true
+                                name: 'selectedCommits',
+                                message: 'Select commits to extract files from:',
+                                choices: commits.map(c => ({
+                                    name: `${c.hash} - ${c.message}`,
+                                    value: c.hash
                                 }))
                             }
                         ]);
 
-                        selectedFiles = confirmGitFiles;
-                        useGitFiles = true;
+                        if (selectedCommits.length > 0) {
+                            const spinner = ora('Fetching files from selected commits...').start();
+                            const commitFiles = await getFilesChangedInCommits(sourceDir, selectedCommits);
+                            spinner.stop();
+                            
+                            const validCommitFiles = commitFiles
+                                .map(f => resolve(sourceDir, f))
+                                .filter(f => existsSync(f));
+
+                            if (validCommitFiles.length > 0) {
+                                console.log(chalk.green(`   Found ${validCommitFiles.length} files in selected commits.`));
+                                selectedFiles = validCommitFiles;
+                                useGitFiles = true;
+                            } else {
+                                console.log(chalk.yellow('   None of the files from the selected commits exist locally.'));
+                            }
+                        }
+                    }
+                } else if (gitAction === 'uncommitted') {
+                    const spinner = ora('Scanning uncommitted files...').start();
+                    const gitFiles = await getChangedFiles(sourceDir);
+                    spinner.stop();
+
+                    if (gitFiles.length === 0) {
+                        console.log(chalk.yellow('   No uncommitted files found in Git status.'));
+                    } else {
+                        const validGitFiles = gitFiles
+                            .map(f => resolve(sourceDir, f))
+                            .filter(f => existsSync(f));
+
+                        if (validGitFiles.length > 0) {
+                            console.log(chalk.green(`   Found ${validGitFiles.length} changed files.`));
+
+                            const { confirmGitFiles } = await inquirer.prompt([
+                                {
+                                    type: 'checkbox',
+                                    name: 'confirmGitFiles',
+                                    message: 'Select changed files to extract:',
+                                    choices: validGitFiles.map(f => ({
+                                        name: relative(sourceDir, f),
+                                        value: f,
+                                        checked: true
+                                    }))
+                                }
+                            ]);
+
+                            selectedFiles = confirmGitFiles;
+                            useGitFiles = true;
+                        }
                     }
                 }
             }

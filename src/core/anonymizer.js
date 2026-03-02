@@ -69,18 +69,28 @@ function escapeRegex(string) {
  * Match the case pattern of the original to the replacement
  */
 function matchCase(original, replacement) {
-    // If original is all uppercase, make replacement uppercase
+    // Helper to check if string contains any letters
+    const hasLetters = /[a-zA-Z]/.test(original);
+    
+    if (!hasLetters) {
+        return replacement;
+    }
+
+    // Check if original is entirely uppercase
     if (original === original.toUpperCase()) {
         return replacement.toUpperCase();
     }
 
-    // If original is all lowercase, make replacement lowercase
+    // Check if original is entirely lowercase
     if (original === original.toLowerCase()) {
         return replacement.toLowerCase();
     }
 
-    // If original is Title Case, make replacement Title Case
-    if (original[0] === original[0].toUpperCase()) {
+    // Check if original is Title Case (first letter uppercase, rest lowercase)
+    const firstLetter = original.charAt(0);
+    const restOfStr = original.slice(1);
+    
+    if (firstLetter === firstLetter.toUpperCase() && restOfStr === restOfStr.toLowerCase()) {
         return replacement.charAt(0).toUpperCase() + replacement.slice(1).toLowerCase();
     }
 

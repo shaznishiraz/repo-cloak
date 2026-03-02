@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { isGitRepo, getChangedFiles } from '../src/core/git.js';
+import { isGitRepo, getChangedFiles, getRecentCommits, getFilesChangedInCommits } from '../src/core/git.js';
 import { existsSync, mkdirSync, writeFileSync, rmSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
@@ -100,4 +100,62 @@ describe('Git Module', () => {
             expect(files).not.toContain('old.txt');
         });
     });
+
+    describe('getRecentCommits', () => {
+        it('should return empty array for empty repo', async () => {
+            initGitRepo(testDir);
+            const commits = await getRecentCommits(testDir, 10);
+            expect(commits).toEqual([]);
+        });
+
+        it('should return recent commits', async () => {
+            initGitRepo(testDir);
+            writeFileSync(join(testDir, 'test1.txt'), 'test1');
+            execSync('git add test1.txt', { cwd: testDir });
+            execSync('git commit -m "first commit"', { cwd: testDir });
+
+            writeFileSync(join(testDir, 'test2.txt'), 'test2');
+            execSync('git add test2.txt', { cwd: testDir });
+            execSync('git commit -m "second commit"', { cwd: testDir });
+
+            const commits = await getRecentCommits(testDir, 10);
+            expect(commits).toHaveLength(2);
+            expect(commits[0].message).toBe('second commit');
+            expect(commits[0].hash.length).toBeGreaterThan(0);
+            expect(commits[1].message).toBe('first commit');
+        });
+    });
+
+    describe('getFilesChangedInCommits', () => {
+        it('should return empty array if no commits provided', async () => {
+            initGitRepo(testDir);
+            const files = await getFilesChangedInCommits(testDir, []);
+            expect(files).toEqual([]);
+        });
+
+        it('should return files changed in specific commits', async () => {
+            initGitRepo(testDir);
+            writeFileSync(join(testDir, 'test1.txt'), 'test1');
+            execSync('git add test1.txt', { cwd: testDir });
+            execSync('git commit -m "first commit"', { cwd: testDir });
+            
+            const firstCommitHash = execSync('git rev-parse HEAD', { cwd: testDir }).toString().trim();
+
+            writeFileSync(join(testDir, 'test2.txt'), 'test2');
+            execSync('git add test2.txt', { cwd: testDir });
+            execSync('git commit -m "second commit"', { cwd: testDir });
+
+            const secondCommitHash = execSync('git rev-parse HEAD', { cwd: testDir }).toString().trim();
+
+            const filesFirst = await getFilesChangedInCommits(testDir, [firstCommitHash]);
+            expect(filesFirst).toEqual(['test1.txt']);
+
+            const filesSecond = await getFilesChangedInCommits(testDir, [secondCommitHash]);
+            expect(filesSecond).toEqual(['test2.txt']);
+
+            const bothFiles = await getFilesChangedInCommits(testDir, [firstCommitHash, secondCommitHash]);
+            expect(bothFiles.sort()).toEqual(['test1.txt', 'test2.txt']);
+        });
+    });
 });
+

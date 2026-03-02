@@ -21,7 +21,7 @@ describe('Anonymizer', () => {
                 { original: 'Microsoft', replacement: 'ABCCompany' }
             ]);
 
-            expect(anonymizer('Microsoft is great')).toBe('ABCCOMPANY is great');
+            expect(anonymizer('MICROSOFT is great')).toBe('ABCCOMPANY is great');
         });
 
         it('should handle all lowercase', () => {
@@ -29,7 +29,7 @@ describe('Anonymizer', () => {
                 { original: 'Microsoft', replacement: 'ABCCompany' }
             ]);
 
-            expect(anonymizer('Microsoft is lower')).toBe('abccompany is lower');
+            expect(anonymizer('microsoft is lower')).toBe('abccompany is lower');
         });
 
         it('should handle multiple replacements', () => {
@@ -93,7 +93,7 @@ describe('Anonymizer', () => {
 
             const deanonymizer = createDeanonymizer(replacements);
 
-            expect(deanonymizer('ABCCOMPANY')).toBe('Microsoft');
+            expect(deanonymizer('ABCCOMPANY')).toBe('MICROSOFT');
         });
 
         it('should handle lowercase in reverse', () => {
@@ -103,7 +103,7 @@ describe('Anonymizer', () => {
 
             const deanonymizer = createDeanonymizer(replacements);
 
-            expect(deanonymizer('abccompany')).toBe('Microsoft');
+            expect(deanonymizer('abccompany')).toBe('microsoft');
         });
     });
 });

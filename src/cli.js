@@ -32,6 +32,8 @@ program
     .option('-s, --source <path>', 'Source directory (default: current directory)')
     .option('-d, --dest <path>', 'Destination directory')
     .option('-f, --force', 'Force pull all files (skip prompts, requires existing mapping)')
+    .option('-c, --commit <hash...>', 'Extract files changed in specific commits')
+    .option('-l, --list-commits [count]', 'List and select from recent commits (default: 10)')
     .option('-q, --quiet', 'Minimal output')
     .action(async (options) => {
         await showBanner();
