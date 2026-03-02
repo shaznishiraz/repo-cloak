@@ -4,7 +4,7 @@
 
 Perfect for sharing code with AI agents without exposing proprietary details. Extract specific files, replace sensitive information (company names, project names, etc.), and restore them later.
 
-[![npm version](https://img.shields.io/npm/v/repo-cloak.svg)](https://www.npmjs.com/package/repo-cloak)
+[![npm version](https://img.shields.io/npm/v/repo-cloak-cli.svg)](https://www.npmjs.com/package/repo-cloak-cli)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## ✨ Features
@@ -19,13 +19,19 @@ Perfect for sharing code with AI agents without exposing proprietary details. Ex
 ## 📦 Installation
 
 ```bash
-npm install -g repo-cloak
+npm install -g repo-cloak-cli
+```
+
+### To install locally
+
+```bash
+npm install D:\Projects\repo-cloak
 ```
 
 Or use directly with npx:
 
 ```bash
-npx repo-cloak
+npx repo-cloak-cli
 ```
 
 ## 🚀 Quick Start
@@ -57,6 +63,18 @@ repo-cloak push --source ./extracted --dest ./my-project
 
 Restores all files with original keywords replaced back.
 
+### Force Update
+
+To quickly re-pull or re-push without interactive prompts (useful for scripts):
+
+```bash
+# Update existing cloaked directory from source
+repo-cloak pull --force
+
+# Restore cloaked files to original source
+repo-cloak push --force
+```
+
 ## 🎯 Use Cases
 
 - **AI Code Review** - Share proprietary code with AI tools by anonymizing company/project names
@@ -79,11 +97,13 @@ Restores all files with original keywords replaced back.
 ### Pull Options
 - `-s, --source <path>` - Source directory (default: current directory)
 - `-d, --dest <path>` - Destination directory
+- `-f, --force` - Force pull all files (skip prompts, requires existing mapping)
 - `-q, --quiet` - Minimal output
 
 ### Push Options
 - `-s, --source <path>` - Cloaked backup directory
 - `-d, --dest <path>` - Destination directory
+- `-f, --force` - Force push/restore all files (skip confirmation)
 - `-q, --quiet` - Minimal output
 
 ## 📁 How It Works

@@ -31,6 +31,7 @@ program
     .description('Extract files and anonymize sensitive information')
     .option('-s, --source <path>', 'Source directory (default: current directory)')
     .option('-d, --dest <path>', 'Destination directory')
+    .option('-f, --force', 'Force pull all files (skip prompts, requires existing mapping)')
     .option('-q, --quiet', 'Minimal output')
     .action(async (options) => {
         await showBanner();
@@ -42,6 +43,7 @@ program
     .description('Restore files with original names from a cloaked backup')
     .option('-s, --source <path>', 'Source cloaked directory')
     .option('-d, --dest <path>', 'Destination directory (original location)')
+    .option('-f, --force', 'Force push/restore all files (skip confirmation)')
     .option('-q, --quiet', 'Minimal output')
     .action(async (options) => {
         await showBanner();
