@@ -20,6 +20,7 @@ import {
 } from '../ui/prompts.js';
 import { showSuccess, showError, showInfo } from '../ui/banner.js';
 import { getAllFiles } from '../core/scanner.js';
+import { scanFilesForSecrets } from '../core/secrets.js';
 
 import { copyFiles } from '../core/copier.js';
 import { createAnonymizer } from '../core/anonymizer.js';
@@ -528,6 +529,48 @@ export async function pull(options = {}) {
 
         if (!options.force) {
             console.log(chalk.green(`\n✓ Selected ${selectedFiles.length} files\n`));
+        }
+
+        // Step 4.5: Scan for Secrets
+        if (!options.force) {
+            const scanSpinner = ora('Scanning selected files for sensitive data...').start();
+            const secretFindings = await scanFilesForSecrets(selectedFiles);
+            scanSpinner.stop();
+
+            if (secretFindings.length > 0) {
+                console.log(chalk.red.bold('\n⚠️  WARNING: POTENTIAL SENSITIVE DATA DETECTED ⚠️\n'));
+                
+                // Group by file to present a cleaner list
+                const findingsByFile = secretFindings.reduce((acc, finding) => {
+                    const relPath = relative(sourceDir, finding.file);
+                    if (!acc[relPath]) acc[relPath] = new Set();
+                    acc[relPath].add(`${finding.type} (Line ${finding.line})`);
+                    return acc;
+                }, {});
+
+                for (const [file, secrets] of Object.entries(findingsByFile)) {
+                    console.log(chalk.yellow(`   ${file}:`));
+                    for (const secret of secrets) {
+                        console.log(chalk.dim(`      - ${secret}`));
+                    }
+                }
+                console.log('');
+
+                const { proceedWithSecrets } = await inquirer.prompt([
+                    {
+                        type: 'confirm',
+                        name: 'proceedWithSecrets',
+                        message: 'Are you sure you want to proceed extracting these files?',
+                        default: false
+                    }
+                ]);
+
+                if (!proceedWithSecrets) {
+                    showInfo('Operation cancelled to protect sensitive data.');
+                    return;
+                }
+                console.log('');
+            }
         }
 
         // Step 5: Handle replacements based on mode
