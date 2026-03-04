@@ -7,8 +7,8 @@
 import ora from 'ora';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
-import { existsSync, mkdirSync } from 'fs';
-import { resolve, relative } from 'path';
+import { existsSync, mkdirSync, writeFileSync } from 'fs';
+import { resolve, relative, join } from 'path';
 
 import { selectFiles } from '../ui/fileSelector.js';
 import {
@@ -21,6 +21,7 @@ import {
 import { showSuccess, showError, showInfo } from '../ui/banner.js';
 import { getAllFiles } from '../core/scanner.js';
 import { scanFilesForSecrets } from '../core/secrets.js';
+import { getAgentsMarkdown } from '../core/agents-template.js';
 
 import { copyFiles } from '../core/copier.js';
 import { createAnonymizer } from '../core/anonymizer.js';
@@ -661,6 +662,13 @@ export async function pull(options = {}) {
             results.errors.forEach(e => {
                 console.log(chalk.dim(`      - ${e.file}: ${e.error}`));
             });
+        }
+
+        // Step 8.5: Write AGENTS.md into the cloaked workspace
+        if (!existingMapping) {
+            const agentsPath = join(destDir, 'AGENTS.md');
+            writeFileSync(agentsPath, getAgentsMarkdown(), 'utf-8');
+            console.log(chalk.cyan(`   🤖 AGENTS.md created for AI agent context`));
         }
 
         // Step 9: Prepare new file mappings
