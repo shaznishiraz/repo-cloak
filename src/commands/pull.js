@@ -443,12 +443,42 @@ export async function pull(options = {}) {
                         choices: [
                             { name: 'Uncommitted changes (working directory)', value: 'uncommitted' },
                             { name: 'Files from recent commits', value: 'commits' },
+                            { name: 'Specific commit ID', value: 'commit_id' },
                             { name: 'Manual selection (bypasses git)', value: 'manual' }
                         ]
                     }
                 ]);
 
-                if (gitAction === 'commits') {
+                if (gitAction === 'commit_id') {
+                    const { commitHash } = await inquirer.prompt([
+                        {
+                            type: 'input',
+                            name: 'commitHash',
+                            message: 'Enter the commit hash (ID):',
+                            validate: input => input.trim() !== '' ? true : 'Commit hash cannot be empty.'
+                        }
+                    ]);
+
+                    const spinner = ora(`Fetching files from commit ${commitHash}...`).start();
+                    const commitFiles = await getFilesChangedInCommits(sourceDir, [commitHash]);
+                    spinner.stop();
+
+                    if (commitFiles.length === 0) {
+                        console.log(chalk.yellow(`   No files found in commit ${commitHash} or invalid commit ID.`));
+                    } else {
+                        const validCommitFiles = commitFiles
+                            .map(f => resolve(sourceDir, f))
+                            .filter(f => existsSync(f));
+
+                        if (validCommitFiles.length > 0) {
+                            console.log(chalk.green(`   Found ${validCommitFiles.length} files in commit ${commitHash}.`));
+                            selectedFiles = validCommitFiles;
+                            useGitFiles = true;
+                        } else {
+                            console.log(chalk.yellow(`   None of the files from the specified commit exist locally.`));
+                        }
+                    }
+                } else if (gitAction === 'commits') {
                     const commits = await getRecentCommits(sourceDir, 10);
                     if (commits.length === 0) {
                         console.log(chalk.yellow('   No commits found in the repository.'));
