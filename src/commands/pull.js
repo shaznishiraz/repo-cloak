@@ -7,7 +7,7 @@
 import ora from 'ora';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
-import { existsSync, mkdirSync, writeFileSync } from 'fs';
+import { existsSync, writeFileSync } from 'fs';
 import { resolve, relative, join } from 'path';
 
 import { selectFiles } from '../ui/fileSelector.js';
@@ -28,6 +28,7 @@ import { createAnonymizer } from '../core/anonymizer.js';
 import { createMapping, saveMapping, loadRawMapping, mergeMapping, hasMapping, decryptMapping } from '../core/mapper.js';
 import { getOrCreateSecret, hasSecret, decryptReplacements } from '../core/crypto.js';
 import { isGitRepo, getChangedFiles, getRecentCommits, getFilesChangedInCommits } from '../core/git.js';
+
 
 export async function pull(options = {}) {
     try {
@@ -61,18 +62,18 @@ export async function pull(options = {}) {
                     {
                         type: 'list',
                         name: 'mode',
-                        message: 'What would you like to do?',
+                        message: 'This looks like a folder you already used — what do you want to do?',
                         choices: [
                             {
-                                name: 'Quick Add - Use existing replacements and add more files',
+                                name: 'Quick Add — keep existing settings and add more files',
                                 value: 'quick'
                             },
                             {
-                                name: 'Add More Replacements - Add files with additional anonymization',
+                                name: 'Add More Replacements — add files with extra anonymization',
                                 value: 'extend'
                             },
                             {
-                                name: 'Fresh Start - Choose new destination',
+                                name: 'Fresh Start — pick a new output folder',
                                 value: 'fresh'
                             }
                         ]
@@ -174,11 +175,11 @@ export async function pull(options = {}) {
                         {
                             type: 'list',
                             name: 'mode',
-                            message: 'What would you like to do?',
+                            message: 'This looks like a folder you already used — what do you want to do?',
                             choices: [
-                                { name: 'Quick Add - Use existing replacements and add more files', value: 'quick' },
-                                { name: 'Add More Replacements - Add files with additional anonymization', value: 'extend' },
-                                { name: 'Fresh Start - Choose new destination', value: 'fresh' }
+                                { name: 'Quick Add — keep existing settings and add more files', value: 'quick' },
+                                { name: 'Add More Replacements — add files with extra anonymization', value: 'extend' },
+                                { name: 'Fresh Start — pick a new output folder', value: 'fresh' }
                             ]
                         }
                     ]);
@@ -400,7 +401,7 @@ export async function pull(options = {}) {
                     {
                         type: 'checkbox',
                         name: 'selectedCommits',
-                        message: 'Select commits to extract files from:',
+                        message: 'Which commits do you want to pull files from? (space to select, enter to confirm):', 
                         choices: commits.map(c => ({
                             name: `${c.hash} - ${c.message}`,
                             value: c.hash
@@ -439,7 +440,7 @@ export async function pull(options = {}) {
                     {
                         type: 'list',
                         name: 'gitAction',
-                        message: 'Git repository detected. How would you like to select files?',
+                        message: 'This is a Git repo — how do you want to pick files?', 
                         choices: [
                             { name: 'Uncommitted changes (working directory)', value: 'uncommitted' },
                             { name: 'Files from recent commits', value: 'commits' },
@@ -454,7 +455,7 @@ export async function pull(options = {}) {
                         {
                             type: 'input',
                             name: 'commitHash',
-                            message: 'Enter the commit hash (ID):',
+                            message: 'Paste or type the commit hash you want to pull files from:', 
                             validate: input => input.trim() !== '' ? true : 'Commit hash cannot be empty.'
                         }
                     ]);
@@ -487,7 +488,7 @@ export async function pull(options = {}) {
                             {
                                 type: 'checkbox',
                                 name: 'selectedCommits',
-                                message: 'Select commits to extract files from:',
+                                message: 'Which commits do you want to pull files from? (space to select, enter to confirm):', 
                                 choices: commits.map(c => ({
                                     name: `${c.hash} - ${c.message}`,
                                     value: c.hash
@@ -532,7 +533,7 @@ export async function pull(options = {}) {
                                 {
                                     type: 'checkbox',
                                     name: 'confirmGitFiles',
-                                    message: 'Select changed files to extract:',
+                                    message: 'Which changed files do you want to extract? (space to deselect):', 
                                     choices: validGitFiles.map(f => ({
                                         name: relative(sourceDir, f),
                                         value: f,
@@ -591,7 +592,7 @@ export async function pull(options = {}) {
                     {
                         type: 'confirm',
                         name: 'proceedWithSecrets',
-                        message: 'Are you sure you want to proceed extracting these files?',
+                        message: 'Some sensitive data was detected — are you sure you want to continue?', 
                         default: false
                     }
                 ]);
@@ -619,7 +620,7 @@ export async function pull(options = {}) {
                     {
                         type: 'confirm',
                         name: 'addMore',
-                        message: 'Add additional replacements?',
+                        message: 'Want to add any more replacements?', 
                         default: false
                     }
                 ]);
@@ -651,12 +652,6 @@ export async function pull(options = {}) {
                 showInfo('Operation cancelled.');
                 return;
             }
-        }
-
-        // Step 7: Create destination directory
-        if (!existsSync(destDir)) {
-            mkdirSync(destDir, { recursive: true });
-            console.log(chalk.dim(`   Created directory: ${destDir}`));
         }
 
         // Step 8: Copy and anonymize files
