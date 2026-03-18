@@ -21,8 +21,8 @@ const ENTER_DIFFERENT = '__ENTER_DIFFERENT__';
  * @param {(path: string) => string|true} opts.validate - Validator for the final resolved path
  * @returns {Promise<string>} Resolved absolute path
  */
-async function promptWithCache({ message, inputMessage, cachedPaths, validate }) {
-    // If we have cached paths, show a list first
+async function promptWithCache({ message, cachedPaths, validate }) {
+    // With cached paths → show a quick-pick list with the question as its header
     if (cachedPaths.length > 0) {
         const { selected } = await inquirer.prompt([
             {
@@ -42,19 +42,18 @@ async function promptWithCache({ message, inputMessage, cachedPaths, validate })
             const result = validate(resolved);
             if (result !== true) {
                 console.log(chalk.yellow(`   ⚠  ${result}`));
-                // Offer plain input as fallback
             } else {
                 return resolved;
             }
         }
     }
 
-    // Plain input fallback (no cache or user chose "Enter a different path")
+    // No cache (or user chose "Enter a different path") → single clean input line
     const { manualPath } = await inquirer.prompt([
         {
             type: 'input',
             name: 'manualPath',
-            message: inputMessage,
+            message,                          // same question, no duplication
             validate: (input) => {
                 if (!input.trim()) return 'Please enter a path.';
                 return validate(resolve(input.trim()));
@@ -75,7 +74,6 @@ export async function promptSourceDirectory() {
 
     const path = await promptWithCache({
         message:      'Which repo do you want to extract files from?',
-        inputMessage: 'Type or paste the path to your source repo:',
         cachedPaths,
         validate: (resolved) => {
             if (!existsSync(resolved)) {
@@ -99,7 +97,6 @@ export async function promptDestinationDirectory() {
 
     const path = await promptWithCache({
         message:      'Where should the cloaked (anonymized) files be saved?',
-        inputMessage: 'Type or paste the path to your output folder (will be created if needed):',
         cachedPaths,
         validate: (resolved) => {
             if (!resolved.trim()) return 'Please enter a destination path.';

@@ -41,6 +41,23 @@ export async function pull(options = {}) {
         // Step 1: Check if current directory is already a cloaked directory
         const currentDir = process.cwd();
 
+        // ── Step 2: Resolve sourceDir first (always ask source before destination) ──
+        if (!sourceDir) {
+            sourceDir = options.source
+                ? resolve(options.source)
+                : await promptSourceDirectory();
+        }
+
+        if (!existsSync(sourceDir)) {
+            showError(`Source directory does not exist: ${sourceDir}`);
+            return;
+        }
+
+        if (!options.force) {
+            console.log(chalk.dim(`   Source: ${sourceDir}\n`));
+        }
+
+        // ── Step 3: Resolve destDir ──
         if (hasMapping(currentDir) && !options.dest) {
             // Running from inside an existing cloaked directory - auto-detect!
             destDir = currentDir;
@@ -119,33 +136,9 @@ export async function pull(options = {}) {
                         console.log('');
                     }
                 }
-
-                // Try to get original source path
-                if (existingMapping.encrypted && hasSecret()) {
-                    const secret = getOrCreateSecret();
-                    try {
-                        const decrypted = decryptMapping(existingMapping, secret);
-                        if (decrypted.source?.path && existsSync(decrypted.source.path)) {
-                            sourceDir = decrypted.source.path;
-                            if (!options.force) {
-                                console.log(chalk.dim(`   Source: ${sourceDir}\n`));
-                            }
-                        }
-                    } catch (err) {
-                        // Source path couldn't be decrypted, will prompt
-                    }
-                } else if (!existingMapping.encrypted && existingMapping.source?.path) {
-                    // Not encrypted - use directly
-                    if (existsSync(existingMapping.source.path)) {
-                        sourceDir = existingMapping.source.path;
-                        if (!options.force) {
-                            console.log(chalk.dim(`   Source: ${sourceDir}\n`));
-                        }
-                    }
-                }
             }
         } else {
-            // Not running from a cloaked directory - ask for destination
+            // Not running from a cloaked directory
             if (options.force) {
                 showError('Force flag can only be used within an existing cloaked directory.');
                 return;
@@ -221,53 +214,11 @@ export async function pull(options = {}) {
                             console.log('');
                         }
                     }
-
-
-
-                    // Try to get original source path
-                    if (existingMapping.encrypted && hasSecret()) {
-                        const secret = getOrCreateSecret();
-                        try {
-                            const decrypted = decryptMapping(existingMapping, secret);
-                            if (decrypted.source?.path && existsSync(decrypted.source.path)) {
-                                sourceDir = decrypted.source.path;
-                                if (!options.force) {
-                                    console.log(chalk.dim(`   Source: ${sourceDir}\n`));
-                                }
-                            }
-                        } catch (err) {
-                            // Source path couldn't be decrypted, will prompt
-                        }
-                    } else if (!existingMapping.encrypted && existingMapping.source?.path) {
-                        if (existsSync(existingMapping.source.path)) {
-                            sourceDir = existingMapping.source.path;
-                            if (!options.force) {
-                                console.log(chalk.dim(`   Source: ${sourceDir}\n`));
-                            }
-                        }
-                    }
                 }
             }
         }
 
-        // ...
-
-        // Step 3: Get source directory if not already determined
-        if (!sourceDir) {
-            sourceDir = options.source
-                ? resolve(options.source)
-                : await promptSourceDirectory();
-        }
-
-        if (!existsSync(sourceDir)) {
-            showError(`Source directory does not exist: ${sourceDir}`);
-            return;
-        }
-
-        if (!options.force) {
-            console.log(chalk.dim(`   Source: ${sourceDir}\n`));
-        }
-
+        // ...\n
         // Step 4: Select files (Check for Git integration first)
         let selectedFiles = [];
         let useGitFiles = false;
@@ -472,9 +423,24 @@ export async function pull(options = {}) {
                             .filter(f => existsSync(f));
 
                         if (validCommitFiles.length > 0) {
-                            console.log(chalk.green(`   Found ${validCommitFiles.length} files in commit ${commitHash}.`));
-                            selectedFiles = validCommitFiles;
-                            useGitFiles = true;
+                                const { pickedFiles } = await inquirer.prompt([
+                                    {
+                                        type: 'checkbox',
+                                        name: 'pickedFiles',
+                                        message: `Found ${validCommitFiles.length} files in commit ${commitHash} — uncheck any you want to skip:`,
+                                        choices: validCommitFiles.map(f => ({
+                                            name: relative(sourceDir, f),
+                                            value: f,
+                                            checked: true
+                                        }))
+                                    }
+                                ]);
+                                if (pickedFiles.length > 0) {
+                                    selectedFiles = pickedFiles;
+                                    useGitFiles = true;
+                                } else {
+                                    console.log(chalk.yellow('   No files selected.'));
+                                }
                         } else {
                             console.log(chalk.yellow(`   None of the files from the specified commit exist locally.`));
                         }
@@ -506,9 +472,24 @@ export async function pull(options = {}) {
                                 .filter(f => existsSync(f));
 
                             if (validCommitFiles.length > 0) {
-                                console.log(chalk.green(`   Found ${validCommitFiles.length} files in selected commits.`));
-                                selectedFiles = validCommitFiles;
-                                useGitFiles = true;
+                                const { pickedFiles } = await inquirer.prompt([
+                                    {
+                                        type: 'checkbox',
+                                        name: 'pickedFiles',
+                                        message: `Found ${validCommitFiles.length} files across selected commits — uncheck any you want to skip:`,
+                                        choices: validCommitFiles.map(f => ({
+                                            name: relative(sourceDir, f),
+                                            value: f,
+                                            checked: true
+                                        }))
+                                    }
+                                ]);
+                                if (pickedFiles.length > 0) {
+                                    selectedFiles = pickedFiles;
+                                    useGitFiles = true;
+                                } else {
+                                    console.log(chalk.yellow('   No files selected.'));
+                                }
                             } else {
                                 console.log(chalk.yellow('   None of the files from the selected commits exist locally.'));
                             }

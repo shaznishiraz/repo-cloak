@@ -1,51 +1,50 @@
 /**
- * Fancy ASCII Banner
- * Shows a colorful intro when the CLI starts
+ * Banner
+ * Clean, elegant CLI header
  */
 
 import chalk from 'chalk';
 import figlet from 'figlet';
+import { readFileSync } from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+function getVersion() {
+    try {
+        const __dirname = dirname(fileURLToPath(import.meta.url));
+        const pkg = JSON.parse(readFileSync(join(__dirname, '../../package.json'), 'utf-8'));
+        return pkg.version || '1.0.0';
+    } catch {
+        return '1.0.0';
+    }
+}
 
 export async function showBanner() {
     return new Promise((resolve) => {
         figlet.text('repo-cloak', {
-            font: 'Standard',
+            font: 'Slant',
             horizontalLayout: 'default',
             verticalLayout: 'default'
         }, (err, data) => {
-            if (err) {
-                console.log(chalk.magentaBright.bold('\n🎭 repo-cloak\n'));
+            const version = getVersion();
+
+            if (err || !data) {
+                console.log('\n' + chalk.bold.white('  repo-cloak') + chalk.dim(`  v${version}\n`));
                 resolve();
                 return;
             }
 
-            // Create gradient effect
-            const lines = data.split('\n');
-            const colors = [
-                chalk.hex('#FF6B6B'),  // Coral
-                chalk.hex('#FF8E53'),  // Orange
-                chalk.hex('#FEC89A'),  // Peach
-                chalk.hex('#A8E6CF'),  // Mint
-                chalk.hex('#88D8B0'),  // Seafoam
-                chalk.hex('#7B68EE'),  // Medium Slate Blue
-                chalk.hex('#9D4EDD'),  // Purple
-            ];
-
-            console.log('\n');
-            lines.forEach((line, index) => {
-                const color = colors[index % colors.length];
-                console.log(color(line));
+            console.log('');
+            // Render the ASCII art in a single elegant dim-white color
+            data.split('\n').forEach(line => {
+                console.log(chalk.white.dim('  ' + line));
             });
 
-            // Tagline box
-            const tagline = '🎭 Selectively extract & anonymize repository files';
-            const version = 'v1.0.0';
-
             console.log('');
-            console.log(chalk.dim('─'.repeat(55)));
-            console.log(chalk.white.bold(`  ${tagline}`));
-            console.log(chalk.dim(`  Compatible with Windows, macOS, and Linux | ${version}`));
-            console.log(chalk.dim('─'.repeat(55)));
+            console.log(
+                chalk.dim('  Selectively extract & anonymize repository files') +
+                chalk.dim(`   v${version}`)
+            );
             console.log('');
 
             resolve();
@@ -54,17 +53,17 @@ export async function showBanner() {
 }
 
 export function showSuccess(message) {
-    console.log(chalk.green.bold(`\n✅ ${message}\n`));
+    console.log(chalk.green(`\n  ✓ ${message}\n`));
 }
 
 export function showError(message) {
-    console.log(chalk.red.bold(`\n❌ ${message}\n`));
+    console.log(chalk.red(`\n  ✗ ${message}\n`));
 }
 
 export function showWarning(message) {
-    console.log(chalk.yellow.bold(`\n⚠️  ${message}\n`));
+    console.log(chalk.yellow(`\n  ! ${message}\n`));
 }
 
 export function showInfo(message) {
-    console.log(chalk.cyan(`\nℹ️  ${message}\n`));
+    console.log(chalk.dim(`\n  ${message}\n`));
 }
