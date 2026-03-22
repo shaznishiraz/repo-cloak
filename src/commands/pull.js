@@ -10,7 +10,7 @@ import inquirer from 'inquirer';
 import { existsSync, writeFileSync } from 'fs';
 import { resolve, relative, join } from 'path';
 
-import { selectFiles } from '../ui/fileSelector.js';
+import { checkboxTreeSelectFilesOnly } from '../ui/treeCheckboxSelector.js';
 import {
     promptSourceDirectory,
     promptDestinationDirectory,
@@ -423,24 +423,32 @@ export async function pull(options = {}) {
                             .filter(f => existsSync(f));
 
                         if (validCommitFiles.length > 0) {
-                                const { pickedFiles } = await inquirer.prompt([
-                                    {
-                                        type: 'checkbox',
-                                        name: 'pickedFiles',
-                                        message: `Found ${validCommitFiles.length} files in commit ${commitHash} — uncheck any you want to skip:`,
-                                        choices: validCommitFiles.map(f => ({
-                                            name: relative(sourceDir, f),
-                                            value: f,
-                                            checked: true
-                                        }))
-                                    }
-                                ]);
-                                if (pickedFiles.length > 0) {
-                                    selectedFiles = pickedFiles;
-                                    useGitFiles = true;
-                                } else {
-                                    console.log(chalk.yellow('   No files selected.'));
+                            const allowedPaths = new Set(validCommitFiles);
+                            const allowedDirs = new Set();
+                            for (const file of validCommitFiles) {
+                                let dir = resolve(file, '..');
+                                while (dir && dir !== sourceDir && dir !== '/' && dir !== resolve(dir, '..')) {
+                                    allowedDirs.add(dir);
+                                    dir = resolve(dir, '..');
                                 }
+                            }
+                            allowedDirs.add(sourceDir);
+
+                            const pickedFiles = await checkboxTreeSelectFilesOnly({
+                                root: sourceDir,
+                                message: `Found ${validCommitFiles.length} files in commit ${commitHash} — uncheck any you want to skip:`,
+                                precheck: validCommitFiles,
+                                ignore: (fullPath, name) => {
+                                    return !(allowedPaths.has(fullPath) || allowedDirs.has(fullPath));
+                                }
+                            });
+
+                            if (pickedFiles.length > 0) {
+                                selectedFiles = pickedFiles;
+                                useGitFiles = true;
+                            } else {
+                                console.log(chalk.yellow('   No files selected.'));
+                            }
                         } else {
                             console.log(chalk.yellow(`   None of the files from the specified commit exist locally.`));
                         }
@@ -472,18 +480,26 @@ export async function pull(options = {}) {
                                 .filter(f => existsSync(f));
 
                             if (validCommitFiles.length > 0) {
-                                const { pickedFiles } = await inquirer.prompt([
-                                    {
-                                        type: 'checkbox',
-                                        name: 'pickedFiles',
-                                        message: `Found ${validCommitFiles.length} files across selected commits — uncheck any you want to skip:`,
-                                        choices: validCommitFiles.map(f => ({
-                                            name: relative(sourceDir, f),
-                                            value: f,
-                                            checked: true
-                                        }))
+                                const allowedPaths = new Set(validCommitFiles);
+                                const allowedDirs = new Set();
+                                for (const file of validCommitFiles) {
+                                    let dir = resolve(file, '..');
+                                    while (dir && dir !== sourceDir && dir !== '/' && dir !== resolve(dir, '..')) {
+                                        allowedDirs.add(dir);
+                                        dir = resolve(dir, '..');
                                     }
-                                ]);
+                                }
+                                allowedDirs.add(sourceDir);
+
+                                const pickedFiles = await checkboxTreeSelectFilesOnly({
+                                    root: sourceDir,
+                                    message: `Found ${validCommitFiles.length} files across selected commits — uncheck any you want to skip:`,
+                                    precheck: validCommitFiles,
+                                    ignore: (fullPath, name) => {
+                                        return !(allowedPaths.has(fullPath) || allowedDirs.has(fullPath));
+                                    }
+                                });
+
                                 if (pickedFiles.length > 0) {
                                     selectedFiles = pickedFiles;
                                     useGitFiles = true;
@@ -510,20 +526,27 @@ export async function pull(options = {}) {
                         if (validGitFiles.length > 0) {
                             console.log(chalk.green(`   Found ${validGitFiles.length} changed files.`));
 
-                            const { confirmGitFiles } = await inquirer.prompt([
-                                {
-                                    type: 'checkbox',
-                                    name: 'confirmGitFiles',
-                                    message: 'Which changed files do you want to extract? (space to deselect):', 
-                                    choices: validGitFiles.map(f => ({
-                                        name: relative(sourceDir, f),
-                                        value: f,
-                                        checked: true
-                                    }))
+                            const allowedPaths = new Set(validGitFiles);
+                            const allowedDirs = new Set();
+                            for (const file of validGitFiles) {
+                                let dir = resolve(file, '..');
+                                while (dir && dir !== sourceDir && dir !== '/' && dir !== resolve(dir, '..')) {
+                                    allowedDirs.add(dir);
+                                    dir = resolve(dir, '..');
                                 }
-                            ]);
+                            }
+                            allowedDirs.add(sourceDir);
 
-                            selectedFiles = confirmGitFiles;
+                            const pickedFiles = await checkboxTreeSelectFilesOnly({
+                                root: sourceDir,
+                                message: 'Which changed files do you want to extract? (space to deselect):',
+                                precheck: validGitFiles,
+                                ignore: (fullPath, name) => {
+                                    return !(allowedPaths.has(fullPath) || allowedDirs.has(fullPath));
+                                }
+                            });
+
+                            selectedFiles = pickedFiles;
                             useGitFiles = true;
                         }
                     }
@@ -532,7 +555,7 @@ export async function pull(options = {}) {
         }
 
         if (!options.force && (!useGitFiles || selectedFiles.length === 0)) {
-            selectedFiles = await selectFiles(sourceDir);
+            selectedFiles = await checkboxTreeSelectFilesOnly({ root: sourceDir });
         }
 
         if (selectedFiles.length === 0) {

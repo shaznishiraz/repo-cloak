@@ -10,6 +10,7 @@ import { resolve, isAbsolute } from 'path';
 import { getSourcePaths, getDestPaths, addSourcePath, addDestPath } from '../core/path-cache.js';
 
 const ENTER_DIFFERENT = '__ENTER_DIFFERENT__';
+import { checkboxTreeSelectSingleDir } from './treeCheckboxSelector.js';
 
 /**
  * Build a list prompt with cached paths + "Enter a different path" option.
@@ -18,17 +19,24 @@ const ENTER_DIFFERENT = '__ENTER_DIFFERENT__';
  * @param {string}   opts.message        - Question shown to the user
  * @param {string}   opts.inputMessage   - Follow-up message when they pick "Enter a different path"
  * @param {string[]} opts.cachedPaths    - Decrypted cached paths to show
- * @param {(path: string) => string|true} opts.validate - Validator for the final resolved path
+ * @param {(path: string) => string|true} opts.validate - Validator for final resolved path
+ * @param {string}   [opts.defaultValue] - Default path
+ * @param {boolean}  [opts.allowNewSubfolder] - Ask to append a subfolder after selection
  * @returns {Promise<string>} Resolved absolute path
  */
-async function promptWithCache({ message, cachedPaths, validate }) {
+async function promptWithCache({ message, cachedPaths, validate, defaultValue, allowNewSubfolder }) {
+    // Build the displayed message — append a dim default hint if one is provided
+    const displayMessage = defaultValue
+        ? `${message} ${chalk.dim(`(press Enter to use current folder: ${defaultValue})`)}`
+        : message;
+
     // With cached paths → show a quick-pick list with the question as its header
     if (cachedPaths.length > 0) {
         const { selected } = await inquirer.prompt([
             {
                 type: 'list',
                 name: 'selected',
-                message,
+                message: displayMessage,
                 choices: [
                     ...cachedPaths.map(p => ({ name: p, value: p })),
                     new inquirer.Separator(),
@@ -38,7 +46,19 @@ async function promptWithCache({ message, cachedPaths, validate }) {
         ]);
 
         if (selected !== ENTER_DIFFERENT) {
-            const resolved = resolve(selected);
+            let resolved = resolve(selected);
+
+            if (allowNewSubfolder) {
+                const { subfolder } = await inquirer.prompt([{
+                    type: 'input',
+                    name: 'subfolder',
+                    message: `Subfolder to create inside ${chalk.cyan(resolved)}? (press Enter to use current folder)`
+                }]);
+                if (subfolder.trim()) {
+                    resolved = resolve(resolved, subfolder.trim());
+                }
+            }
+
             const result = validate(resolved);
             if (result !== true) {
                 console.log(chalk.yellow(`   ⚠  ${result}`));
@@ -48,20 +68,40 @@ async function promptWithCache({ message, cachedPaths, validate }) {
         }
     }
 
-    // No cache (or user chose "Enter a different path") → single clean input line
-    const { manualPath } = await inquirer.prompt([
-        {
-            type: 'input',
-            name: 'manualPath',
-            message,                          // same question, no duplication
-            validate: (input) => {
-                if (!input.trim()) return 'Please enter a path.';
-                return validate(resolve(input.trim()));
-            }
-        }
-    ]);
+    // No cache (or user chose "Enter a different path") → use hierarchical tree selector
+    console.log(chalk.dim('   (Use arrow keys to navigate, Space to expand/collapse, Enter to select)'));
+    let basePath = await checkboxTreeSelectSingleDir({
+        message: displayMessage,
+        root: process.cwd()
+    });
 
-    return resolve(manualPath.trim());
+    if (allowNewSubfolder) {
+        const { subfolder } = await inquirer.prompt([{
+            type: 'input',
+            name: 'subfolder',
+            message: `Subfolder to create inside ${chalk.cyan(basePath)}? (press Enter to use current folder)`
+        }]);
+        if (subfolder.trim()) {
+            basePath = resolve(basePath, subfolder.trim());
+        }
+    }
+
+    let finalPath = resolve(basePath);
+    // Loop until we get a path that passes validation
+    while (true) {
+        const result = validate(finalPath);
+        if (result === true) break;
+        console.log(chalk.yellow(`   ⚠  ${result}`));
+        
+        const { retry } = await inquirer.prompt([{
+            type: 'input',
+            name: 'retry',
+            message: 'Please type a valid absolute path:'
+        }]);
+        finalPath = resolve(retry.trim());
+    }
+
+    return finalPath;
 }
 
 /**
@@ -97,6 +137,8 @@ export async function promptDestinationDirectory() {
 
     const path = await promptWithCache({
         message:      'Where should the cloaked (anonymized) files be saved?',
+        defaultValue: process.cwd(),
+        allowNewSubfolder: true,
         cachedPaths,
         validate: (resolved) => {
             if (!resolved.trim()) return 'Please enter a destination path.';
