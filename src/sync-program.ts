@@ -31,6 +31,10 @@ export function addSyncCommands(program: Command, version: string, load?: LoadSy
       .option('--from <workspace>', 'workspace id, name, or path to restore (source only)')
       .option('--force', 'overwrite source conflicts')
       .option('--skip-conflicts', 'restore files without source conflicts');
+    command
+      .option('--new-worktree <branch>', 'create a restore target on a new branch (workspace only)')
+      .option('--base <ref>', 'base commit for --new-worktree (default: extracted commit)')
+      .option('--path <directory>', 'destination directory for --new-worktree');
     command.action(async () => {
       const flags = command.optsWithGlobals<{
         profile: string[];
@@ -45,6 +49,9 @@ export function addSyncCommands(program: Command, version: string, load?: LoadSy
         from?: string;
         force?: boolean;
         skipConflicts?: boolean;
+        newWorktree?: string;
+        base?: string;
+        path?: string;
       }>();
       const options: PullOptions = {
         profiles: flags.profile,
@@ -59,6 +66,9 @@ export function addSyncCommands(program: Command, version: string, load?: LoadSy
       if (flags.from) options.from = flags.from;
       if (flags.force) options.force = true;
       if (flags.skipConflicts) options.skipConflicts = true;
+      if (flags.newWorktree) options.newWorktree = flags.newWorktree;
+      if (flags.base) options.base = flags.base;
+      if (flags.path) options.path = flags.path;
       const run = load ? await load() : createSyncCommand(createSyncServices(), version);
       const result = await run(direction, options);
       const write =

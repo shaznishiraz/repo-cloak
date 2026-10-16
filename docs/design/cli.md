@@ -119,9 +119,25 @@ repo-cloak pull --yes
 Without `--skip-conflicts` or `--force`, any conflict stops the restore and
 nothing is written.
 
-Restoring into existing worktrees is implemented. The draft `--new-worktree`,
-`--base` and `--path` options are not implemented yet; create the worktree with
-Git first and pass `--worktree`. Restore uses the rules saved in the manifest,
+Restore supports existing worktrees and `--new-worktree <branch>`. New targets
+use the extracted commit unless `--base` overrides it. `--path` supplies the
+destination; otherwise a portable sibling folder is suggested, or a folder
+under the configured `worktreePath` parent. New destinations must not exist.
+Dry runs and cancellation create neither branches nor directories. New targets
+receive every tracked workspace file, including unchanged files whose original
+working changes were never committed. The new branch becomes the remembered
+target for subsequent restores and refreshes. Checkout hooks are disabled.
+`--base` and `--path` require `--new-worktree`, which is workspace-only and
+cannot combine with `--worktree`.
+
+```bash
+# In a cloak workspace:
+repo-cloak push --new-worktree feature/review --dry-run
+repo-cloak push --new-worktree feature/review --path ../review --yes
+repo-cloak push --new-worktree feature/alternate --base main --yes
+```
+
+Restore uses the rules saved in the manifest,
 leaves source changes uncommitted, and updates successful files' baselines.
 Skipped conflicts retain their old baselines. Deletions appear in the
 confirmation; `--yes` accepts them. `--force` and `--skip-conflicts` are mutually

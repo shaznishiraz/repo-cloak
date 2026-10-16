@@ -8,12 +8,19 @@ import { sourceForWorkspace } from './pull-source.js';
 import type { PullOptions } from './pull-setup.js';
 import { listWorkspaces } from './workspaces.js';
 import type { RepoState } from '../core/pull.js';
+import { prepareNewWorktree } from './push-worktree.js';
 
 export async function runPush(
   services: SyncServices,
   options: PullOptions,
   currentWorkspace?: string,
 ) {
+  if ((options.base || options.path) && !options.newWorktree)
+    throw new Error('--base and --path require --new-worktree');
+  if (options.newWorktree && options.worktree)
+    throw new Error('--new-worktree and --worktree cannot be combined');
+  if (options.newWorktree && !currentWorkspace)
+    throw new Error('--new-worktree is only valid in a cloak workspace');
   if (
     options.to ||
     options.profiles?.length ||
@@ -59,7 +66,12 @@ export async function runPush(
   workspace = await services.files.canonicalPath(workspace);
   const previous = await services.store.readSnapshot(workspace);
   if (!previous) throw new Error('The selected directory is not a repo-cloak workspace');
-  if (!sourceRepo && !options.worktree && previous.data.target.branch === null)
+  if (
+    !sourceRepo &&
+    !options.worktree &&
+    !options.newWorktree &&
+    previous.data.target.branch === null
+  )
     throw new Error('This workspace has no target branch; specify --worktree <path>');
   const repo = sourceRepo ?? (await sourceForWorkspace(services, previous, options));
   if (repo.repoId !== previous.plain.source.repoId)
@@ -72,6 +84,12 @@ export async function runPush(
   if (!options.yes && !options.dryRun && !services.interactive)
     throw new Error('Pass --yes to restore without an interactive terminal, or use --dry-run');
   const config = await services.store.readConfig();
+  const newTree = options.newWorktree
+    ? await prepareNewWorktree(services, repo, previous, workspace, options, config)
+    : undefined;
+  const target = newTree
+    ? { ...repo, path: newTree.path, branch: newTree.branch, commit: newTree.base }
+    : repo;
   const concurrency = config.concurrency ?? 16;
   const inventory = await services.files.readWorkspace(workspace, [], concurrency);
   const tracked = Object.keys(previous.plain.files);
@@ -101,11 +119,21 @@ export async function runPush(
     ]),
   ];
   // Refuse symlinks even when they would otherwise resolve inside the source.
-  for (const path of paths) await services.files.checkSourceDestination(repo.path, path);
-  const source = await services.files.readSourceFiles(repo.path, paths, concurrency);
+  if (!newTree)
+    for (const path of paths) await services.files.checkSourceDestination(repo.path, path);
+  const commitSource = newTree
+    ? await services.worktree.readCommit(repo.path, newTree.base, paths, concurrency)
+    : undefined;
+  const source =
+    commitSource ?? (await services.files.readSourceFiles(repo.path, paths, concurrency));
   if (source.warnings.length) throw new Error(source.warnings.join('\n'));
-  const plan = planPush(previous, current.files, source.files, options);
-  const sourceInventory = await services.files.readWorkspace(repo.path, [], concurrency);
+  const plan = planPush(previous, current.files, source.files, {
+    ...options,
+    fullSnapshot: Boolean(newTree),
+  });
+  const sourceInventory = commitSource
+    ? { paths: commitSource.paths }
+    : await services.files.readWorkspace(repo.path, [], concurrency);
   const outputs = new Set(plan.writes.map((file) => file.path));
   const deleted = new Set(plan.deletes);
   checkPathCollisions(
@@ -116,19 +144,36 @@ export async function runPush(
   );
   plan.data = {
     ...plan.data,
-    source: { ...plan.data.source, path: repo.path, commonDir: repo.commonDir },
-    target: { ...plan.data.target, branch: repo.branch },
+    source: { ...plan.data.source, path: target.path, commonDir: target.commonDir },
+    target: { ...plan.data.target, branch: target.branch },
   };
+  if (newTree) {
+    plan.warnings.push(
+      `New worktree: ${newTree.path} (${newTree.branch}, base ${newTree.base.slice(0, 12)})`,
+    );
+    if (previous.data.origin.dirty)
+      plan.warnings.push(
+        'The full workspace snapshot includes the uncommitted source changes captured during extraction',
+      );
+  }
   let status: 'dry-run' | 'cancelled' | 'written' = options.dryRun ? 'dry-run' : 'written';
   if (!options.dryRun && !options.yes && !(await services.confirmPush(plan))) status = 'cancelled';
   if (status === 'written') {
     const manifest = await services.store.sealManifest(plan);
     await services.writeSource({
-      root: repo.path,
+      root: target.path,
       commonDir: repo.commonDir ?? repo.path,
       workspace,
       plan,
       manifest,
+      ...(newTree
+        ? {
+            prepare: () =>
+              services.worktree.create(repo.path, newTree.path, newTree.branch, newTree.base),
+            rollback: () =>
+              services.worktree.remove(repo.path, newTree.path, newTree.branch, newTree.base),
+          }
+        : {}),
       async recheck() {
         const snapshot = await services.store.readSnapshot(workspace);
         if (!snapshot || hashBytes(snapshot.bytes) !== hashBytes(previous.bytes))
@@ -140,6 +185,12 @@ export async function runPush(
         );
         if (hashJson(check) !== hashJson(workspaceBytes))
           throw new Error('Workspace files changed while preparing restore; retry');
+        if (newTree) {
+          await newTree.validate();
+          if ((await services.git.repoState(repo.path)).repoId !== repo.repoId)
+            throw new Error('Source repository changed while preparing restore; retry');
+          return;
+        }
         for (const path of paths) await services.files.checkSourceDestination(repo.path, path);
         const checkSource = await services.files.readSourceFiles(repo.path, paths, concurrency);
         if (hashJson(checkSource) !== hashJson(source))
@@ -157,7 +208,7 @@ export async function runPush(
         )
           throw new Error('Source worktree changed while preparing restore; retry');
       },
-      afterSave: () => services.store.record(repo, workspace, plan, manifest, services.now()),
+      afterSave: () => services.store.record(target, workspace, plan, manifest, services.now()),
     });
   }
   return {

@@ -22,6 +22,9 @@ export type PullOptions = {
   skipConflicts?: boolean;
   newWorkspace?: boolean;
   includeTracked?: boolean;
+  newWorktree?: string;
+  base?: string;
+  path?: string;
 };
 
 export async function preparePull(

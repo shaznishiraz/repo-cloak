@@ -11,9 +11,16 @@ export function createSyncCommand(services: SyncServices, version: string) {
     const workspace = await services.store.findWorkspace(services.cwd);
     if ((direction === 'push' && workspace) || (direction === 'pull' && !workspace))
       return runPush(services, options, workspace);
-    if (options.from || options.force || options.skipConflicts)
+    if (
+      options.from ||
+      options.force ||
+      options.skipConflicts ||
+      options.newWorktree ||
+      options.base ||
+      options.path
+    )
       throw new Error(
-        '--from, --force and --skip-conflicts apply only when restoring workspace changes',
+        '--from, conflict and new-worktree flags apply only when restoring workspace changes',
       );
     const setup = await preparePull(services, direction, options);
     if (!options.yes && !options.dryRun && !services.interactive)

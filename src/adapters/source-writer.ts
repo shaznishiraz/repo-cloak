@@ -14,6 +14,8 @@ export type SourceWrite = {
   manifest: Uint8Array;
   recheck(): Promise<void>;
   afterSave(): Promise<void>;
+  prepare?(): Promise<void>;
+  rollback?(): Promise<void>;
 };
 
 /** Source changes and the workspace baseline roll back together on an ordinary I/O failure. */
@@ -25,9 +27,14 @@ export function createSourceWriter(write = writeAtomic) {
     const created = new Set<string>();
     let started = false;
     let completed = false;
+    let prepared = false;
     try {
       releaseSource = await lock(request.commonDir, { retries: 0 });
       await request.recheck();
+      if (request.prepare) {
+        await request.prepare();
+        prepared = true;
+      }
       const manifestPath = join(request.workspace, '.repo-cloak', 'manifest.json');
       const outputs = request.plan.writes.map((file) => ({
         ...file,
@@ -77,8 +84,8 @@ export function createSourceWriter(write = writeAtomic) {
           'Source files and workspace baseline were saved, but updating the local store failed; retry to repair its record',
           { cause: error },
         );
+      const failures: unknown[] = [];
       if (started) {
-        const failures: unknown[] = [];
         for (const [target, previous] of backups) {
           try {
             if (previous) {
@@ -89,22 +96,29 @@ export function createSourceWriter(write = writeAtomic) {
             failures.push(failure);
           }
         }
-        if (failures.length) {
-          const recovery = await mkdtemp(join(tmpdir(), 'repo-cloak-recovery-'));
-          if (process.platform !== 'win32') await chmod(recovery, 0o700);
-          const index: { target: string; backup: string | null; mode: number | undefined }[] = [];
-          for (const [target, previous] of backups) {
-            const name = `file-${index.length}`;
-            if (previous) await writeAtomic(join(recovery, name), previous.bytes);
-            index.push({ target, backup: previous ? name : null, mode: previous?.mode });
-          }
-          await writeAtomic(join(recovery, 'index.json'), JSON.stringify(index, null, 2));
-          throw new AggregateError(
-            [error, ...failures],
-            `Restore rollback failed; recovery copies remain in ${recovery}`,
-            { cause: error },
-          );
+      }
+      if (prepared && !failures.length) {
+        try {
+          await request.rollback?.();
+        } catch (failure) {
+          failures.push(failure);
         }
+      }
+      if (failures.length) {
+        const recovery = await mkdtemp(join(tmpdir(), 'repo-cloak-recovery-'));
+        if (process.platform !== 'win32') await chmod(recovery, 0o700);
+        const index: { target: string; backup: string | null; mode: number | undefined }[] = [];
+        for (const [target, previous] of backups) {
+          const name = `file-${index.length}`;
+          if (previous) await writeAtomic(join(recovery, name), previous.bytes);
+          index.push({ target, backup: previous ? name : null, mode: previous?.mode });
+        }
+        await writeAtomic(join(recovery, 'index.json'), JSON.stringify(index, null, 2));
+        throw new AggregateError(
+          [error, ...failures],
+          `Restore rollback failed; recovery copies remain in ${recovery}`,
+          { cause: error },
+        );
       }
       throw error;
     } finally {

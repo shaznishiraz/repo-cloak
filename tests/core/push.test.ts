@@ -87,3 +87,25 @@ it('leaves conflicted baselines intact when skipping a source conflict', () => {
   expect(plan.plain.files).toEqual(previous.plain.files);
   expect(plan.data.files).toEqual(previous.data.files);
 });
+
+it('restores unchanged tracked files into a new target when its base differs', () => {
+  const previous = snapshot();
+  const workspace = [file('Northwind.txt', 'Northwind')];
+  const source = [file('Acme.txt', 'older base')];
+  expect(planPush(previous, workspace, source).writes).toEqual([]);
+  const plan = planPush(previous, workspace, source, { fullSnapshot: true });
+  expect(plan.writes.map((write) => [write.path, Buffer.from(write.bytes).toString()])).toEqual([
+    ['Acme.txt', 'Acme'],
+  ]);
+});
+it('still protects unrelated base files from new agent files when restoring a full snapshot', () => {
+  const previous = snapshot();
+  expect(() =>
+    planPush(
+      previous,
+      [file('Northwind.txt', 'Northwind'), file('new.txt', 'agent')],
+      [file('Acme.txt', 'Acme'), file('new.txt', 'base')],
+      { fullSnapshot: true },
+    ),
+  ).toThrow(/new.txt/);
+});

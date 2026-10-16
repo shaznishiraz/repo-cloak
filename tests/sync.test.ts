@@ -457,3 +457,173 @@ it('refuses new restore files inside nested source repositories', async () => {
   await expect(restore('push', { yes: true })).rejects.toThrow('nested repository');
   await expect(readFile(join(source, 'nested', 'new.txt'))).rejects.toThrow();
 });
+
+it('dry-runs a new worktree without creating its branch or directory, then restores the full workspace', async () => {
+  const { root, source, destination, services, store, push, options } = await fixture();
+  await writeFile(join(source, 'committed.txt'), 'base');
+  await runGit(source, ['add', '--', 'committed.txt']);
+  await runGit(source, [
+    '-c',
+    'user.name=Test',
+    '-c',
+    'user.email=test@example.com',
+    'commit',
+    '-m',
+    'base',
+  ]);
+  await push('push', options); // Acme.ts is uncommitted, so it is absent from the base.
+  const target = join(root, 'new feature');
+  const restore = createSyncCommand(createSyncServices(destination, store), '2.0.0');
+  const manifest = await readFile(join(destination, '.repo-cloak', 'manifest.json'));
+  const request = { newWorktree: 'feature/new', path: target, yes: true };
+  const preview = await restore('push', { ...request, dryRun: true });
+  expect(preview.writes).toContain('src/Acme.ts');
+  await expect(readdir(target)).rejects.toThrow();
+  expect((await runGit(source, ['branch', '--list', 'feature/new'])).trim()).toBe('');
+  expect(await readFile(join(destination, '.repo-cloak', 'manifest.json'))).toEqual(manifest);
+  await restore('push', request);
+  expect(await readFile(join(target, 'src', 'Acme.ts'), 'utf8')).toBe(
+    '\uFEFFexport class Acme {}\r\n',
+  );
+  expect((await runGit(target, ['branch', '--show-current'])).trim()).toBe('feature/new');
+  expect((await runGit(source, ['branch', '--show-current'])).trim()).toBe('main');
+  expect((await services.store.readSnapshot(destination))?.data.target.branch).toBe('feature/new');
+  await writeFile(join(destination, 'src', 'Northwind.ts'), 'class Northwind { next = true }');
+  await restore('push', { yes: true });
+  expect(await readFile(join(target, 'src', 'Acme.ts'), 'utf8')).toBe('class Acme { next = true }');
+  expect(await readFile(join(source, 'src', 'Acme.ts'), 'utf8')).toContain('export class Acme {}');
+});
+
+async function worktreeFixture() {
+  const setup = await fixture();
+  await runGit(setup.source, ['add', '--', 'src']);
+  await runGit(setup.source, [
+    '-c',
+    'user.name=Test',
+    '-c',
+    'user.email=test@example.com',
+    'commit',
+    '-m',
+    'source',
+  ]);
+  await setup.push('push', setup.options);
+  const restoreServices = createSyncServices(setup.destination, setup.store);
+  restoreServices.interactive = false;
+  return { ...setup, restoreServices, restore: createSyncCommand(restoreServices, '2.0.0') };
+}
+
+it('defaults a new worktree to the extracted commit even after the source branch advances', async () => {
+  const { root, source, destination, restore } = await worktreeFixture();
+  const extracted = (await runGit(source, ['rev-parse', 'HEAD'])).trim();
+  await writeFile(join(source, 'later.txt'), 'later commit');
+  await runGit(source, ['add', '--', 'later.txt']);
+  await runGit(source, [
+    '-c',
+    'user.name=Test',
+    '-c',
+    'user.email=test@example.com',
+    'commit',
+    '-m',
+    'later',
+  ]);
+  await writeFile(join(destination, 'src', 'Northwind.ts'), 'class Northwind { edited = true }');
+  const target = join(root, 'acme-source-feature-default');
+  await restore('push', { newWorktree: 'feature/default', yes: true });
+  expect((await runGit(target, ['rev-parse', 'HEAD'])).trim()).toBe(extracted);
+  await expect(readFile(join(target, 'later.txt'))).rejects.toThrow();
+  expect(await readFile(join(target, 'src', 'Acme.ts'), 'utf8')).toBe(
+    'class Acme { edited = true }',
+  );
+});
+
+it('supports an explicit base and configured worktree parent through the CLI parser', async () => {
+  const { root, source, destination, restoreServices } = await worktreeFixture();
+  await writeFile(join(source, 'later.txt'), 'later');
+  await runGit(source, ['add', '--', 'later.txt']);
+  await runGit(source, [
+    '-c',
+    'user.name=Test',
+    '-c',
+    'user.email=test@example.com',
+    'commit',
+    '-m',
+    'later',
+  ]);
+  const base = (await runGit(source, ['rev-parse', 'HEAD'])).trim();
+  const parent = join(root, 'worktrees');
+  await restoreServices.store.saveConfig({
+    kind: 'config',
+    schemaVersion: 1,
+    initGit: false,
+    worktreePath: parent,
+  });
+  const { createProgram } = await import('../src/program.js');
+  let output = '';
+  await createProgram(undefined, async () => createSyncCommand(restoreServices, '2.0.0'))
+    .configureOutput({
+      writeOut: (text) => {
+        output += text;
+      },
+    })
+    .parseAsync(['push', '--new-worktree', 'feature/custom', '--base', base, '--yes', '--json'], {
+      from: 'user',
+    });
+  expect(JSON.parse(output).status).toBe('written');
+  const target = join(parent, 'acme-source-feature-custom');
+  expect(await readFile(join(target, 'later.txt'), 'utf8')).toBe('later');
+  expect((await runGit(target, ['rev-parse', 'HEAD'])).trim()).toBe(base);
+  expect(await readFile(join(destination, 'src', 'Northwind.ts'), 'utf8')).toContain('Northwind');
+});
+
+it('removes the new worktree and branch after a manifest write failure', async () => {
+  const { root, source, destination, restoreServices } = await worktreeFixture();
+  const { createSourceWriter } = await import('../src/adapters/source-writer.js');
+  const { writeAtomic } = await import('../src/adapters/atomic.js');
+  await writeFile(join(destination, 'src', 'Northwind.ts'), 'class Northwind { edited = true }');
+  const manifest = await readFile(join(destination, '.repo-cloak', 'manifest.json'));
+  const target = join(root, 'failed-target');
+  restoreServices.writeSource = createSourceWriter(async (path, bytes) => {
+    if (path.endsWith('manifest.json')) throw new Error('Simulated new target failure');
+    await writeAtomic(path, bytes);
+  });
+  await expect(
+    createSyncCommand(restoreServices, '2.0.0')('push', {
+      newWorktree: 'feature/failed',
+      path: target,
+      yes: true,
+    }),
+  ).rejects.toThrow('Simulated');
+  await expect(readdir(target)).rejects.toThrow();
+  expect((await runGit(source, ['branch', '--list', 'feature/failed'])).trim()).toBe('');
+  expect((await runGit(source, ['worktree', 'list', '--porcelain'])).includes(target)).toBe(false);
+  expect(await readFile(join(destination, '.repo-cloak', 'manifest.json'))).toEqual(manifest);
+});
+
+it('cancels new worktree creation and rejects unsafe or contradictory options before writing', async () => {
+  const { root, source, destination, restoreServices, restore } = await worktreeFixture();
+  const target = join(root, 'cancelled');
+  restoreServices.interactive = true;
+  restoreServices.confirmPush = async () => false;
+  expect((await restore('push', { newWorktree: 'feature/cancelled', path: target })).status).toBe(
+    'cancelled',
+  );
+  await expect(readdir(target)).rejects.toThrow();
+  await expect(restore('push', { base: 'HEAD', yes: true })).rejects.toThrow(
+    'require --new-worktree',
+  );
+  await expect(restore('push', { path: target, yes: true })).rejects.toThrow(
+    'require --new-worktree',
+  );
+  await expect(restore('push', { newWorktree: 'main', path: target, yes: true })).rejects.toThrow(
+    'already exists',
+  );
+  await expect(
+    restore('push', { newWorktree: 'feature/new', path: destination, yes: true }),
+  ).rejects.toThrow(/must not exist|separate/);
+  await expect(
+    restore('push', { newWorktree: 'feature/new', path: join(source, 'nested'), yes: true }),
+  ).rejects.toThrow('separate');
+  await expect(
+    restore('push', { newWorktree: 'feature/new', worktree: source, yes: true }),
+  ).rejects.toThrow('cannot be combined');
+});
