@@ -65,7 +65,7 @@ Plain JSON; nothing in it is sensitive.
   "kind": "config",
   "schemaVersion": 1,
   "workspacesRoot": "/Users/me/cloak",
-  "worktreePath": "{repoParent}/{repoName}-{branch}",
+  "worktreePath": "/Users/me/worktrees",
   "initGit": true,
   "concurrency": 16,
   "extensions": {}
