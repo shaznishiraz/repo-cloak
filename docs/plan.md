@@ -152,6 +152,7 @@ Design: [overview.md](design/overview.md) (push), [cli.md](design/cli.md)
 - [x] Push from the source repo with `--from` or a prompt
 - [x] `--skip-conflicts`, `--force`, `--dry-run`, `--yes`; exit code 2 on conflicts
 - [x] `repo-cloak workspaces`
+- [x] Restore into a new worktree with `--new-worktree`, `--base`, and `--path`
 
 **Acceptance**
 
@@ -161,11 +162,15 @@ Design: [overview.md](design/overview.md) (push), [cli.md](design/cli.md)
 - **WHEN** a new file is created in the workspace **THEN** push creates it at the restored path.
 - **WHEN** a file is deleted in the workspace **THEN** push asks before deleting it in the source.
 - **WHEN** push runs in a source repo with two linked workspaces **THEN** it asks which one.
+- **WHEN** a new worktree is requested **THEN** its base defaults to the extracted commit, and all tracked workspace files are restored.
+- **WHEN** a new-worktree restore is dry-run or cancelled **THEN** no worktree or branch is created.
+- **WHEN** a new-worktree restore fails during a file or manifest write **THEN** files and manifest are rolled back and the new worktree and unchanged branch are removed.
+- **WHEN** `--base` and `--path` are supplied **THEN** the new target uses that commit and directory.
 
 **Milestone documentation:** OpenWiki regeneration has the same credential
 limitation recorded under step 4; generated pages remain untouched.
-Restore supports existing worktrees. Creating a new worktree through the draft
-`--new-worktree` flags remains follow-up work before release.
+Restore supports existing and newly created worktrees. New-worktree planning
+reads commit data directly and leaves the source worktree unchanged.
 
 ## Step 6. Interactive mode
 

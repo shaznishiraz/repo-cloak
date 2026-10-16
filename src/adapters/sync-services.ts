@@ -5,6 +5,7 @@ import type { SavedProfile } from '../core/profiles.js';
 import type { PullPlan } from '../core/pull.js';
 import * as files from './files.js';
 import * as git from './git.js';
+import * as worktree from './worktree.js';
 import { createProfileStore } from './profiles.js';
 import { createStore } from './store.js';
 import { createSyncStore } from './sync-store.js';
@@ -19,6 +20,7 @@ export function createSyncServices(cwd = process.cwd(), store = createStore()) {
     profiles: createProfileStore(store),
     files,
     git,
+    worktree,
     writeWorkspace: createWorkspaceWriter(),
     writeSource: createSourceWriter(),
     interactive: Boolean(process.stdin.isTTY && process.stdout.isTTY),
@@ -67,6 +69,7 @@ export function createSyncServices(cwd = process.cwd(), store = createStore()) {
       return confirm({ message: 'Apply this pull?', default: true });
     },
     async confirmPush(plan: PushPlan): Promise<boolean> {
+      for (const warning of plan.warnings) process.stderr.write(`${warning}\n`);
       process.stderr.write(
         `${plan.writes.length} files to write, ${plan.deletes.length} files to delete in the source\n`,
       );

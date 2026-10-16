@@ -26,7 +26,11 @@ export async function sourceForWorkspace(
     if (!first) throw new Error('The source worktree moved; specify --worktree <path>');
     const trees = await services.git.worktrees(first);
     const branch = previous.data.target.branch ?? previous.data.origin.branch;
-    const target = branch ? trees.find((tree) => tree.branch === branch)?.path : first;
+    const target = options.newWorktree
+      ? trees[0]?.path
+      : branch
+        ? trees.find((tree) => tree.branch === branch)?.path
+        : first;
     if (!target) throw new Error('The source branch is not checked out; specify --worktree <path>');
     path = target;
   }

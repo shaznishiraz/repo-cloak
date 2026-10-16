@@ -170,8 +170,9 @@ Interactive mode asks the same question as a list:
   and the new branch match exactly.
 - Default path: `<repo-parent>/<repo-name>-<branch>` (for example
   `/work/acme-platform-feature-x`), configurable in `config.json`.
-- A brand-new worktree cannot have conflicts, so the conflict check is
-  skipped for it.
+- Tracked workspace files replace their base versions in a new worktree.
+  New agent files are still checked against unrelated base files so they
+  cannot silently overwrite them.
 - If the pull included **uncommitted** working changes (`dirty: true`), those
   are not in the new branch. Push writes the full workspace version of every
   pulled file, so they arrive with the agent's edits, and the summary says so.
@@ -282,11 +283,9 @@ type Side = 'workspace' | 'source';
 
 1. Resolved: several workspaces without a unique branch link require
    `--from` / `--to` under `--yes`.
-2. Default path for new worktrees: sibling folder `<repo>-<branch>` as above,
-   or a shared folder such as `<repo-parent>/<repo>.worktrees/<branch>`?
-3. When pushing to a new worktree, should repo-cloak also commit the changes
-   on the new branch, or leave them uncommitted for review? (Draft: leave
-   uncommitted.)
+2. Resolved: default to a sibling `<repo>-<branch>` folder, replacing branch
+   slashes with hyphens. `worktreePath` overrides the parent directory.
+3. Resolved: leave restored source changes uncommitted for review.
 
 ## Extraction implementation (step 4)
 
@@ -367,3 +366,38 @@ roll back source bytes, modes and the workspace manifest. A process or power
 failure is not a multi-file transaction. Rollback failures preserve recovery
 copies in a private temporary directory outside the workspace. A private-store
 failure after saving is reported without undoing the successfully restored files.
+
+## Creating a restore target
+
+```
+--new-worktree branch [--base ref] [--path directory]
+  -> validate new branch and separate, nonexistent destination
+  -> resolve base to a commit (default: origin.commit)
+  -> read selected blobs and path inventory directly from that commit
+  -> restore every tracked workspace file, including unchanged files
+  -> dry-run: return plan without creating directories, refs or worktrees
+  -> confirm -> lock workspace + common Git directory -> recheck
+  -> create branch ref atomically -> git worktree add
+  -> write restored files + manifest -> remember target
+```
+
+`--new-worktree` is workspace-only and cannot combine with `--worktree`.
+`--base` and `--path` require it. The default directory is a sibling named
+`<source-repo>-<branch-with-slashes-replaced-by-hyphens>`. `worktreePath`, when
+set in the machine config, is the parent directory for these default folders.
+Names must be portable to all supported operating systems; pass `--path` if
+a branch name cannot form a portable default. A destination must not exist or
+sit inside any Git repository or cloak workspace. Branches must be new.
+
+The base is resolved once to an immutable commit. Tracked files are copied in
+full because captured working changes may not exist in that commit. Files
+newly added by the agent still conflict if they would overwrite an unrelated
+base file, unless `--force` was explicitly given. Source worktrees are not
+modified. Worktree creation disables checkout hooks. Successful changes stay
+uncommitted. Subsequent restore and refresh operations find the remembered
+branch through Git's worktree registry.
+
+Ordinary failures roll files and the manifest back, then remove the newly
+created worktree and its still-unmodified branch. Cleanup never force-removes
+an edited worktree or deletes a branch whose commit moved. If saving the private
+record fails after the restore succeeded, the new target remains in place.

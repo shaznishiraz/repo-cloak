@@ -6,7 +6,7 @@ import { checkPathCollisions, restorePaths } from './paths.js';
 import { createReplacer } from './replacer.js';
 import type { PreviewMatch } from './ledger.js';
 
-export type PushOptions = { force?: boolean; skipConflicts?: boolean };
+export type PushOptions = { force?: boolean; skipConflicts?: boolean; fullSnapshot?: boolean };
 
 /** Restore a complete snapshot in memory before any source file can be touched. */
 export function planPush(
@@ -44,7 +44,8 @@ export function planPush(
     const baseline = Object.hasOwn(previous.plain.files, path)
       ? previous.plain.files[path]
       : undefined;
-    if (file?.bytes && baseline && hashBytes(file.bytes) === baseline.hash) continue;
+    if (!options.fullSnapshot && file?.bytes && baseline && hashBytes(file.bytes) === baseline.hash)
+      continue;
     if (!file && !baseline) continue;
     const target = sources.get(original);
     const old = Object.hasOwn(previous.data.files, path) ? previous.data.files[path] : undefined;
@@ -63,11 +64,14 @@ export function planPush(
         preview.push(...result.preview);
       }
     }
-    const sourceChanged = old
-      ? target?.bytes === undefined ||
-        hashBytes(target.bytes) !== old.sourceHash ||
-        target.executable !== (old.executable ?? false)
-      : target?.bytes !== undefined;
+    const sourceChanged =
+      options.fullSnapshot && old
+        ? false
+        : old
+          ? target?.bytes === undefined ||
+            hashBytes(target.bytes) !== old.sourceHash ||
+            target.executable !== (old.executable ?? false)
+          : target?.bytes !== undefined;
     const executable = old?.executable ?? file?.executable ?? false;
     const alreadyApplied =
       bytes === undefined

@@ -45,9 +45,12 @@ export async function findRepo(cwd: string) {
 }
 
 export async function runGit(cwd: string, args: string[]): Promise<string> {
+  return (await runGitBytes(cwd, args)).toString('utf8');
+}
+export async function runGitBytes(cwd: string, args: string[]): Promise<Buffer> {
   const result = await exec('git', args, {
     cwd,
-    encoding: 'utf8',
+    encoding: 'buffer',
     windowsHide: true,
     maxBuffer: 64 * 1024 * 1024,
     env: { ...process.env, LC_ALL: 'C', GIT_OPTIONAL_LOCKS: '0' },
