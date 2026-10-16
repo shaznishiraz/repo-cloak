@@ -10,17 +10,17 @@ Designs: [overview](design/overview.md) ·
 
 ## Progress
 
-| Step | What                                  | Status  |
-| ---- | ------------------------------------- | ------- |
-| 0    | Scaffold                              | ✅ Done |
-| 1    | Store, crypto, repo identity, schemas | ✅ Done |
-| 2    | Profiles                              | ✅ Done |
-| 3    | Replacement engine                    | ✅ Done |
-| 4    | Cloak: source -> workspace 🏁         | ✅ Code |
-| 5    | Restore: workspace -> source 🏁       | ✅ Code |
-| 6    | Interactive mode                      | ✅ Code |
-| 7    | Web UI 🏁                             | ✅ Code |
-| 8    | Release 2.0.0                         | ⏳ Next |
+| Step | What                                  | Status    |
+| ---- | ------------------------------------- | --------- |
+| 0    | Scaffold                              | ✅ Done   |
+| 1    | Store, crypto, repo identity, schemas | ✅ Done   |
+| 2    | Profiles                              | ✅ Done   |
+| 3    | Replacement engine                    | ✅ Done   |
+| 4    | Cloak: source -> workspace 🏁         | ✅ Code   |
+| 5    | Restore: workspace -> source 🏁       | ✅ Code   |
+| 6    | Interactive mode                      | ✅ Code   |
+| 7    | Web UI 🏁                             | ✅ Code   |
+| 8    | Release 2.0.0                         | ⏳ Checks |
 
 ---
 
@@ -211,7 +211,16 @@ credentials described under step 4. Generated pages were left untouched.
 
 ## Step 8. Release 2.0.0
 
-- [ ] README rewritten for v2, with a note that v1 workspaces must be pushed with v1 first
-- [ ] `npm view repo-cloak-cli version` is below `2.0.0`
-- [ ] `npm pack --dry-run` contents reviewed
+- [x] README rewritten for v2, with a note that v1 workspaces must be pushed with v1 first
+- [x] `npm view repo-cloak-cli version` is below `2.0.0`
+- [x] `npm pack --dry-run` contents reviewed
+- [ ] Confirm the final commit passes the macOS, Windows, and Linux CI matrix
+- [ ] Refresh the generated OpenWiki for the completed milestones
 - [ ] Publish only when the user asks
+
+Release preparation checked npm version `1.3.4` on 2026-10-17. The package
+preview contains the CLI, source map, three UI assets, four schemas, README,
+license and package metadata. The local suite passes on Node 22.13.1 and Node
+24; the final cross-platform CI run awaits pushing the commits. OpenWiki still
+needs the credentials or scheduled workflow described under step 4. Publication
+has not been requested.
