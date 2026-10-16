@@ -1,6 +1,6 @@
 # repo-cloak 🎭
 
-> ⚠️ **ARCHIVED**: This CLI project is no longer actively maintained. All new development has moved to the official [Repo-Cloak VS Code Extension](https://github.com/iamshz97/repo-cloak-vs-code).
+> ⚠️ **ARCHIVED**: This CLI project is no longer actively maintained. All new development has moved to the official [Repo-Cloak VS Code Extension](https://marketplace.visualstudio.com/items?itemName=ShazniShiraz.repo-cloak).
 
 > **Selectively extract and anonymize files from repositories**
 
