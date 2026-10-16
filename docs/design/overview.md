@@ -37,26 +37,31 @@ interactive mode with no arguments. Full list and flags: [cli.md](cli.md).
 
 ## Interactive flow
 
+The everyday start is `cd` into a source worktree and type `repo-cloak`.
+Details, including worktrees: [sync.md](sync.md).
+
 ```
 repo-cloak
    |
    +-- where am I?
-   |     cloak workspace (has .repo-cloak/manifest) --> push / re-pull / ui
-   |     registered source repo ---------------------> continue below
-   |     new git repo -------------------------------> register, continue
+   |     cloak workspace ----------------> pull / push / status / ui
+   |     source worktree, branch B:
+   |        workspace linked to B exists? --> pull / push / status / ui / new
+   |        none yet ---------------------> continue below (first run)
+   |     not a git repo -----------------> error
+   |
+   +-- workspaces root set?  no --> ask once, save to config.json
    |
    +-- profiles:  [repo-specific] + [global]  (multi-select)  or  create new
-   |       |
    |       +-- merge + validate  --(conflict)--> show conflict, fix, retry
    |
-   +-- what to pull?  (any combination)
-   |       files (tree) | commits | working changes | extra paths
+   +-- create workspace:  <root>/<anonymized repo name>-<short id>/
    |
-   +-- destination:   suggested past workspaces  |  new folder
+   +-- what to pull?  files (tree) | commits | working changes | extra paths
    |
    +-- preview (N files, M replacements, secrets found)  --> confirm
    |
-   +-- pull  --> write files + manifest  --> record history
+   +-- pull  --> write files + manifest  --> link workspace <-> repo + branch B
 ```
 
 ## Modules
@@ -115,15 +120,12 @@ Two extra checks run against the actual files before pulling:
 ## Replacement engine
 
 ```
-rules --compile once--> one matcher (longest-first alternation)
-file  --single pass---> anonymized text
+rules --variants--> one Aho-Corasick matcher --one pass--> anonymized text
+                                                   +--> ledger + verify
 ```
 
-- Rule types: literal, regex, and secret detectors. Pull records the concrete
-  pairs it replaced (the ledger), and push restores from that ledger.
-- Case variants are handled: `acme`, `Acme`, `ACME` map to `northwind`,
-  `Northwind`, `NORTHWIND` (as v1 did).
-- The same compiled matcher, inverted, restores on push.
+Case styles, token-aware boundaries, exact restore, and the verify pass:
+[anonymizer.md](anonymizer.md).
 
 ## Push
 
@@ -176,6 +178,26 @@ is a normal file with `<<<<<<<` conflict markers for the user to resolve. Not
 in 2.0; the manifest records the pull commit so it can be added without a
 format change.
 
+## Edge cases
+
+How the design handles the cases most likely to break a round trip.
+
+| Case                                                               | Handling                                                                                                         |
+| ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| Agent renames or moves a file                                      | Seen as delete + add; if the content hash matches a deleted file, treated as a move and restored to the new path |
+| Agent writes new code using anonymized names                       | Restored through anonymized-side variants ([anonymizer.md](anonymizer.md))                                       |
+| Agent edits or deletes `.repo-cloak/`                              | Sealed part is authenticated, so edits fail loudly; a copy of the last manifest is kept in the store to recover  |
+| Agent alters a secret placeholder                                  | That secret cannot be restored; restore stops and names the file                                                 |
+| Two paths collide after anonymizing, or differ only by case        | Cloak refused (case-insensitive file systems)                                                                    |
+| Binary files that contain names (images, PDFs, archives)           | Copied unchanged and listed as a warning; can be excluded                                                        |
+| Files that must not change (lockfiles, generated or vendored code) | Excluded by default globs, configurable per profile                                                              |
+| Line endings, BOM, encoding                                        | Bytes preserved; files that are not valid UTF-8 are treated as binary                                            |
+| Symlinks, submodules                                               | Symlinks pointing outside the repo are skipped; submodules are not entered                                       |
+| Two repo-cloak runs at once on one workspace                       | Lock file in `.repo-cloak/`; the second run waits or fails                                                       |
+| Key file lost                                                      | Workspaces cannot be restored; `repo-cloak` offers a key backup on first run                                     |
+| Target branch renamed or deleted                                   | Restore asks for a new target (fails under `--yes`)                                                              |
+| Profile edited after cloaking                                      | Restore uses the manifest snapshot; re-cloak shows the change and asks                                           |
+
 ## Security
 
 - Key: 32 random bytes in `~/.repo-cloak/key`, mode `0600`, created on first use.
@@ -206,3 +228,25 @@ Steps, tasks, and acceptance scenarios: [plan.md](../plan.md).
 - No v1 support. v2 is a fresh start.
 - Push conflicts stop the push, write nothing, and explain how to resolve.
   Merging is a later addition.
+
+## Interactive implementation (step 6)
+
+```
+no command -> require terminal -> detect workspace or source repo
+  workspace -> refresh / restore / status / UI / exit
+  source    -> register if new -> rank branch workspaces, then recent ones
+    -> refresh / restore / status / create workspace / UI / exit
+  extraction -> choose profiles (or create) -> files / commits / working / extra
+    -> existing sync planner -> preview -> confirm -> apply
+```
+
+The guided flow calls the same sync and status commands as explicit CLI usage.
+A new source is registered before showing setup prompts. Saved profile ids (not
+names) are suggested from the selected workspace, with repo profiles before
+other globals. Profile selection validates merged rules before continuing; the
+create option uses the existing validated JSON editor. The file picker shows
+eligible paths as a tree-shaped list. File, commit, working, and extra-path
+selections combine through the existing selection engine. New workspaces use
+the same root prompt and anonymized destination suggestions as extraction.
+Bare invocation without a terminal shows help; scripting uses explicit commands.
+The UI menu entry opens the shared machine-wide dashboard.

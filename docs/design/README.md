@@ -8,6 +8,8 @@ One file per topic; see [`../README.md`](../README.md) for the full index.
 | [overview.md](overview.md)     | Big picture, interactive flow, modules, push, build order    |
 | [data-model.md](data-model.md) | Every JSON file, schemas, encryption, regex and secret rules |
 | [cli.md](cli.md)               | Commands, flags, exit codes                                  |
+| [anonymizer.md](anonymizer.md) | Case styles, word boundaries, matching, exact restore        |
+| [sync.md](sync.md)             | Pull/push direction, multiple workspaces, git worktrees      |
 | [web-ui.md](web-ui.md)         | The local web UI                                             |
 
 New design topics use the template below.

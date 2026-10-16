@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>repo-cloak · Local dashboard</title>
+    <link rel="stylesheet" href="/app.css" />
+    <script type="module" src="/app.js"></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <header>
+      <a class="brand" href="#"><span class="mark" aria-hidden="true">◈</span> repo-cloak</a>
+      <span class="local"><span aria-hidden="true">●</span> On this machine</span>
+      <button id="refresh" class="quiet" type="button">Refresh</button>
+    </header>
+    <div class="shell">
+      <aside>
+        <p class="eyebrow">YOUR REPOSITORIES</p>
+        <nav id="repos" aria-label="Repositories"></nav>
+        <p class="aside-note">
+          One dashboard. All your workspaces.<br />Changes sync through the CLI.
+        </p>
+      </aside>
+      <main id="main" tabindex="-1">
+        <div class="page-heading">
+          <div>
+            <p class="eyebrow">LOCAL WORKSPACE</p>
+            <h1 id="title">Your repositories</h1>
+            <p id="subtitle">Keep source code private. Keep work moving.</p>
+          </div>
+        </div>
+        <div id="notice" role="status" aria-live="polite" hidden></div>
+        <nav class="tabs" aria-label="Dashboard sections">
+          <button id="workspaces-tab" class="active" type="button">Workspaces</button>
+          <button id="profiles-tab" type="button">Profiles</button>
+        </nav>
+        <section id="workspace-view" aria-label="Workspaces"></section>
+        <section id="profile-view" aria-label="Profiles" hidden>
+          <div class="toolbar">
+            <p>Reusable rules for names, paths, and secrets.</p>
+            <button id="new-profile" type="button">New profile</button
+            ><button id="check-profiles" class="quiet" type="button">Check selected</button>
+          </div>
+          <div id="profiles"></div>
+          <form id="editor" class="panel" hidden>
+            <div class="toolbar">
+              <h2 id="editor-title">New profile</h2>
+              <button id="close-editor" class="quiet" type="button">Close</button>
+            </div>
+            <label>Save for<select id="scope"></select></label>
+            <div class="tabs">
+              <button id="form-tab" class="active" type="button">Form</button
+              ><button id="json-tab" type="button">JSON</button>
+            </div>
+            <div id="form-fields">
+              <label>Name<input id="profile-name" required /></label>
+              <label>Description<input id="profile-description" /></label>
+              <div class="toolbar">
+                <h3>Rules</h3>
+                <button id="add-rule" class="quiet" type="button">Add rule</button>
+              </div>
+              <div id="rules"></div>
+              <p class="muted">
+                Use JSON for advanced options such as styles, forms, exceptions, and file filters.
+              </p>
+            </div>
+            <label id="json-field" hidden
+              >Profile JSON<textarea id="profile-json" rows="18" spellcheck="false"></textarea>
+            </label>
+            <div class="toolbar">
+              <button type="submit">Save profile</button
+              ><button id="delete-profile" class="danger quiet" type="button" hidden>
+                Delete profile
+              </button>
+            </div>
+          </form>
+        </section>
+        <footer>repo-cloak v2 <span>Local only · No cloud account</span></footer>
+      </main>
+    </div>
+  </body>
+</html>
