@@ -50,9 +50,27 @@ v2 goals: **validated, versioned, extendable, fast, and safe to share.**
   .repo-cloak/manifest.json  kind: manifest     what was pulled + sealed originals
 ```
 
-`repoId` = first 16 hex chars of `sha256(realpath(git top-level))`. Stable,
+`repoId` = first 16 hex chars of `sha256(realpath(git common dir))`, so every worktree of a repo
+shares one id (see [sync.md](sync.md)). Stable,
 short, and does not reveal the path. `profileId` is a random id, so file
 names never reveal a profile's name either.
+
+## Config (`kind: config`)
+
+Plain JSON; nothing in it is sensitive.
+
+```json
+{
+  "$schema": "https://unpkg.com/repo-cloak-cli@2/schemas/config.schema.json",
+  "kind": "config",
+  "schemaVersion": 1,
+  "workspacesRoot": "/Users/me/cloak",
+  "worktreePath": "{repoParent}/{repoName}-{branch}",
+  "initGit": true,
+  "concurrency": 16,
+  "extensions": {}
+}
+```
 
 ## Sealed envelope (store files)
 
@@ -108,8 +126,8 @@ The file people and LLMs edit most. Shown decrypted; stored sealed.
       "type": "literal",
       "match": "Acme",
       "replace": "Northwind",
-      "caseVariants": true,
-      "wholeWord": false
+      "boundary": "token",
+      "except": ["Acmeology"]
     },
     {
       "id": "service-names",
@@ -128,23 +146,66 @@ The file people and LLMs edit most. Shown decrypted; stored sealed.
 }
 ```
 
+Profiles may also set `include: string[]` and `exclude: string[]` selection
+globs. Includes override ordinary default exclusions; excludes add exclusions.
+Metadata paths stay excluded, and existing tracked workspace files remain
+tracked when the patterns change.
+
 Rule fields:
 
-| Field          | Types          | Meaning                                                          |
-| -------------- | -------------- | ---------------------------------------------------------------- |
-| `id`           | all            | Unique within the profile. Used in errors, UI, and manifests.    |
-| `type`         | all            | `literal`, `regex`, or `secret`.                                 |
-| `match`        | literal, regex | Text or pattern to find.                                         |
-| `replace`      | literal, regex | Replacement; regex supports `$1`, `$<name>`.                     |
-| `flags`        | regex          | JS regex flags (`i`, `u`, `s`, `m`). `g` is implied.             |
-| `caseVariants` | literal        | Also match `acme`/`ACME`, keeping each case style. Default true. |
-| `wholeWord`    | literal        | Only match at word boundaries. Default false.                    |
-| `detector`     | secret         | Built-in detector id (see Secrets below).                        |
-| `scope`        | all, optional  | `content`, `paths`, or both (default both).                      |
-| `enabled`      | all, optional  | Default true. Lets a profile keep a rule without using it.       |
+| Field                                   | Types          | Meaning                                                             |
+| --------------------------------------- | -------------- | ------------------------------------------------------------------- |
+| `id`                                    | all            | Unique within the profile. Used in errors, UI, and manifests.       |
+| `type`                                  | all            | `literal`, `regex`, or `secret`.                                    |
+| `match`                                 | literal, regex | Text or pattern to find.                                            |
+| `replace`                               | literal, regex | Replacement; regex supports `$1`, `$<name>`.                        |
+| `flags`                                 | regex          | JS regex flags (`i`, `u`, `s`, `m`). `g` is implied.                |
+| `boundary`, `styles`, `forms`, `except` | literal        | Case styles and matching edges; see [anonymizer.md](anonymizer.md). |
+| `detector`                              | secret         | Built-in detector id (see Secrets below).                           |
+| `scope`                                 | all, optional  | `content`, `paths`, or both (default both).                         |
+| `enabled`                               | all, optional  | Default true. Lets a profile keep a rule without using it.          |
 
 Scope (global or repo) is **not** stored in the file; it comes from where the
 file lives, so moving a file changes its scope and nothing can disagree.
+
+## Profile operations
+
+```
+CLI arguments -> commands/profile -> core/rules + core/merge
+                       |
+                       +-> adapters/profiles -> sealed store files
+                       +-> adapters/prompts  -> Inquirer (editor, choice, confirm)
+                       +-> adapters/input    -> JSON file or stdin
+
+save -> validate -> lock scope directory -> check unique name -> seal -> atomic write
+```
+
+- `core/rules` owns the profile type and semantic validation. It checks rule
+  ids, duplicate settings, literal mappings, and regex syntax. Regex flags
+  are `i`, `m`, `s`, `u`; `g` is implied. Disabled rules are still validated.
+- `core/merge` rejects repeated profile identities and conflicting mappings;
+  identical active rules are deduplicated even when their local ids differ.
+  Concrete regex/secret pairs and case-variant collisions are checked by the
+  replacement engine, once actual matches are available.
+- `SavedProfile` carries `{ id, scope, profile }`. Scope is either
+  `{ kind: 'global' }` or `{ kind: 'repo', repoId }`, never an editable
+  profile field. Names are case-sensitive and unique within their scope.
+- Inquirer opens create/edit JSON in `$VISUAL` or `$EDITOR`, using a `0600`
+  temporary file and removing it afterwards. Its platform defaults are Vim
+  on macOS/Linux and Notepad on Windows. Invalid edits stay in the prompt
+  for correction; the stored profile is unchanged until validation passes.
+- `proper-lockfile` protects scope updates, including the duplicate-name
+  check. Import creates a new opaque id and never overwrites an existing
+  name. Edit retains the id, including when the profile is renamed.
+- Create/import default to the current repo; `--global` selects global
+  storage, including outside Git. Reads list both scopes unless filtered.
+  Ambiguous names prompt only with a terminal and without `--yes`.
+- Delete asks for confirmation unless `--yes` is given. Create/edit require
+  a terminal; scripts create profiles with `profile import <file|->`.
+- Runtime libraries are Commander, Zod, Inquirer, proper-lockfile,
+  Lodash (word splitting), ahocorasick (literal matching), Glob/minimatch
+  (selection), p-limit (I/O concurrency), and isbinaryfile v5 (Node 22 support).
+  Inquirer requires Node 22.13+ on the 22.x line, or Node 23.5+.
 
 ## How regex and secrets stay reversible
 
@@ -295,7 +356,37 @@ Why it is shaped this way:
   manifest's plain part bound as additional authenticated data (AAD), so
   tampering with either part fails decryption.
 - The key is used directly (it is already 32 random bytes); no per-value
-  key derivation. `keyId` = short hash of the key.
+  key derivation. `keyId` = `k_` plus the first 12 hex characters of SHA-256
+  of the key.
+- Wire format: `nonce` is a base64-encoded 12-byte nonce; `data` is base64 of
+  ciphertext followed by the 16-byte GCM authentication tag. AAD is the plain
+  JSON object with recursively sorted object keys, encoded as compact UTF-8.
+  For store envelopes, all outer fields except `sealed` are authenticated.
+  For manifests, pass the entire manifest except `sealed` as AAD.
+- Key creation publishes a fully written key with an exclusive hard link;
+  simultaneous creators load the same winning key. Reads never create keys.
+  A damaged key is an error, never silently replaced.
+
+## Platform compatibility
+
+- macOS, Windows, and Linux use Node's home-directory and path APIs; no shell
+  commands are used to read Git identity or manage files. Git must be on PATH.
+- Git identity uses absolute `rev-parse` paths and `realpath` for both the
+  worktree root and common directory. This requires Git 2.31 or later
+  (`--path-format=absolute`).
+- On POSIX, keys and temporary files have mode `0600`, store directories
+  `0700`. Windows inherits filesystem ACLs; Node's mode argument cannot
+  enforce a Unix-style permission boundary there. The store should live in
+  the user's private home directory on a filesystem supporting hard links
+  (NTFS on Windows, APFS on macOS, or a typical Linux filesystem).
+- Atomic writes flush a temporary file in the destination directory, close
+  its handle, then rename over the destination. Windows sharing violations
+  get bounded retries; the old file is never deleted as a fallback.
+- Store-relative paths use `/` internally and reject traversal, Windows
+  reserved device names, and characters invalid on Windows. Host paths are
+  kept in their native format.
+- CI runs type checking, lint, tests, build, and package smoke checks on
+  macOS, Windows, and Linux with Node 22 and 24.
 
 ## Secrets
 

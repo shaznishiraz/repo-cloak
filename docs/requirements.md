@@ -52,7 +52,10 @@ agent), and bring the changes back with the original names restored.
     anonymized values, or two originals mapped to the same anonymized value;
   - errors explain exactly which profiles and rules conflict.
 
-## R3. Pull (source repo -> cloak workspace)
+## R3. Cloak (source repo -> cloak workspace)
+
+Run as `repo-cloak push` in a source worktree or `repo-cloak pull` in a cloak
+workspace (see `docs/design/cli.md`, Direction).
 
 - Choose what to pull, in any combination:
   - files picked from the repo (tree selector);
@@ -70,17 +73,20 @@ agent), and bring the changes back with the original names restored.
 - Detected secrets are replaced with placeholders in the workspace and restored
   on push. The v1 pattern list is the starting point, with its bugs fixed.
 
-## R4. Push (cloak workspace -> source repo)
+## R4. Restore (cloak workspace -> source repo)
+
+Run as `repo-cloak push` in a cloak workspace or `repo-cloak pull` in a source
+worktree.
 
 - `repo-cloak push` from a **cloak workspace** writes its changes back to the
   source repo, restoring original names in contents and paths.
-- `repo-cloak push` from a **source repo** lists the cloak workspaces linked to
-  it and asks which one's changes to bring in.
+- `repo-cloak pull` from a **source worktree** brings in changes from the
+  workspace linked to its branch, or asks which one when there are several.
 - Only changed, added, or deleted files are processed.
-- Never silently overwrite source files that changed since the pull. If any
-  have, push stops without writing anything, lists them, and explains how to
+- Never silently overwrite source files that changed since the last cloak. If
+  any have, the restore stops without writing anything, lists them, and explains how to
   resolve it (commit or stash the source changes, skip those files, or force).
-- Push is all or nothing: the source repo is never left half updated.
+- A restore is all or nothing: the source repo is never left half updated.
 
 ## R5. Security
 
