@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:ef4a17a354e5192f3afacce1d9867568633fb7162e10ecb2e95da9cac2b1b255",
+  "claims": [
+    {
+      "id": "claim_ab7f2c2cbaf84136ba4a9824e06e12d6",
+      "statement": "src/cli.ts is the CLI entrypoint: it builds the program via createProgram() and parses process.argv with top-level await on parseAsync.",
+      "evidence": [
+        {
+          "resource": "repo://src/cli.ts#L1-L3",
+          "version": "repo-lines-v1:sha256:151b47fc49ffee94dabf661a846ac1934871d6f96b10266c8a79ee3de94738fa:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMGFhYzE1ZTBmZjBkYjVjMDkzZmVhMTlhNzExZjdlYzJkYWJmZGJiZGE0MTJmZGM3YmI4YWQ0YTAxODQ5ZTA4MSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiOWViZTJjNWZmMTQ5ZThiNmNlNjM3ZDUyZjY3MTAwODFkYzRmZDZkMzEwNTBhNjMxNjVhODJkZTlhMjU2ZDk0NCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjAsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjAsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_b2ec92b3d72645d4a41254d4f4e8f69f",
+      "statement": "createProgram() returns a new commander Command named repo-cloak whose description and version come from package.json, with the version flag registered as -v, --version.",
+      "evidence": [
+        {
+          "resource": "repo://src/program.ts#L10-L15",
+          "version": "repo-lines-v1:sha256:21c4d9c3adced18341300783160fd38f25cded97cef08e04a53ced3be0c576ba:eyJzZWxlY3RlZExpbmVDb3VudCI6NiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiODQzMmMyYTg0MTc4Yjc1Y2NhYmFmNjlmZDQ5YzlhODFmNGJlNWYyZmE4ZDhlNDEzMTVmNDQ4MmZkZTk4OWZkYSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDEyY2EzNDVjY2Y3NWJmOWMwODA2YmNlNjk1YmU4ZGU4MDhiNzk5ODQyNTFhN2E1NGQyMDJjZjYxMDFkZDQ1MSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNzA0YTVjOGIwMzFhODQzZmViNmIxMDRmNDFhY2RjNjllNGIwMTE1NjI3ZGEwOTYxYjk2NmVlNTNiOTVkNDJlNyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjAsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_8a14a58c936b4379a15272903f301e17",
+      "statement": "program.ts loads ../package.json at runtime through createRequire(import.meta.url) to obtain version and description, rather than hard-coding them.",
+      "evidence": [
+        {
+          "resource": "repo://src/program.ts#L1-L8",
+          "version": "repo-lines-v1:sha256:0c089334fc25ece6c6fafed21a8fcb1d558149314661b4c28c35284b49df3cd5:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZmQ3NmFlM2MxZjZkMzY3YzNmNzVkZGI2NjM1NDQyYzA2ODE1ZDJlZTdkYmM2YjUzMjQ2ZGU0Y2FiYjFjNjI3MiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYWExZDFhNjMzOTAyMjljNzk4MzQ3ZTgzYTA0MDU0NDFjOTQwMDAzNTI4NGFkMTY4YzFiZjZjZGYxZDcwYTM3MCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjAsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMjE1OWQ4M2JhNDA2NzI2ZWM0ZDVkZjVlY2Q3MmQ5MDkzYTJkNmRhZjk0ZDNlNWIzNTQ3Zjk3NzgyZTQ5NWU0YiJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_fccfda3afcf84a86a8fa7a5c4b42477a",
+      "statement": "Tests assert that createProgram() reports the package.json version and is named repo-cloak.",
+      "evidence": [
+        {
+          "resource": "repo://tests/program.test.ts#L5-L13",
+          "version": "repo-lines-v1:sha256:7a9d3797bfe20e96d340fdc60574da35ab7b5ae9daa7f0faf6cc55ca9ec0ce87:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiOTMwMzA3OWY4MGZiOGQ5MzM3MTIyN2JjNWUzMmNhMTE1OTIzNjUwMjk3N2YzZGExYWYyZDIzYTQzMDdlNjE1YSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZjZmNWI0MGIxNTg0NTdkMTc4NjRmMjE3OTA3ODZkZDVhMmVjZGI2NGI2NmE2NTFmNzg4ZDRlMjVjZDMzMDNkMiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMDg5YmEyZWQzZDE4NjMxZjdhOWNjN2I4MWY0NzFhODcwZDcyZWJmYmE4MjYzYzk0ODc0NTJmOGRmMGIwNmEzMyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjAsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_83811296c3974ee98281e029445370db",
+      "statement": "The intended layering is cli.ts -> commands/ -> core/ <- adapters/, where core/ does no I/O and imports nothing from commands/ or adapters/.",
+      "evidence": [
+        {
+          "resource": "repo://AGENTS.md#L33-L40",
+          "version": "repo-lines-v1:sha256:a66454470af9d5080ca45cb42b6d26eeb9abb94221e9e03fd3c4365d52ca1345:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNGNiMjBjZjA1ODljODg5Y2UwYzQ2ZGRkZWU2YzI4MTU3YzE1NTY4OGYyNGYyOTZjZDA4MjE5NzhkNDYzMDBhMSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMTk0OWUwZGZmOTRkZGQ2Yjk2YmZhZGI4MWFlNjJhMmE0NGI4NzI4ZjVlMjk3ODI3OWI1OGE2YzY2OWIxOGZjOCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMmE4ZWVlY2Y1YWE0ZDEzZTY3MzA1YjFiZTg2MDRlNzYyY2ViZjM5Mjc4MzU3MmM4Y2Y0ODhlZmRlNjc5ZDUyNyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYTc1ZmYzNGVmYzVhNDYzMjg5OGY0MWE3MzFiNjM3MjVhNmQ0YzVlMDQ3MzQ2NDZiNmRjODI2ZDliYzlhNDA5OSJ9"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.2",
+    "at": "2026-10-16T13:36:07.841Z"
+  }
+}

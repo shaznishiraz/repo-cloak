@@ -2,3 +2,7 @@ dist/
 archive/
 node_modules/
 package-lock.json
+openwiki/
+.claude/
+.mcp.json
+.github/workflows/openwiki-update.yml
