@@ -1,0 +1,62 @@
+{
+  "name": "repo-cloak-cli",
+  "version": "2.0.0",
+  "description": "🎭 Selectively extract and anonymize files from repositories. Perfect for sharing code with AI agents without exposing proprietary details.",
+  "type": "module",
+  "bin": {
+    "repo-cloak": "dist/cli.js",
+    "cloak": "dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "start": "node dist/cli.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run typecheck && npm run lint && npm test && npm run build"
+  },
+  "keywords": [
+    "cli",
+    "anonymize",
+    "extract",
+    "repository",
+    "code",
+    "privacy",
+    "ai",
+    "llm",
+    "obfuscate",
+    "cloak",
+    "mask",
+    "sanitize"
+  ],
+  "author": "iamshz97",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iamshz97/repo-cloak.git"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "commander": "^15.0.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^22.20.5",
+    "eslint": "^10.12.0",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.9.10",
+    "tsup": "^9.0.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.71.2",
+    "vitest": "^5.0.5"
+  }
+}
