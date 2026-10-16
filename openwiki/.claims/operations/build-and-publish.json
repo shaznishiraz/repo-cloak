@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:3e55b09d1960e3ef505a634584b3ca3dc76b593d1a2bc79f3f5ff59591afabf2",
+  "claims": [
+    {
+      "id": "claim_0f2800b94e104ba2814ad77b1016dc26",
+      "statement": "tsup bundles the single entry src/cli.ts to ESM targeting node22, cleans the output directory, emits sourcemaps, and prepends a #!/usr/bin/env node shebang.",
+      "evidence": [
+        {
+          "resource": "repo://tsup.config.ts#L3-L11",
+          "version": "repo-lines-v1:sha256:5ac3bc2442e34e46b2d3ab2a215fa9d0ca8bedbda50b3349ea31668d575919b7:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYjJjZWNiMTQ0YTQ2ZjVkY2YxMmE2MTY5ZmNlZWQ3Njk1ZTgyOTRiMDkwZGU3NmYzNjYxY2RkMDI0OTMwMDE0NyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZjZmNWI0MGIxNTg0NTdkMTc4NjRmMjE3OTA3ODZkZDVhMmVjZGI2NGI2NmE2NTFmNzg4ZDRlMjVjZDMzMDNkMiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjIsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiOWMyODhkMmRjM2RiM2Q5YTVmYjQxZDZiMjlmMzlkOTAzMmU3ZTJkYWExZjk4N2IxYWYyMDcyYWEyZDYxYmY2OCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjAsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_16c0422f129f42ea8d55baad977baf3c",
+      "statement": "The package is published as repo-cloak-cli with both repo-cloak and cloak bins pointing at dist/cli.js, and only the dist directory is whitelisted in files.",
+      "evidence": [
+        {
+          "resource": "repo://package.json#L1-L12",
+          "version": "repo-lines-v1:sha256:cd18e8cebc5d1926168778a514d8ff5e3aac0c8b8dffc641e3ba2f15bb24963e:eyJzZWxlY3RlZExpbmVDb3VudCI6MTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE2ZmIwOGZkYTFhY2I5NTdiNjExNmJkMzc4MTFhMWZlNDFhMDE2MTFjMDYzMWVkYmY3ODZkNjg4OWEyN2E1NWMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk2NGQ4YzA3MzQyOTg5MzEwMTU3NmQ4OGQ5OTEyN2U4OWQ2ODkxZDNiMTdlODlkZjAyZWM5YWU3MDcwNWQ4YmUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjExM2FmZDVmZmY4N2FkOGNiMDdmZjU4YmUyZTU1YzcwNjY2YzQ1NmMxNGRiN2VmYmJiZTFmOWZlNTAxOTI5NTYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_5b3189ca80494ba8b3b16e5703d52c15",
+      "statement": "prepublishOnly runs typecheck, lint, tests, and build in sequence, so a failure in any step aborts npm publish.",
+      "evidence": [
+        {
+          "resource": "repo://package.json#L13-L24",
+          "version": "repo-lines-v1:sha256:bbc26dce34965b9194448f620a5720b9cea22b37f30ef2f54b9c2df1a4dd6077:eyJzZWxlY3RlZExpbmVDb3VudCI6MTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM0ODMzZDU5NDljMDNhNDBjYTk1MjQ5MTYxMGE2NjU5NjQ0YjNhYTQ2NjM2MmY3OTkwMjBkYmYxOTgxNTQ3ZGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRkNWNkMmZiNGYzZGY4ODQ1MTUyNTViMzk1MjNmMmY4YjU0NzJiZWVhOWY1NjZmZmNhMjA0ZGI4MDI1NjEwNDEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjNmZjNkY2YwZDBlZDk1OGU4NDQ1YzZjZWQ0Y2YxMGU0ZjAwM2VmZTZjMDgxMWQ2YTA4MzYzNGVhMDhmNDcxZjUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImIzM2U4M2RhMDAyZTM3OGUyOTQ3N2U3NTA3YzdhZWQ1OWU3ZTliYjJiZjRjOTkxYTc0YzFlMGQxYTExMDcxYzkifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_c5893a0a159b452280c1021e5bac9cda",
+      "statement": "The package requires Node >= 22 and has commander as its only runtime dependency.",
+      "evidence": [
+        {
+          "resource": "repo://package.json#L45-L50",
+          "version": "repo-lines-v1:sha256:db70c1f3c360aaf4bb33f0e5819b6d4e41376ba8ad6b7e3943d4cb32206a76ab:eyJzZWxlY3RlZExpbmVDb3VudCI6NiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNWY2MDE1NTQxMjJlZmU4NTVkNTZlMTBjYzliYWYyMDMxY2EzZjRhYjExY2RiYTIyZjFlYmM1ZDM5YTc1NTgyNCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNGQ1Y2QyZmI0ZjNkZjg4NDUxNTI1NWIzOTUyM2YyZjhiNTQ3MmJlZWE5ZjU2NmZmY2EyMDRkYjgwMjU2MTA0MSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiY2M2MjVhZWEzZGM5ZTFkNDBhN2U2NDIzYTEzODI2NThmNDhmMWYxNWU3NTRlNWU4MmVlODlkN2M1ZTg4Zjk5ZCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiODY1Mzg5M2IzNzg5ZTlhNTVjNTg5NzRhYWEzMGVmMjQyZWU3NzExZmE4ZGUyNjk2YjdkZWY1ZmY1NzQwNGU3ZCJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_86fec1896e8c4c9e980f828f9a624455",
+      "statement": "Publishing rules require keeping the repo-cloak-cli name and repo-cloak/cloak bins, a version above the latest on npm, and never publishing or pushing tags unless the user asks.",
+      "evidence": [
+        {
+          "resource": "repo://AGENTS.md#L60-L64",
+          "version": "repo-lines-v1:sha256:1f3f642531d748465a7f1c074d00efa7e7d666b42b02aeaa944038060ae0d39d:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNmU0ZjEyMjc1NjllOTRmMzViMmZlMTFkNjNhODdkNDMyMzIxZGUxZmVmZTFmMzk5Mjc0NTE0ZjAyZjcxMjk1MCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDljYWY5MGJlMmUwOWViZjI0YzdmMzAzYTVmZDY1Mjk4NGVhOGM3NmU2YjYzMGUzZGIxYjhjZDVjMjkzMDhiYiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZWRhOTE1N2M1MzIzZjQzNzc5YTBiOWE3YjNkMjFlOWE5ZjVmYmQ2NGQ1NmYyYTFkOTkyOTFmMGVjNmM2MTlmNiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMWEyYjNhZGNlYTA3MDIxNzljOTRiNWRlNjhlNTE3NDNjNmI2ZjFlNjg0ZGMxMWJkNTJmZTRkNmJiMDU1NzdmYyJ9"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.2",
+    "at": "2026-10-16T13:36:07.841Z"
+  }
+}

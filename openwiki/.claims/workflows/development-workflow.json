@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:e782873f2d89f11a9dd9e8589a3dee5f8cc7714c7df4913be9fc60e3f602a336",
+  "claims": [
+    {
+      "id": "claim_f3899fa30c604c7290910bdb47d9d86f",
+      "statement": "Changes follow a design-first lifecycle: write docs/design/<topic>.md with an ASCII diagram and key types before coding, implement with tests, sync the design doc on divergence, then update OpenWiki.",
+      "evidence": [
+        {
+          "resource": "repo://AGENTS.md#L46-L58",
+          "version": "repo-lines-v1:sha256:492b3b2bd476ada702fd1ba8032a19a9abbfd4081e2ef194ebbeef37334fca95:eyJzZWxlY3RlZExpbmVDb3VudCI6MTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI1MzgyZWQ4NjQ3ZDRmYmEyMWJhYmVkMjI4MDNhYzZhODY2NjliOTUyNzY1ZjEzNTIxYzdjZGYyMjM3MTcyNGMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBiNDczODEzM2Q0NmE2MDVhZjM3YzFmNjg4ZjlkMzFlMjVmOTAzZWEyNzAyNDAzNTk4NTM5NzlmYTVhODc4MTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImQ3NmQ3Mzk1YTIxYmMxMTRjMjQ4YzEyMzUxYjU4MWRiNDhhZjkxMWIyZmIwYjZhNjU4NWQ0NDhkMjgxOWYwMWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjcxZTg1NjExNjFhMGQxM2U1MDNiNDNmMzZiMTE4OWUzMjA4ODhjMzMxMTc5YmJiNTA5ZDJlZDRhNDliNmEwOGQifQ"
+        },
+        {
+          "resource": "repo://docs/design/README.md",
+          "version": "repo-file-v1:sha256:d73ed8df7f4e77dd0c3d56497cfb0221891bb75f969b5ba14431ea103b8993f7"
+        }
+      ]
+    },
+    {
+      "id": "claim_158754172ded4a30a298f015d1ead1bf",
+      "statement": "Work is done only when typecheck, lint, and tests all pass.",
+      "evidence": [
+        {
+          "resource": "repo://AGENTS.md#L25-L25",
+          "version": "repo-lines-v1:sha256:d84f48f778f69ab51390f770e53d0a111af1804133b3ee1e946d6b38cb4ae06a:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZDg0ZjQ4Zjc3OGY2OWFiNTEzOTBmNzcwZTUzZDBhMTExYWYxODA0MTMzYjNlZTFlOTQ2ZDZiMzhjYjRhZTA2YSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZDg0ZjQ4Zjc3OGY2OWFiNTEzOTBmNzcwZTUzZDBhMTExYWYxODA0MTMzYjNlZTFlOTQ2ZDZiMzhjYjRhZTA2YSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiN2NiYjAzYTUxY2Q2MjU5MWExNjQwNTM1YjQxMmYzYjRlZDRmM2JmMGNkOTdkZDcyNmEzOTJjN2M0YmZiOWE3NiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNGE1ZDAwZWRiN2Q1NjQzMTE3OTMzZWM4OTNlOTg2YjIxNjVjZjM5YmFiODNhOGZhZDc3MDJjNWFiMGRjODg4YiJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_198646b9d17c4dd386cc82c6c406f2bc",
+      "statement": "tsconfig.json is type-check only (noEmit), uses NodeNext resolution, and enables strict plus noUncheckedIndexedAccess, exactOptionalPropertyTypes, noImplicitOverride, and verbatimModuleSyntax over src, tests, and root config files.",
+      "evidence": [
+        {
+          "resource": "repo://tsconfig.json#L2-L20",
+          "version": "repo-lines-v1:sha256:ac1bb34b6eddc3d572c187a2800bb43a6342f363bc8d06f3a12a8494aab58037:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjliMGNkOTc0ZWU2ZjM2NjYwMjI0MzRhNmRlODBkZDlmMTA3Zjk5MGYwZDk4MzM1ZjRkYWM2OWYwZGEyYWNkOWIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ2MDY5ZWViODg5ZWNkM2M5NWYwN2NjZjM4NzlkNzQ4ZTAyMDIzMzAwMjhlNzU4NTYxNDNlNjhjZTdhZDNkNzAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjoxLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImE2ZmIwOGZkYTFhY2I5NTdiNjExNmJkMzc4MTFhMWZlNDFhMDE2MTFjMDYzMWVkYmY3ODZkNjg4OWEyN2E1NWMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_c29ff5744c294e6783f4f8069187b9e8",
+      "statement": "ESLint combines @eslint/js recommended, typescript-eslint strict, and eslint-config-prettier, and ignores dist/, archive/, and node_modules/.",
+      "evidence": [
+        {
+          "resource": "repo://eslint.config.js#L5-L10",
+          "version": "repo-lines-v1:sha256:0c4b8136dd9089ca7da653b755bafd071c52c0df589a0ebc1d2cc57883172267:eyJzZWxlY3RlZExpbmVDb3VudCI6NiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNmNhZjJhNjczNzgwNzBmM2RmMDBmOTUzYmNkNTcyYWIxM2YwN2M3MGFhNDRkNjI3MzM0YzcyMmZmZmI3MGQyMyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDk5NjdlYzFlZDM4MzZmOGViMTdhZmYxNzJiNWJmZWY3ZGU2MDQ4NWE0MzljNmNhMTFjNTkxZTE3NTU3MzlhZSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiM2I4N2Q1YTUyMWY1NTEyMzlmMTMyODdhNGMyNDJiOWVkNmUzY2NlYzEwOTMyZWRlNzc5ODhlMTEwZDI0MDAxMCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjAsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_735cbb51f77547ddb0c723397b9f2564",
+      "statement": "Vitest only collects test files matching tests/**/*.test.ts.",
+      "evidence": [
+        {
+          "resource": "repo://vitest.config.ts#L3-L7",
+          "version": "repo-lines-v1:sha256:5253b27a5efe96681477cab7894ea02ac0801527a3dc5021390ce3bf20606c9f:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYjJjZWNiMTQ0YTQ2ZjVkY2YxMmE2MTY5ZmNlZWQ3Njk1ZTgyOTRiMDkwZGU3NmYzNjYxY2RkMDI0OTMwMDE0NyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZjZmNWI0MGIxNTg0NTdkMTc4NjRmMjE3OTA3ODZkZDVhMmVjZGI2NGI2NmE2NTFmNzg4ZDRlMjVjZDMzMDNkMiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjIsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYjQwMDBhMDFmOGY4MDhjMDY5OGMyOWEzM2MzNzNiZDcwYmZhZjM3ZWY3YjI2Mjc3MDEyNjZiMzY5ZDYwZTYyMSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjAsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_e630efd6a76a43a08719932a96504865",
+      "statement": "archive/ (v1) is excluded from Prettier and OpenWiki in addition to ESLint, and Prettier also skips generated openwiki/, .claude/, and .mcp.json.",
+      "evidence": [
+        {
+          "resource": "repo://.openwikiignore#L1-L6",
+          "version": "repo-lines-v1:sha256:0975d1ad00c9b3b0a0789ad0885cd048d68813710a592fc21f2cc10820051733:eyJzZWxlY3RlZExpbmVDb3VudCI6NiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMTc0Yzc2NDViMjYxY2UzZTQ4NTA2MWZiMzhkNDA4MmI1M2UxZjRmOGEyMmQ1ZDIyY2E3OWNhNTRjZjRmZmMxNSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNGQ1Njk1MmIwZmIxM2JmOGY5YjZjMTNhNmQ0YzM0YTA3NWJhYzNhZjQ0NzYzNmExZGY0MzM1ZDc1NzZlMmY5NyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjAsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjAsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSJ9"
+        },
+        {
+          "resource": "repo://.prettierignore#L1-L7",
+          "version": "repo-lines-v1:sha256:db5fa7eabb0f39aab9a3059d93b7dba6e32ed54e6f3a4238bbac85e4efd75b05:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZWQxOWQzYzljOGE1ZTM0ZDAxNzllMGIxYTljMjkwN2QyZTY1NzczODczM2U0YTQzMmE4Y2Y4MWM3NmNlNTZmMSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNjlhOGQ0NTY0MzFkYzkyNjE4ZTMxNGU2MDE1ZDZhMTJhMjdiOWQyNDY3ZTEyZjFhYzMxYjA0ZTM1ZWJkMGRiMCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjAsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjAsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSJ9"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.2",
+    "at": "2026-10-16T13:36:07.841Z"
+  }
+}

@@ -1,0 +1,6 @@
+# v1 source, kept for reference only. The wiki documents v2.
+archive/
+
+# Build output and dependencies
+dist/
+node_modules/

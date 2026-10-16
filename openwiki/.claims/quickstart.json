@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:0b3e494d0b07a792ef597e905ea869aeac49d5787629f75ad20834673bf37ac5",
+  "claims": [
+    {
+      "id": "claim_b9d59ec9d4784f5eb8f900f8e80d2be6",
+      "statement": "repo-cloak pulls selected files from a repository, anonymizes proprietary names and secrets, and pushes changes back with original names restored; it is published to npm as repo-cloak-cli.",
+      "evidence": [
+        {
+          "resource": "repo://AGENTS.md#L6-L10",
+          "version": "repo-lines-v1:sha256:d62308a66f6bbecce989d8efcff5dc999d76fcb37b3560ed4b33812cd7f99207:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNjg1NmQ3ZDQ2ZjhlYWRmMjU1OTEzMzVjOTg3MWE3NTllMTAyYzRmNDc0NWNkODEwNDZiNTlhYzI1YTZlODU5MSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYjA1Zjg2MzhkZjVmOTBmOGZiYzlmYjA5MzJiZTNhOTA1YTE5MTAzYmI0YjIyODRlMTdkNDE5ZWM3NTAzMmU0ZiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiOTQ1MmJiNWYzNzQyYjdmZTZhODM4ZGE1N2JiNDc4MmM5OTc0N2RiODUwMWZlMThiMjcyN2Q2MjkzZGVhNDEwZSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZDlkMzZkMjI2ZWM2MmRlNWYwNzQzYTg5ZTg5ZDMzOWU1MzRhYWE4MDg4ZTkzNzkwNWMxN2EyNDAzNDUwM2Y1NiJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_68a19b4863d1423893b1f6d6da9b2cdd",
+      "statement": "The current codebase is v2, a ground-up rewrite at version 2.0.0, and archive/ holds v1 for reference only, never to be imported or edited.",
+      "evidence": [
+        {
+          "resource": "repo://AGENTS.md#L12-L13",
+          "version": "repo-lines-v1:sha256:3e39b523f667a05ca809ef92a792bb5bb924386780ab964a1648140b8ef35974:eyJzZWxlY3RlZExpbmVDb3VudCI6MiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYzQxMmY3ZDg3ZGQ1NDk0MzBkYzQ2YWMyNTJjNWUzMjJlNTJhYmU0YzM5NGQ1Y2E1ZDcxMWRlNjRhNDQ2YWViNiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYTU4ZWZmY2IzNmVhOTQ2YzYwZDYyMjhiYjU2OGViZGM4NTNkYTQ5YWJjOWVmZjgwMjgzYzNjMGZhNDBhYTMwMSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNmE4YzEyMDNmZTJkOTU4M2VhMDc1NWNlNDIyM2FjMGY5MWUyZTFkNDMzZDI2YmMzOTlmNTk2ZjMwNzExZTg0OCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZGNkY2Q3ZWQyNWM4YWQ5YjQ3MDg4MTczMTk3Y2Y2OGU3M2I4ZTY1Y2Q3YTdjNmZjMDYxODYyNjAxZmJiM2JkYSJ9"
+        },
+        {
+          "resource": "repo://package.json#L2-L3",
+          "version": "repo-lines-v1:sha256:ddfb616d23f6c0da90f313af3a7d457a0173a1314fe483e48a19ac8f2cfbd28c:eyJzZWxlY3RlZExpbmVDb3VudCI6MiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNGZhNGYyNDQyMzYwY2FhNmI2YzVlNWUxYWRjYzRmOWVkODY0NTVmMTlkYmI4MmU0NTM5YmY1MThkYTJiNTU2MCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDBlYTg2NzA5ZWJmOWIxOTg0NDU5MzhiY2NmNzc5MjcxMDgxMTc0NDgzY2E0OGE4Y2E2ZTY1NmY2N2I2Mjc2NyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjEsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYTZmYjA4ZmRhMWFjYjk1N2I2MTE2YmQzNzgxMWExZmU0MWEwMTYxMWMwNjMxZWRiZjc4NmQ2ODg5YTI3YTU1YyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMzIxYjVmNGQ2MjM4MjUzZjk2YWEwZDgxYmNmYjFkMDFjMDYxYmRmZmU5OWUzMDBlN2RkOTAyODhhZWQyMzViMiJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_7aa533d1376540428909c8fc0363e6db",
+      "statement": "The CLI currently registers no subcommands; it only defines the program name, description, and version flag before parsing argv.",
+      "evidence": [
+        {
+          "resource": "repo://src/cli.ts#L1-L3",
+          "version": "repo-lines-v1:sha256:151b47fc49ffee94dabf661a846ac1934871d6f96b10266c8a79ee3de94738fa:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMGFhYzE1ZTBmZjBkYjVjMDkzZmVhMTlhNzExZjdlYzJkYWJmZGJiZGE0MTJmZGM3YmI4YWQ0YTAxODQ5ZTA4MSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiOWViZTJjNWZmMTQ5ZThiNmNlNjM3ZDUyZjY3MTAwODFkYzRmZDZkMzEwNTBhNjMxNjVhODJkZTlhMjU2ZDk0NCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjAsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjAsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSJ9"
+        },
+        {
+          "resource": "repo://src/program.ts#L10-L15",
+          "version": "repo-lines-v1:sha256:21c4d9c3adced18341300783160fd38f25cded97cef08e04a53ced3be0c576ba:eyJzZWxlY3RlZExpbmVDb3VudCI6NiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiODQzMmMyYTg0MTc4Yjc1Y2NhYmFmNjlmZDQ5YzlhODFmNGJlNWYyZmE4ZDhlNDEzMTVmNDQ4MmZkZTk4OWZkYSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDEyY2EzNDVjY2Y3NWJmOWMwODA2YmNlNjk1YmU4ZGU4MDhiNzk5ODQyNTFhN2E1NGQyMDJjZjYxMDFkZDQ1MSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNzA0YTVjOGIwMzFhODQzZmViNmIxMDRmNDFhY2RjNjllNGIwMTE1NjI3ZGEwOTYxYjk2NmVlNTNiOTVkNDJlNyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjAsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSJ9"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.2",
+    "at": "2026-10-16T13:36:07.841Z"
+  }
+}
