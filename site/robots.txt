@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://shaznishiraz.github.io/repo-cloak/sitemap.xml
