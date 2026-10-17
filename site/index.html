@@ -1,0 +1,477 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>repo-cloak: anonymize code before sharing it with AI agents</title>
+    <meta
+      name="description"
+      content="repo-cloak is an open-source CLI that copies selected files from a private Git repository into an anonymized workspace, replaces company names and secrets, and restores AI-made changes with the original names intact."
+    />
+    <link rel="canonical" href="https://shaznishiraz.github.io/repo-cloak/" />
+    <meta name="robots" content="index, follow" />
+    <meta name="theme-color" content="#0b0d12" />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="repo-cloak" />
+    <meta
+      property="og:title"
+      content="repo-cloak: anonymize code before sharing it with AI agents"
+    />
+    <meta
+      property="og:description"
+      content="Copy files out of a private repo, anonymize names and secrets, let an AI agent work, then restore every change with the original names."
+    />
+    <meta property="og:url" content="https://shaznishiraz.github.io/repo-cloak/" />
+    <meta property="og:image" content="https://shaznishiraz.github.io/repo-cloak/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="repo-cloak: Acme becomes Northwind, and back again" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta
+      name="twitter:title"
+      content="repo-cloak: anonymize code before sharing it with AI agents"
+    />
+    <meta
+      name="twitter:description"
+      content="Copy files out of a private repo, anonymize names and secrets, let an AI agent work, then restore every change with the original names."
+    />
+    <meta name="twitter:image" content="https://shaznishiraz.github.io/repo-cloak/og-image.png" />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "SoftwareApplication",
+            "name": "repo-cloak",
+            "alternateName": "repo-cloak-cli",
+            "description": "Open-source CLI that anonymizes selected files from a private Git repository for AI agents and restores their changes with the original names.",
+            "applicationCategory": "DeveloperApplication",
+            "operatingSystem": "macOS, Windows, Linux",
+            "url": "https://shaznishiraz.github.io/repo-cloak/",
+            "downloadUrl": "https://www.npmjs.com/package/repo-cloak-cli",
+            "codeRepository": "https://github.com/shaznishiraz/repo-cloak",
+            "license": "https://opensource.org/licenses/MIT",
+            "isAccessibleForFree": true,
+            "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+            "author": { "@type": "Person", "name": "Shazni Shiraz" }
+          },
+          {
+            "@type": "FAQPage",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "How do I share private code with an AI agent without exposing company names?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Run repo-cloak in your repository, choose the files, and give the agent the anonymized workspace it creates. Names, paths, and detected secrets are replaced; repo-cloak push restores the agent's changes with the original names."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Does repo-cloak handle camelCase, snake_case, and uppercase names?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Yes. One literal rule covers variants such as AcmeCorp, acmeCorp, acme_corp, ACME_CORP, and acme-corp, keeps each case style, and respects identifier boundaries so unrelated words are left alone."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Can repo-cloak overwrite my work when restoring?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Restore checks every affected file first. If a source file changed since it was anonymized, restore stops with a conflict and exit code 2 instead of overwriting it. Restored changes stay uncommitted for review."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Where are the original names stored?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Original names, paths, and replacement pairs are encrypted with a machine-local key. The workspace only exposes anonymized paths and hashes."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Does repo-cloak work with Git worktrees?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Yes. Workspaces are linked to a branch, and repo-cloak push --new-worktree restores changes into a new Git worktree based on the commit the files were taken from."
+                }
+              }
+            ]
+          }
+        ]
+      }
+    </script>
+
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+
+    <header class="top">
+      <nav class="wrap nav" aria-label="Main">
+        <a class="brand" href="./" aria-label="repo-cloak home">
+          <img src="favicon.svg" width="28" height="28" alt="" />
+          <span>repo-cloak</span>
+        </a>
+        <ul>
+          <li><a href="#how">How it works</a></li>
+          <li><a href="#features">Features</a></li>
+          <li><a href="#usage">Usage</a></li>
+          <li><a href="#faq">FAQ</a></li>
+          <li><a href="https://github.com/shaznishiraz/repo-cloak">GitHub</a></li>
+        </ul>
+      </nav>
+    </header>
+
+    <main id="main">
+      <section class="hero wrap">
+        <p class="eyebrow">Open-source CLI · MIT · macOS, Windows, Linux</p>
+        <h1>
+          Share private code with AI agents, <span class="grad">without sharing your secrets.</span>
+        </h1>
+        <p class="lead">
+          repo-cloak copies the files you choose from a private Git repository into a separate
+          workspace, anonymizes company names, paths, and secrets, and restores every change the
+          agent makes with the original names intact.
+        </p>
+
+        <div class="cta">
+          <a class="btn primary" href="https://www.npmjs.com/package/repo-cloak-cli">
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+              <path
+                fill="currentColor"
+                d="M2 7h20v9H12v2H8v-2H2V7zm2 2v5h2v-3h2v3h2V9H4zm8 0v7h2v-2h4V9h-6zm2 2h2v1h-2v-1zm6-2v5h1V9h-1z"
+              />
+            </svg>
+            View on npm
+          </a>
+          <a class="btn" href="https://github.com/shaznishiraz/repo-cloak">
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+              <path
+                fill="currentColor"
+                d="M12 .5a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.4-1.8-1.4-1.8-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.7-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.3 4.6 18.3 5 18.3 5c.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .5z"
+              />
+            </svg>
+            Star on GitHub
+          </a>
+        </div>
+
+        <div class="install" role="group" aria-label="Install command">
+          <code id="install-cmd">npm install -g repo-cloak-cli</code>
+          <button
+            class="copy"
+            type="button"
+            data-copy="install-cmd"
+            aria-label="Copy install command"
+          >
+            Copy
+          </button>
+        </div>
+        <p class="note">
+          Version 2, described on this page, is a full rewrite and is being prepared for release.
+          Until it is published, npm installs version 1.
+        </p>
+
+        <figure class="term" aria-label="Example: names before and after anonymizing">
+          <div class="term-bar">
+            <span></span><span></span><span></span><em>src/billing/invoice.ts</em>
+          </div>
+          <div class="diff">
+            <div class="pane before">
+              <b>your repo</b>
+              <pre><code>import { AcmeClient } from '@acme/sdk';
+
+const ACME_API_KEY = env.ACME_API_KEY;
+
+export function getAcmeInvoice(id: string) {
+  return new AcmeClient(ACME_API_KEY)
+    .invoices.get(id);
+}</code></pre>
+            </div>
+            <div class="pane after">
+              <b>what the agent sees</b>
+              <pre><code>import { NorthwindClient } from '@northwind/sdk';
+
+const NORTHWIND_API_KEY = env.NORTHWIND_API_KEY;
+
+export function getNorthwindInvoice(id: string) {
+  return new NorthwindClient(NORTHWIND_API_KEY)
+    .invoices.get(id);
+}</code></pre>
+            </div>
+          </div>
+        </figure>
+      </section>
+
+      <section id="how" class="wrap section">
+        <h2>How it works</h2>
+        <ol class="steps">
+          <li>
+            <span class="num">1</span>
+            <h3>Cloak</h3>
+            <p>
+              Run <code>repo-cloak</code> in your repository. Pick profiles and files, preview every
+              replacement, and get an anonymized workspace.
+            </p>
+          </li>
+          <li>
+            <span class="num">2</span>
+            <h3>Work</h3>
+            <p>
+              Point your AI agent at the workspace. It sees consistent placeholder names, never your
+              company, clients, or keys.
+            </p>
+          </li>
+          <li>
+            <span class="num">3</span>
+            <h3>Restore</h3>
+            <p>
+              Run <code>repo-cloak push</code>. Changes go back with the original names, checked for
+              conflicts first, and left uncommitted for your review.
+            </p>
+          </li>
+        </ol>
+        <pre
+          class="flow"
+          aria-label="Flow diagram"
+        ><code>  your repo            repo-cloak push            cloak workspace
+ ┌───────────┐   anonymize names + secrets   ┌──────────────────┐
+ │ Acme Corp │ ────────────────────────────► │ Northwind Traders│ ◄── AI agent
+ │ ACME_KEY  │ ◄──────────────────────────── │ REDACTED_KEY_1   │
+ └───────────┘   restore, conflict-checked   └──────────────────┘
+                     repo-cloak push</code></pre>
+      </section>
+
+      <section id="features" class="wrap section">
+        <h2>Features</h2>
+        <div class="grid">
+          <article class="card">
+            <h3>Case-aware anonymizer</h3>
+            <p>
+              One rule covers <code>AcmeCorp</code>, <code>acmeCorp</code>, <code>acme_corp</code>,
+              <code>ACME_CORP</code>, and <code>acme-corp</code>, keeping each style. Identifier
+              boundaries leave unrelated words alone.
+            </p>
+          </article>
+          <article class="card">
+            <h3>Regex and secret detection</h3>
+            <p>
+              Add regex rules with capture groups, and use built-in detectors that replace keys and
+              tokens with placeholders, which are restored on the way back.
+            </p>
+          </article>
+          <article class="card">
+            <h3>Exact, safe restore</h3>
+            <p>
+              Every affected file is checked before writing. Source changes stop the restore with a
+              conflict instead of overwriting your work.
+            </p>
+          </article>
+          <article class="card">
+            <h3>Encrypted by default</h3>
+            <p>
+              Original names, paths, and replacement pairs are encrypted with a machine-local key.
+              The workspace only exposes anonymized paths and hashes.
+            </p>
+          </article>
+          <article class="card">
+            <h3>Git worktree aware</h3>
+            <p>
+              Workspaces link to a branch. Restore into an existing worktree, or create a new one
+              from the exact commit you started from with <code>--new-worktree</code>.
+            </p>
+          </article>
+          <article class="card">
+            <h3>Reusable profiles</h3>
+            <p>
+              Keep rules in global or per-repo profiles and combine them. Conflicting rules are
+              caught before anything is written.
+            </p>
+          </article>
+          <article class="card">
+            <h3>Local dashboard</h3>
+            <p>
+              <code>repo-cloak ui</code> opens one dashboard for all your repos and workspaces,
+              bound to <code>127.0.0.1</code> and protected by a session token.
+            </p>
+          </article>
+          <article class="card">
+            <h3>Built for scripts and agents</h3>
+            <p>
+              <code>--dry-run</code>, <code>--yes</code>, and <code>--json</code> for scripted runs,
+              plus JSON Schemas for profiles and manifests that tools and LLMs can follow.
+            </p>
+          </article>
+          <article class="card">
+            <h3>Works from either side</h3>
+            <p>
+              <code>pull</code> brings changes here, <code>push</code> sends them to the other side,
+              whether you are in the source repo or the workspace.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section id="usage" class="wrap section">
+        <h2>Usage</h2>
+        <div class="usage">
+          <div>
+            <h3>Guided</h3>
+            <p>Run it with no arguments in your repository and follow the prompts.</p>
+            <pre class="code"><code><span class="c"># in your source repository</span>
+repo-cloak</code></pre>
+            <h3>Explicit</h3>
+            <pre
+              class="code"
+            ><code><span class="c"># create a profile (opens a validated JSON editor)</span>
+repo-cloak profile create company
+
+<span class="c"># preview, then create the anonymized workspace</span>
+repo-cloak push --profile repo:company --files src README.md \
+  --to ../cloak-work --dry-run
+repo-cloak push --profile repo:company --files src README.md \
+  --to ../cloak-work --yes
+
+<span class="c"># after the agent's changes, in the workspace</span>
+cd ../cloak-work
+repo-cloak status
+repo-cloak push</code></pre>
+          </div>
+          <div>
+            <h3>Direction depends on where you run it</h3>
+            <div class="table">
+              <table>
+                <thead>
+                  <tr>
+                    <th scope="col">Run from</th>
+                    <th scope="col"><code>push</code></th>
+                    <th scope="col"><code>pull</code></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <th scope="row">Source repo</th>
+                    <td>Anonymize files into a workspace</td>
+                    <td>Restore workspace changes</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Cloak workspace</th>
+                    <td>Restore changes into the source</td>
+                    <td>Refresh files from the source</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <h3>Commands</h3>
+            <ul class="cmds">
+              <li><code>repo-cloak</code><span>guided mode</span></li>
+              <li>
+                <span class="k"><code>push</code> / <code>pull</code></span
+                ><span>sync in either direction</span>
+              </li>
+              <li><code>status</code><span>changes since the last sync</span></li>
+              <li><code>profile</code><span>list, create, edit, import, check</span></li>
+              <li><code>workspaces</code><span>workspaces linked to this repo</span></li>
+              <li><code>ui</code><span>local dashboard</span></li>
+              <li><code>schema</code><span>JSON Schemas</span></li>
+            </ul>
+            <p class="muted">
+              <code>cloak</code> works as a short alias for <code>repo-cloak</code>.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section id="faq" class="wrap section">
+        <h2>FAQ</h2>
+        <div class="faq">
+          <details>
+            <summary>
+              How do I share private code with an AI agent without exposing company names?
+            </summary>
+            <p>
+              Run <code>repo-cloak</code> in your repository, choose the files, and give the agent
+              the anonymized workspace it creates. Names, paths, and detected secrets are replaced;
+              <code>repo-cloak push</code> restores the agent's changes with the original names.
+            </p>
+          </details>
+          <details>
+            <summary>Does it handle camelCase, snake_case, and uppercase names?</summary>
+            <p>
+              Yes. One literal rule covers variants such as <code>AcmeCorp</code>,
+              <code>acmeCorp</code>, <code>acme_corp</code>, <code>ACME_CORP</code>, and
+              <code>acme-corp</code>, keeps each case style, and respects identifier boundaries so
+              unrelated words are left alone.
+            </p>
+          </details>
+          <details>
+            <summary>Can it overwrite my work when restoring?</summary>
+            <p>
+              Restore checks every affected file first. If a source file changed since it was
+              anonymized, restore stops with a conflict and exit code 2 instead of overwriting it.
+              Restored changes stay uncommitted for review.
+            </p>
+          </details>
+          <details>
+            <summary>Where are the original names stored?</summary>
+            <p>
+              Original names, paths, and replacement pairs are encrypted with a machine-local key in
+              <code>~/.repo-cloak</code>. Keep that key backed up: without it, a workspace cannot be
+              restored.
+            </p>
+          </details>
+          <details>
+            <summary>Does it work with Git worktrees?</summary>
+            <p>
+              Yes. Workspaces are linked to a branch, and
+              <code>repo-cloak push --new-worktree</code>
+              restores changes into a new Git worktree based on the commit the files were taken
+              from.
+            </p>
+          </details>
+          <details>
+            <summary>What does it need?</summary>
+            <p>Node.js 22.13 or later, and Git, on macOS, Windows, or Linux.</p>
+          </details>
+        </div>
+      </section>
+
+      <section class="wrap section final">
+        <h2>Try it on your next AI task</h2>
+        <div class="cta">
+          <a class="btn primary" href="https://www.npmjs.com/package/repo-cloak-cli">View on npm</a>
+          <a class="btn" href="https://github.com/shaznishiraz/repo-cloak#readme">Read the docs</a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="wrap foot">
+      <p>
+        repo-cloak is open source under the MIT license ·
+        <a href="https://github.com/shaznishiraz/repo-cloak">GitHub</a> ·
+        <a href="https://www.npmjs.com/package/repo-cloak-cli">npm</a> ·
+        <a href="https://github.com/shaznishiraz/repo-cloak/issues">Report an issue</a>
+      </p>
+    </footer>
+
+    <script>
+      document.querySelectorAll('[data-copy]').forEach((button) => {
+        button.addEventListener('click', async () => {
+          const text = document.getElementById(button.dataset.copy).textContent;
+          try {
+            await navigator.clipboard.writeText(text);
+            button.textContent = 'Copied';
+          } catch {
+            button.textContent = 'Press Ctrl+C';
+          }
+          setTimeout(() => (button.textContent = 'Copy'), 1600);
+        });
+      });
+    </script>
+  </body>
+</html>
