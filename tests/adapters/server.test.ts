@@ -173,3 +173,50 @@ it('rejects malformed and oversized requests', async () => {
     ).status,
   ).toBe(413);
 });
+
+it('rejects unauthorized write requests before changing any saved profile', async () => {
+  const { call, base, store } = await fixture();
+  const scope = { kind: 'global' };
+  const profile = { kind: 'profile', schemaVersion: 1, name: 'protected', rules: [] };
+  const saved = (await (await call('/api/profiles', 'POST', { scope, profile })).json()) as {
+    id: string;
+  };
+  const path = join(store.root, 'profiles', `${saved.id}.json`);
+  const before = await readFile(path);
+  const requests = [
+    {
+      path: '/api/profiles',
+      method: 'POST',
+      body: { id: saved.id, scope, profile: { ...profile, name: 'changed' } },
+    },
+    { path: '/api/profiles', method: 'DELETE', body: { id: saved.id, scope } },
+    { path: '/api/profiles/check', method: 'POST', body: [{ id: saved.id, scope }] },
+  ];
+  for (const request of requests) {
+    const options = { method: request.method, body: JSON.stringify(request.body) };
+    expect(
+      (
+        await fetch(`${base}${request.path}`, {
+          ...options,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      ).status,
+    ).toBe(401);
+    expect(
+      (
+        await fetch(`${base}${request.path}`, {
+          ...options,
+          headers: {
+            Authorization: 'Bearer test-token',
+            'Content-Type': 'application/json',
+            Origin: 'https://foreign.test',
+          },
+        })
+      ).status,
+    ).toBe(403);
+  }
+  expect(await readFile(path)).toEqual(before);
+  expect(await (await call('/api/profiles')).json()).toEqual([
+    expect.objectContaining({ id: saved.id }),
+  ]);
+});

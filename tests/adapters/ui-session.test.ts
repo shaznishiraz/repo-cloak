@@ -10,9 +10,17 @@ it('reuses one server for concurrent launches and removes session files on shutd
   const root = await mkdtemp(join(tmpdir(), 'cloak ui session '));
   const store = createStore(root);
   const dashboard = createDashboard(store, root);
-  const first = await startUiSession(root, dashboard, 0, resolve('src/ui'));
+  const sessions = await Promise.all([
+    startUiSession(root, dashboard, 0, resolve('src/ui')),
+    startUiSession(root, dashboard, 0, resolve('src/ui')),
+  ]);
+  const first = sessions.find((session) => !session.reused);
+  const second = sessions.find((session) => session.reused);
+  if (!first || !second) {
+    await Promise.all(sessions.map((session) => session.close()));
+    throw new Error('Expected one owner and one reused session');
+  }
   try {
-    const second = await startUiSession(root, dashboard, 0, resolve('src/ui'));
     expect(second.reused).toBe(true);
     expect(second.port).toBe(first.port);
     expect(second.token).toBe(first.token);
@@ -55,6 +63,31 @@ it('recovers a stale guard left by an exited process', async () => {
     expect(session.reused).toBe(false);
   } finally {
     await session.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+it('releases its guard after a busy-port error so the next launch succeeds', async () => {
+  const { createServer } = await import('node:http');
+  const root = await mkdtemp(join(tmpdir(), 'cloak busy ui '));
+  const server = createServer();
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const address = server.address();
+  if (!address || typeof address === 'string') throw new Error('No port');
+  try {
+    const dashboard = createDashboard(createStore(root), root);
+    await expect(
+      startUiSession(root, dashboard, address.port, resolve('src/ui')),
+    ).rejects.toMatchObject({ code: 'EADDRINUSE' });
+    expect(await readdir(root)).toEqual([]);
+    const session = await startUiSession(root, dashboard, 0, resolve('src/ui'));
+    await session.close();
+    await session.close();
+    expect(await readdir(root)).toEqual([]);
+  } finally {
+    await new Promise<void>((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
     await rm(root, { recursive: true, force: true });
   }
 });

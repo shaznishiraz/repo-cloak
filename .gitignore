@@ -10,3 +10,5 @@ dist/
 .vscode/
 *.tgz
 schemas/
+e2e/.build/
+e2e/.e2e/

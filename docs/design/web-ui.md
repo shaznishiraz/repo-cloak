@@ -131,3 +131,28 @@ manifest. Missing workspace folders are marked in the list.
 
 Sources live in `src/ui/`. The CLI build copies them into `dist/ui/` without
 a frontend build tool or framework. Tests enforce the 50 KB asset budget.
+
+## Browser regression automation
+
+The separate `e2e/` test project uses TesterArmy's `e2e` runner and its
+Playwright web engine. Versions are pinned while the framework is pre-1.0.
+These deterministic tests use locators and assertions, without model calls.
+The test dependencies do not enter the published CLI or change its Node floor.
+
+```text
+npm run test:browser
+  build CLI assets -> bundle fixture -> e2e runner
+    -> choose loopback port -> start fixture server
+       -> temporary Git repo + encrypted store + extracted workspace
+    -> fresh browser context per test -> assertions + failure traces
+    -> stop fixture -> remove temporary files
+```
+
+The fixture exercises the real dashboard, store and sync adapters with
+synthetic names. It never opens the user's private store. Tests cover changed
+workspace status and pull history, fragment-token removal and reload,
+profile form/JSON editing, invalid rules, extension preservation, compatibility
+checks, canceled/confirmed deletion, and a 390-pixel layout. CI runs Chromium
+on Ubuntu/Node 24 and retains reports and failure traces. The existing native
+macOS/Windows/Linux CLI matrix remains required; this runner currently supports
+Windows through WSL only.
