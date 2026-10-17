@@ -169,13 +169,24 @@ npm run build
 npm run typecheck
 npm run lint
 npm test
+npm run test:coverage
+npm run test:package  # after building
 npm run dev
 ```
 
 Tests cover the replacement engine, encrypted store, Git workflows, rollback,
 CLI routing, and dashboard API. CI runs on macOS, Windows, and Linux with
 Node.js 22 and 24. See [`docs/plan.md`](docs/plan.md) for progress and
-[`docs/design/`](docs/design/) for the design.
+[`docs/design/`](docs/design/) for the design. Coverage floors, important failure
+scenarios, and the release gates are described in [`docs/testing.md`](docs/testing.md).
+
+Dashboard browser automation: `npm ci --prefix e2e && npm run test:browser`.
+See [testing requirements and coverage](docs/testing.md) for Node/WSL requirements
+and the complete release checks.
+
+Shell shortcuts: `./scripts/setup.sh` once, then `./scripts/test-all.sh` for
+all checks. Use `./scripts/check.sh` or `./scripts/test-browser.sh` to run either
+suite separately. On Windows use WSL; on Linux/WSL setup accepts `--with-deps`.
 
 ## License
 

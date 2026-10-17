@@ -198,6 +198,7 @@ Design: [web-ui.md](design/web-ui.md).
 - [x] `node:http` server, static assets, JSON API over existing commands
 - [x] Session token, `127.0.0.1` only, `Host` / `Origin` checks
 - [x] Screens: workspaces, profile list and editor, pull history
+- [x] Isolated dashboard browser regression suite and CI reports
 
 **Acceptance**
 
@@ -214,6 +215,7 @@ credentials described under step 4. Generated pages were left untouched.
 - [x] README rewritten for v2, with a note that v1 workspaces must be pushed with v1 first
 - [x] `npm view repo-cloak-cli version` is below `2.0.0`
 - [x] `npm pack --dry-run` contents reviewed
+- [x] Enforce backend/core coverage floors and built-package smoke checks before publication
 - [ ] Confirm the final commit passes the macOS, Windows, and Linux CI matrix
 - [ ] Refresh the generated OpenWiki for the completed milestones
 - [ ] Publish only when the user asks

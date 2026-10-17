@@ -627,3 +627,48 @@ it('cancels new worktree creation and rejects unsafe or contradictory options be
     restore('push', { newWorktree: 'feature/new', worktree: source, yes: true }),
   ).rejects.toThrow('cannot be combined');
 });
+
+it('preserves a saved workspace after a private-record failure and repairs its record on retry', async () => {
+  const { source, destination, services, push, options } = await fixture();
+  const record = services.store.record;
+  services.store.record = async () => {
+    throw new Error('Private store unavailable');
+  };
+  await expect(push('push', options)).rejects.toThrow('Workspace was saved');
+  expect(await readFile(join(destination, 'src', 'Northwind.ts'), 'utf8')).toContain('Northwind');
+  const snapshot = await services.store.readSnapshot(destination);
+  expect(snapshot?.data.source.path).toBe(source);
+  services.store.record = record;
+  const retry = await push('push', options);
+  expect(retry.writes).toEqual([]);
+  expect(
+    (await services.store.readRepo(snapshot?.plain.source.repoId ?? ''))?.workspaces[
+      retry.workspaceId
+    ]?.path,
+  ).toBe(destination);
+});
+
+it('preserves a restored source and baseline after a private-record failure and repairs them on retry', async () => {
+  const { source, destination, store, services, push, options } = await fixture();
+  await push('push', options);
+  await writeFile(join(destination, 'src', 'Northwind.ts'), 'class Northwind { saved = true }');
+  const restoreServices = createSyncServices(destination, store);
+  const record = restoreServices.store.record;
+  restoreServices.store.record = async () => {
+    throw new Error('Private store unavailable');
+  };
+  const restore = createSyncCommand(restoreServices, '2.0.0');
+  await expect(restore('push', { yes: true })).rejects.toThrow('baseline were saved');
+  expect(await readFile(join(source, 'src', 'Acme.ts'), 'utf8')).toBe(
+    'class Acme { saved = true }',
+  );
+  const { runStatus } = await import('../src/commands/status.js');
+  const { createStatusIO } = await import('../src/adapters/status.js');
+  expect((await runStatus(createStatusIO(destination))).modified).toEqual([]);
+  restoreServices.store.record = record;
+  const retry = await restore('push', { yes: true });
+  expect(retry.writes).toEqual([]);
+  expect(
+    (await services.store.readSnapshot(destination))?.data.files['src/Northwind.ts']?.sourceHash,
+  ).toBeDefined();
+});

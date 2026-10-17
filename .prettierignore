@@ -6,3 +6,6 @@ openwiki/
 .claude/
 .mcp.json
 .github/workflows/openwiki-update.yml
+e2e/.build/
+e2e/.e2e/
+e2e/package-lock.json
