@@ -1,0 +1,106 @@
+# yaml-language-server: $schema=https://dekit.run/schemas/dekit.json
+#
+# Project commands for repo-cloak. Nothing starts on its own.
+#   dekit attach              pick a task in the TUI and start it
+#   dekit start <task>        start one task, e.g. dekit start dashboard
+#   dekit start +<tag>        start a group, e.g. dekit start +check
+#   dekit ls / dekit down     see what is running / stop everything
+#
+# Tags: +dev  +check  +release  +site  +wiki
+
+defaults:
+  autostart: false
+
+tasks:
+  # Develop
+  dev:
+    label: dev (rebuild on change)
+    cmd: npm run dev
+    tags: [dev]
+  build:
+    type: job
+    cmd: npm run build
+    tags: [dev]
+  install-local:
+    label: install CLI globally (link)
+    type: job
+    cmd: ./scripts/install-local.sh
+    tags: [dev]
+  dashboard:
+    label: dashboard (repo-cloak ui)
+    cmd: node dist/cli.js ui
+    deps: [build]
+    tags: [dev]
+  test-watch:
+    cmd: npm run test:watch
+    tags: [dev]
+
+  # Check
+  typecheck:
+    type: job
+    cmd: npm run typecheck
+    tags: [check]
+  lint:
+    type: job
+    cmd: npm run lint
+    tags: [check]
+  test:
+    type: job
+    cmd: npm test
+    tags: [check]
+  format-check:
+    type: job
+    cmd: npm run format:check
+    tags: [check]
+  format:
+    label: format (rewrite files)
+    type: job
+    cmd: npm run format
+
+  # Release checks
+  coverage:
+    type: job
+    cmd: npm run test:coverage
+    tags: [release]
+  package-check:
+    type: job
+    cmd: npm run test:package
+    deps: [build]
+    tags: [release]
+  test-browser:
+    type: job
+    cmd: npm run test:browser
+    tags: [release]
+  check-all:
+    label: check-all (scripts/check.sh)
+    type: job
+    cmd: ./scripts/check.sh
+  pack:
+    label: pack (dry run)
+    type: job
+    cmd: npm pack --dry-run
+    tags: [release]
+  publish-dry-run:
+    type: job
+    cmd: npm publish --dry-run
+  publish:
+    label: publish to npm (real)
+    type: job
+    cmd: npm publish
+
+  # Website and wiki
+  site:
+    label: website (http://127.0.0.1:8765)
+    cmd: python3 -m http.server 8765 --bind 127.0.0.1 --directory site
+    ready: { tcp: 8765 }
+    tags: [site]
+  site-open:
+    label: open website in browser
+    type: job
+    cmd: open http://127.0.0.1:8765
+    deps: [site]
+    tags: [site]
+  wiki:
+    label: wiki graph (openwiki visualize)
+    cmd: openwiki visualize
+    tags: [wiki]
