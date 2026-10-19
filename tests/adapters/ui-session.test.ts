@@ -34,7 +34,7 @@ it('reuses one server for concurrent launches and removes session files on shutd
     await first.close();
   }
   expect(await readdir(root)).toEqual([]);
-  await rm(root, { recursive: true, force: true });
+  await rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
 });
 
 it('ships less than 50 KB of browser assets', async () => {
@@ -63,7 +63,7 @@ it('recovers a stale guard left by an exited process', async () => {
     expect(session.reused).toBe(false);
   } finally {
     await session.close();
-    await rm(root, { recursive: true, force: true });
+    await rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
   }
 });
 
@@ -88,6 +88,6 @@ it('releases its guard after a busy-port error so the next launch succeeds', asy
     await new Promise<void>((resolve, reject) =>
       server.close((error) => (error ? reject(error) : resolve())),
     );
-    await rm(root, { recursive: true, force: true });
+    await rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
   }
 });

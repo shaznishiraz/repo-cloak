@@ -10,7 +10,11 @@ import { repoId } from '../../src/core/identity.js';
 const exec = promisify(execFile);
 const roots: string[] = [];
 afterEach(async () => {
-  await Promise.all(roots.splice(0).map((p) => rm(p, { recursive: true, force: true })));
+  await Promise.all(
+    roots
+      .splice(0)
+      .map((p) => rm(p, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })),
+  );
 });
 async function fixture() {
   const root = await mkdtemp(join(tmpdir(), 'cloak git '));
