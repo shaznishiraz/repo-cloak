@@ -17,7 +17,7 @@ it('reads JSON files with spaces in their paths', async () => {
     await writeFile(path, '\uFEFF{"name":"Müller"}');
     expect(await readJson(path)).toEqual({ name: 'Müller' });
   } finally {
-    await rm(root, { recursive: true, force: true });
+    await rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
   }
 });
 it('names the source on malformed input and refuses to wait on a terminal', async () => {

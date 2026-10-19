@@ -56,7 +56,7 @@ it('reports changes from a nested directory without a key or changing the worksp
     expect(await readFile(join(root, '.repo-cloak', 'manifest.json'), 'utf8')).toBe(manifest);
     expect(await readdir(join(root, '.repo-cloak'))).toEqual(['manifest.json']);
   } finally {
-    await rm(root, { recursive: true, force: true });
+    await rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
   }
 });
 

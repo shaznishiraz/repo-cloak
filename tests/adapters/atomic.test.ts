@@ -6,7 +6,11 @@ import { writeAtomic } from '../../src/adapters/atomic.js';
 
 const roots: string[] = [];
 afterEach(async () => {
-  await Promise.all(roots.splice(0).map((p) => rm(p, { recursive: true, force: true })));
+  await Promise.all(
+    roots
+      .splice(0)
+      .map((p) => rm(p, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })),
+  );
 });
 it('cleans up the temporary file after a failed replacement, leaving the destination intact', async () => {
   const root = await mkdtemp(join(tmpdir(), 'cloak atomic '));

@@ -72,6 +72,6 @@ it('routes push/pull flags through the real CLI parser and supports a first unco
     await run(['pull', '--from', destination, '--force', '--yes', '--json']);
     expect(await readFile(join(source, 'Acme.ts'), 'utf8')).toBe('class Acme { forced = true }');
   } finally {
-    await rm(root, { recursive: true, force: true });
+    await rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
   }
 });

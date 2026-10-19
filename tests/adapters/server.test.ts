@@ -13,7 +13,7 @@ afterEach(async () => {
 });
 async function fixture() {
   const root = await mkdtemp(join(tmpdir(), 'cloak dashboard '));
-  cleanups.push(() => rm(root, { recursive: true, force: true }));
+  cleanups.push(() => rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }));
   const store = createStore(join(root, 'store'));
   const dashboard = createDashboard(store, root);
   const server = createDashboardServer(dashboard, 'test-token', resolve('src/ui'));

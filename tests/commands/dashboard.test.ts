@@ -60,6 +60,6 @@ it('opens on the current repo or workspace and exposes real status and pull hist
     await dashboard.workspace(repoId, result.workspaceId);
     expect(await readFile(join(destination, '.repo-cloak', 'manifest.json'))).toEqual(before);
   } finally {
-    await rm(root, { recursive: true, force: true });
+    await rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
   }
 });

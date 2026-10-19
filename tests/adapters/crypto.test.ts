@@ -7,7 +7,11 @@ import { getOrCreateKey, keyId, open, seal } from '../../src/adapters/crypto.js'
 
 const roots: string[] = [];
 afterEach(async () => {
-  await Promise.all(roots.splice(0).map((p) => rm(p, { recursive: true, force: true })));
+  await Promise.all(
+    roots
+      .splice(0)
+      .map((p) => rm(p, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })),
+  );
 });
 async function root() {
   const p = await mkdtemp(join(tmpdir(), 'cloak crypto '));

@@ -33,7 +33,11 @@ vi.mock('../../src/adapters/atomic.js', async (importOriginal) => {
 const roots: string[] = [];
 afterEach(async () => {
   fault.path = '';
-  await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
+  await Promise.all(
+    roots
+      .splice(0)
+      .map((root) => rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })),
+  );
 });
 function file(path: string, text: string): SourceFile {
   return { path, text, bytes: Buffer.from(text), binary: false, executable: false };

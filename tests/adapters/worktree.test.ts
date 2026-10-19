@@ -7,7 +7,11 @@ import { create, readCommit, resolveBase } from '../../src/adapters/worktree.js'
 
 const roots: string[] = [];
 afterEach(async () => {
-  await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
+  await Promise.all(
+    roots
+      .splice(0)
+      .map((root) => rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })),
+  );
 });
 async function fixture() {
   const root = await realpath(await mkdtemp(join(tmpdir(), 'cloak worktree ')));
@@ -71,7 +75,7 @@ it('disables checkout hooks when creating a worktree', async () => {
 
 it('refuses symlink and submodule entries before any checkout', async () => {
   const { source, base } = await fixture();
-  const blob = (await runGit(source, ['hash-object', '--', 'text.txt'])).trim();
+  const blob = (await runGit(source, ['hash-object', '-w', '--', 'text.txt'])).trim();
   await runGit(source, ['update-index', '--add', '--cacheinfo', `120000,${blob},link`]);
   await runGit(source, ['update-index', '--add', '--cacheinfo', `160000,${base},module`]);
   await runGit(source, [
