@@ -74,10 +74,13 @@ export async function repoState(cwd: string) {
   }
   return { repoId: repo.repoId, path: repo.topLevel, commonDir: repo.commonDir, branch, commit };
 }
-export async function commitFiles(root: string, ref: string): Promise<string[]> {
-  const sha = (
+export async function resolveCommit(root: string, ref: string): Promise<string> {
+  return (
     await runGit(root, ['rev-parse', '--verify', '--end-of-options', `${ref}^{commit}`])
   ).trim();
+}
+export async function commitFiles(root: string, ref: string): Promise<string[]> {
+  const sha = await resolveCommit(root, ref);
   return (
     await runGit(root, [
       'diff-tree',

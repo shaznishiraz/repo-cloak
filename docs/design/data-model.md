@@ -146,10 +146,31 @@ The file people and LLMs edit most. Shown decrypted; stored sealed.
 }
 ```
 
-Profiles may also set `include: string[]` and `exclude: string[]` selection
-globs. Includes override ordinary default exclusions; excludes add exclusions.
-Metadata paths stay excluded, and existing tracked workspace files remain
-tracked when the patterns change.
+Profiles may also set `exclude` and `include` file patterns. They follow
+`.gitignore` conventions, relative to the repository root
+(`src/core/patterns.ts`):
+
+```json
+{ "exclude": ["*.schema.json", "generated/", "/config/local.yml"], "include": ["dist/types/"] }
+```
+
+| Pattern             | Matches                                             |
+| ------------------- | --------------------------------------------------- |
+| `*.schema.json`     | A name without `/`: that name in every folder       |
+| `generated/`        | Trailing `/`: a folder and everything in it         |
+| `/config/local.yml` | Leading `/`: only at the repository root            |
+| `src/**/*.gen.ts`   | Contains `/`: matched from the repository root      |
+| `fixtures`          | Also covers the contents of a folder with that name |
+
+- `exclude` adds exclusions and always wins.
+- `include` only brings back files skipped by the defaults (lockfiles,
+  `dist/`, `build/`, `node_modules/`, ...); it does not limit the selection.
+- Matching ignores case. Metadata (`.git`, `.repo-cloak`) is never copied.
+- Patterns are validated with the profile: no blanks, surrounding spaces,
+  `!` negation, backslashes, absolute paths, `..`, duplicates, or a pattern in
+  both lists.
+- Files a workspace already tracks stay tracked when patterns change; select
+  files again (or start a new workspace) to drop them.
 
 Rule fields:
 

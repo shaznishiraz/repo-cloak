@@ -1,103 +1,122 @@
 ---
 type: architecture
-title: CLI entrypoint and program
-description: How the repo-cloak v2 CLI starts, how the commander program is built by createProgram, where its name/version/description come from, and the layering new commands must follow.
-tags: [cli, architecture, commander, entrypoint]
+title: CLI entrypoint and command routing
+description: How the repo-cloak CLI starts, which commands it registers, how push and pull route to extraction or restore depending on where they run, the global --json/--yes flags, exit codes, and the loader seams tests replace.
+tags: [cli, architecture, commander, entrypoint, routing]
 verified:
   - by: openwiki/0.7.2
-    at: 2026-10-16T13:36:07.841Z
+    at: 2026-10-20T12:02:39.628Z
 sources:
   - id: openwiki-source-8037e2358a2c4f9b2c722a11
     resource: repo://AGENTS.md
   - id: openwiki-source-d2f650c01f560a60ae9115b9
     resource: repo://src/cli.ts
+  - id: openwiki-source-cd1c967ebdc10e2badb82347
+    resource: repo://src/commands/sync.ts
+  - id: openwiki-source-514e02a2af9b0f6a423be641
+    resource: repo://src/core/errors.ts
   - id: openwiki-source-a93be9f59f4034d9001d88eb
     resource: repo://src/program.ts
+  - id: openwiki-source-ef8ff361319680347ff5278d
+    resource: repo://src/sync-program.ts
   - id: openwiki-source-bb917cfc421aafb728da5768
     resource: repo://tests/program.test.ts
-generated: { by: "claude-code", at: "2026-10-16T13:36:07.841Z" }
+generated: { by: "claude-code", at: "2026-10-20T12:02:39.628Z" }
 ---
 
-# CLI entrypoint and program
+# CLI entrypoint and command routing
 
-repo-cloak v2 is at the scaffold stage: the CLI parses arguments and answers
-`--help` and `--version`, but registers no subcommands yet. This page explains
-the two source files that exist and the structure that new commands are expected
-to slot into.
-
-## Startup flow
+## Startup
 
 ```
-node dist/cli.js [args]          (bin: repo-cloak / cloak)
-        |
-        v
-src/cli.ts  --- createProgram() --->  src/program.ts
-        |                                  |
-        |                                  +-- reads ../package.json
-        |                                  |   (version, description)
-        |                                  v
-        |                             commander Command
-        |                               name: repo-cloak
-        |                               -v, --version
-        v
-  parseAsync(process.argv)
+dist/cli.js  (bins: repo-cloak, cloak)
+   |
+   v
+src/cli.ts ── createProgram().parseAsync(argv)
+   |              |
+   |              +── schema <kind>          src/program.ts
+   |              +── profile <sub>          src/profile-program.ts
+   |              +── push | pull            src/sync-program.ts  -> commands/sync.ts
+   |              +── workspaces             src/sync-program.ts
+   |              +── status                 src/status-program.ts
+   |              +── ui                     src/ui-program.ts
+   |              +── (no command)           interactive mode
+   |
+   +── catch: prompt cancelled -> exit 130
+              ConflictError     -> exit 2
+              other errors      -> "error: <message>", exit 1
 ```
 
-`src/cli.ts` is the only side-effecting module: it builds the program and calls
-`parseAsync(process.argv)` with top-level `await`, so asynchronous command
-actions added later are awaited before the process exits.
+`src/cli.ts` is the only module that sets the process exit code. Errors are
+printed as one `error: ...` line rather than a stack trace.
 
-`src/program.ts` exports `createProgram()`, a factory that returns a fresh
-commander `Command` each call. Keeping construction separate from parsing lets
-tests build and inspect the program without touching `process.argv`.
+| Exit code | When                                                        |
+| --------- | ----------------------------------------------------------- |
+| 0         | Success                                                     |
+| 1         | Any ordinary error                                          |
+| 2         | Restore stopped because source files changed (`ConflictError`) |
+| 130       | The user cancelled an interactive prompt (Ctrl+C)           |
 
-## Metadata sourced from package.json
+## The program object
 
-The program does not hard-code its version or description. `program.ts` uses
-`createRequire(import.meta.url)` to load `../package.json` at runtime. The same
-relative path resolves in both places the module runs:
+`createProgram()` builds a commander `Command` named `repo-cloak`. Its version
+and description are read from `package.json` at runtime, so the published CLI
+always reports the version it was published with. Two global options apply to
+every command:
 
-| Running from        | Module location     | `../package.json` resolves to |
-| ------------------- | ------------------- | ----------------------------- |
-| tests (Vitest)      | `src/program.ts`    | repository `package.json`     |
-| installed / built   | `dist/cli.js`       | package root `package.json`   |
+- `--json`: machine-readable output for scripts and agents.
+- `-y, --yes`: skip confirmations.
 
-Because `package.json` is always shipped in an npm tarball, the published CLI
-reports exactly the version that was published. Bumping the version therefore
-only requires editing `package.json`.
+Running `repo-cloak` with no command starts [interactive mode](../workflows/interactive-mode.md).
+It refuses `--json` and `--yes` (they imply no prompts), and when stdin or
+stdout is not a terminal it prints help instead of prompting.
 
-The version flag is registered as `-v, --version` (commander's default is
-`-V`), and the program name is fixed to `repo-cloak` regardless of which bin
-alias (`repo-cloak` or `cloak`) invoked it.
+## Direction-based routing for push and pull
 
-## Where new code goes
-
-`AGENTS.md` defines the intended layering. Only `cli.ts` and `program.ts` exist
-today; the other layers are created as features land:
+`push` and `pull` share one option set, but their meaning depends on where
+they run (`commands/sync.ts`):
 
 ```
-cli.ts  -->  commands/  -->  core/  <--  adapters/
-(args)      (orchestrate)   (pure logic) (fs, git, prompts)
+                      in a source worktree        in a cloak workspace
+repo-cloak push   ->  extract (cloak)             restore
+repo-cloak pull   ->  restore                     extract (refresh)
 ```
 
-- **commands/** wire a subcommand onto the program and orchestrate work.
-- **core/** holds pure logic, does no I/O, and imports nothing from
-  `commands/` or `adapters/`.
-- **adapters/** wrap file system, git, and prompt I/O behind small interfaces
-  so commands can be tested with fakes.
+`createSyncCommand` looks for a `.repo-cloak/manifest.json` above the current
+directory. `push` inside a workspace and `pull` outside one go to `runPush`
+([restore](../workflows/restore-and-worktrees.md)); the other two go to
+`preparePull` + `runPull` ([extraction](../workflows/cloak-extraction.md)).
+Restore-only flags (`--from`, `--force`, `--skip-conflicts`, `--new-worktree`,
+`--base`, `--path`) are rejected on the extraction path.
 
-New subcommands are expected to be registered from `createProgram()` so that
-the tested factory remains the single description of the CLI surface.
+Without `--yes` or `--dry-run`, both directions refuse to write when there is
+no interactive terminal, so a script never blocks on a hidden prompt.
 
-## Tests
+The command prints `<status>: N files to write, M to remove`, the workspace
+path, and any warnings; `--json` prints the full result object instead.
 
-`tests/program.test.ts` checks that `createProgram()` reports the version from
-`package.json` and is named `repo-cloak`. These guard the two properties npm
-users see first: `repo-cloak --version` and the help header.
+## Loader seams
+
+`createProgram(loadProfiles, loadSync, loadStatus, loadInteractive)` accepts
+optional factories. Production code omits them and builds real adapters;
+tests pass fakes so commands can be exercised without a machine store, a
+terminal, or Git side effects.
+
+## Layering
+
+Code follows the direction set in `AGENTS.md`:
+
+```
+cli.ts / *-program.ts  -->  commands/  -->  core/  <--  adapters/
+(parse flags, print)       (orchestrate)   (pure logic) (fs, git, crypto, prompts, http)
+```
+
+`core/` holds the anonymizer, planners and schemas; `adapters/` performs file,
+Git, encryption, prompt and HTTP I/O; `commands/` wires them together.
 
 ## Related pages
 
-- [Build and npm publishing](../operations/build-and-publish.md): how
-  `src/cli.ts` becomes `dist/cli.js` and the `repo-cloak` / `cloak` bins.
-- [Development workflow and quality gates](../workflows/development-workflow.md):
-  design-first process, lint, typecheck, and test setup.
+- [Cloak: extracting into a workspace](../workflows/cloak-extraction.md)
+- [Restore and Git worktrees](../workflows/restore-and-worktrees.md)
+- [Interactive mode](../workflows/interactive-mode.md)
+- [Local web dashboard](../integrations/dashboard.md)

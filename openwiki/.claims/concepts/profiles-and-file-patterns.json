@@ -1,0 +1,132 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:a93f3b01cc1d03ff9ec1a7dc3dabe1a25b5144584eadcbb6b0213b80c9b7acc3",
+  "claims": [
+    {
+      "id": "claim_fc0f13375bc24fee916ebf88b542d814",
+      "statement": "Profiles contain literal, regex and secret rules; literal rules accept boundary, styles, forms, except and common, regex rules accept flags, and secret rules name a detector.",
+      "evidence": [
+        {
+          "resource": "repo://src/core/schemas.ts#L9-L57",
+          "version": "repo-lines-v1:sha256:eca2892368e7e2a5ad67afe1f8bfba035998078f4873aae0921fa3d11450893e:eyJzZWxlY3RlZExpbmVDb3VudCI6NDksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImExYmUxYTM4ODMxYzFlOGQwM2E5MWFhYjZmMWI4MzZjYjgyYWE4NDY1MTNjM2E1ZjVlMjc4YWU4ZDMxOTQ2ZjAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU1ZTI2Y2Q5MjM2NmY2MGQ4ZWQ5MmQwMjM5ZjA3ZmVmNzRjYWMxNGFhNjlhZGRmOWMyY2MwZDExZWIwMGE0NjMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjY5NDBiOTFiNzkyOGZiNWMxMTlkOWE1MjU2ZGYwNWI3YWU5ODdjZTE4MTYzODU5ZmIxYzIwY2U4MTMwODJmNzEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImI4NWI0Mzc4NDgzNTJjY2NiOGE3Njg3YTRmOTUzMjQ1OTYyMzQ4NmRiZGVlMDAwMTg3OTRhYTZlZDQzZWUyOGUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_91d10a76f65e429a90c4ba0e45a5ebee",
+      "statement": "Profiles are stored per scope under profiles/ (global) or repos/<repoId>/profiles/, as sealed pf_<uuid>.json files, with names unique within a scope and saves taken under a directory lock.",
+      "evidence": [
+        {
+          "resource": "repo://src/adapters/profiles.ts#L18-L71",
+          "version": "repo-lines-v1:sha256:81d8280843e7796de627bb46e73ee1f90c641164c143638b56f62891e4675dfd:eyJzZWxlY3RlZExpbmVDb3VudCI6NTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQyYjAxZGE5MDVjYWFmNDI0NjE1YjdkZWI1NWMyODhjNTk5NTgzM2EzNzAxOTFkMTU5NjcxMDIyNTc4NDhmNzEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjZkOTgzYjNlNDZiZDlmNzBjMDFkNGZjODExZDVhMDEyODBkNGI0YjA5OWUzMDY4OTM4ZGExZDY0ZWY4Y2UzMWYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_1e56dff4e7ad4182ab7b9c368780f9f0",
+      "statement": "validateProfile rejects blank names and rule ids, duplicate ids, duplicate rules, different literal originals sharing a replacement, invalid rules and variant collisions, then validates file patterns.",
+      "evidence": [
+        {
+          "resource": "repo://src/core/rules.ts#L34-L100",
+          "version": "repo-lines-v1:sha256:fe9e60b55440905dd6b35565e68a5d53129061b14a7d8a21299dbd03d621e967:eyJzZWxlY3RlZExpbmVDb3VudCI6NjcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijc3M2E5NjAzMGY3MmQ1ZmQ2ZjVkNTI3MWFmYjk2NDBhNTBiYWU4NDljY2ZjZGVkMDNlODczMjA3MzczZmM1MDEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImJkMGYyZDNhM2FhZGEyNzU4NjQ1NzhkMGE0MzkxNTYzOGQ1NDNmZWNhMmM5NDg1OGRiOTQxMjExZTg2Y2VmMmIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjlmMmQxNjIxYTAyZjI3YTQ0YThlZGYyMmVmNzZkNDg0MzVjOWYzYjZjMTQ3MDllMjkyNGQyNmJlMjkxYzE3YjkifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_00cbfb4f2e434ce490285a9cbd90b5e9",
+      "statement": "Invalid profile file patterns, duplicate patterns and patterns listed under both include and exclude are rejected with the profile name and list in the message.",
+      "evidence": [
+        {
+          "resource": "repo://src/core/rules.ts#L102-L115",
+          "version": "repo-lines-v1:sha256:fc3a738fca03ed5c2aa6b8653803b323fd6e738bcb9e3f19df69fc026cfbd778:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjcwNGI0OTI3ZWJiZGE4NzUxNDJhMjkxNGM2MWI1NzU0OWEwOTM2NDVmZmMyNzYxMjFiODU0OWE4NmQ1ZmYyNWMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjdjMjRhMDg0ZmNmMzgwODA1MDE4Y2M0NjMzNTZjMDg1OGZkMzc3MGJhOTYwOGNjNDY1NmUxNjE2N2RlN2ZjY2EiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_26c391cc64df4ca5870431444aac1ebd",
+      "statement": "mergeProfiles fails when a profile is selected twice, when one literal original has different replacements, when different originals share a replacement, or when one regex has different replacements, and keeps identical rules once.",
+      "evidence": [
+        {
+          "resource": "repo://src/core/merge.ts#L9-L55",
+          "version": "repo-lines-v1:sha256:d29e8b55fd654a5df3aa3f55869aa00247578ba3faa63ef99e84b776708a9912:eyJzZWxlY3RlZExpbmVDb3VudCI6NDcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRmN2M2OTE4MWRiZmRhYzU4NTMxYjE1ZGJhODdhYjE5NDYwZDFkMTM2NTk4ZGM1NGEwMDI2ODNiM2I1N2NhMGQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE4YTlkMWY5NTFmZmEyMDQ3ZGY4Y2E4OTRiMjEzNTU5MDlhYmMyOWUwNTQ4MjEwZDdiNmEzODYwY2IxMzljZDIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_932d72f9e71f43a999a94e2d4c46dfd2",
+      "statement": "--profile accepts a name or id with an optional global: or repo: prefix, fails on ambiguous names under --yes or without a terminal, and refreshes reuse the profiles recorded in the manifest.",
+      "evidence": [
+        {
+          "resource": "repo://src/commands/pull-profiles.ts#L8-L60",
+          "version": "repo-lines-v1:sha256:c4736f698fc2aeeab4be31c7c7422b40fc193a1df25591869c388177d6690e8f:eyJzZWxlY3RlZExpbmVDb3VudCI6NTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUwNjhhNjFjZjQ1YmY2MGU3NGMxOWNhZmZmNjIyNzhjMmRkZWM1ODFhNDdjOTQyNWNjZjQyOGZlMjFlNWM4ZjMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImRhYmQ5MjJjNjVjMGM0YzlkZDNiMWFjZDc3OTZiMjg3NmZjYTU1MjcyNzJmYTdlNWQ2NzdiYjM0YTBlMWNlOGQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_8b46b9d9073d45e0ac4d0a8232c84027",
+      "statement": "The profile command offers list, show, create, edit, delete, export, import and check subcommands with --global and --repo scope options.",
+      "evidence": [
+        {
+          "resource": "repo://src/profile-program.ts#L16-L124",
+          "version": "repo-lines-v1:sha256:d63b63094ab5b8da8503103b1ddce9e56a7785fcc0f6259f6937f5906bd06fa8:eyJzZWxlY3RlZExpbmVDb3VudCI6MTA5LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiIwZTA0ZmJkZTI0MDJmYjRiNmQxMDQ3MTFmOTdkZDNhNzEwMzlhOGJiYmJkZGI4MjZlZDI5ZGJhYzcyMWQ0MTg1IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI0MTJjYTM0NWNjZjc1YmY5YzA4MDZiY2U2OTViZThkZTgwOGI3OTk4NDI1MWE3YTU0ZDIwMmNmNjEwMWRkNDUxIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiJiNDdiOTViNzU5YzAxNjUxOTgyNThmYmJlZDFmY2EyNzI3MzZiMzNlZTU1NWYxY2RlYmMwN2RiN2Q2NjEwZWE5IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MCwiZm9sbG93aW5nQ29udGV4dEhhc2giOiJlM2IwYzQ0Mjk4ZmMxYzE0OWFmYmY0Yzg5OTZmYjkyNDI3YWU0MWU0NjQ5YjkzNGNhNDk1OTkxYjc4NTJiODU1In0"
+        }
+      ]
+    },
+    {
+      "id": "claim_797c8dc8e75243f9bcc4931f0e9e8df1",
+      "statement": "profile import reads JSON from a file, or from stdin when the file is '-'.",
+      "evidence": [
+        {
+          "resource": "repo://src/adapters/input.ts#L4-L22",
+          "version": "repo-lines-v1:sha256:d3e3af9401b62fa120480ffe70ccbcb10cd908e11c1790532d0465524a294c76:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA0MzYxOTcyOTk2Nzc1YjVjNmQ4OWJjZjBhNjEzOWIyMjQzYmE3NTQzYzIyNWIxYjNhYjcxOTRiMjg4MjU5MDMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImE3MTNhMzA0NDU1NjhkMTEzZjAyYjM3YzY4ODM2YmE2ZDZlYWRlODE3M2NiODVlODM4MGQ0ZDU1ODEzMDA0ODQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        },
+        {
+          "resource": "repo://src/commands/profile.ts#L86-L89",
+          "version": "repo-lines-v1:sha256:3bd23864206af51424e307851c53aa931244a266b3a60f5c97faf1cffac40550:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYWFjNWJkZjE5YjY0NjdkOWM1NmUwOTkyMzhjMDRkOWY5MzJiMjIyNDBmNzk0OTFhNDFiN2JmMTkyZDg0NjIxYiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMWYwY2RiOTcyYTdiZmI3ZWQyNDZmOWZmNjcyMzg1ZTU1ZjQ5NjhmYzExMDQzZGM1YjY4NGQ1MWRmYTMxZGJjYiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNWQ1MzFhYmI3ZTYyMDA4MGI0OGJkMjk5NzE1ZjQ3ZWI5OGY1Y2Y2MWEwOTc1MTUxMjBkMzBiNzZhODRlNDNlNSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYmFlNGI1YTExZjAwYjFlNDRkNTZmOGY4NWRmMzc2MDgyYWEyMjdiMDlmMzdjNWFhNGQyMmRlYmUzODkyM2EyYyJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_1ea3b79c42bd49e397015eed67518a25",
+      "statement": "File patterns follow .gitignore conventions: names without a slash match in every folder, a trailing slash means a folder and its contents, a leading slash anchors to the root, and a pattern also covers a folder of that name.",
+      "evidence": [
+        {
+          "resource": "repo://src/core/patterns.ts#L3-L21",
+          "version": "repo-lines-v1:sha256:be47804e79b22554daa83718f64d8a38ea497fec8d2eba5c647f60622c5312d8:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImVhZjIyY2YwNzMyNTkyYzI0NzE0MWNiZTYxZWZhMTEwMTI2MTJmNWEzMTIyYjlhZjliYmFmNTJmNTcyNGQxOTQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjoyLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjRiMDhmNWQxYjRlZTM4ZjhiZDZkMjQ1MzdmZTFkMzQ0ZjgwZjhhMTEwY2Q5MDNjMWNkZGI2NzJlNTE0ZDRlYWYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjRjMTMzZTIzNWQwODIwOWMzYmYyNTE4MDJkYTcxMzMyNGQ1MDc3ZjM3MzI1YTYxNTAzOGUxYTU1YmIzZjk4NzQifQ"
+        },
+        {
+          "resource": "repo://src/core/patterns.ts#L43-L50",
+          "version": "repo-lines-v1:sha256:616cd2ecdf458521023d8360fb4fd118d77da65c47c9ea210b0ef3d683938afb:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMzBjNWMyZjk3YWMwYjgxM2NhNGQ4NzhiYjYwZTI5M2UzNWFkYTlhZDJmMzQzNjgyOWU4MzI2MjRhYTk3YTY5OCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDEyY2EzNDVjY2Y3NWJmOWMwODA2YmNlNjk1YmU4ZGU4MDhiNzk5ODQyNTFhN2E1NGQyMDJjZjYxMDFkZDQ1MSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMTc2NDNmYTk2MTk5M2I1NGJhOTFkOTY0YjNmYjRjNTY5ZmMyZjBjZmFiODU0ODY4ZDYwYTY2N2Q1M2ExOWMzNSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjAsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_66e028c03b8c4b79bdba44fa6814f617",
+      "statement": "patternProblem rejects blank patterns, surrounding spaces, negation, backslashes, absolute or drive paths, '..', patterns naming no file or folder, and invalid globs; matching ignores case and includes dotfiles.",
+      "evidence": [
+        {
+          "resource": "repo://src/core/patterns.ts#L23-L40",
+          "version": "repo-lines-v1:sha256:56b57b2745e151277d0800c3edb9e2c79d7ec782375f73e4a75d3985c4ffe3dc:eyJzZWxlY3RlZExpbmVDb3VudCI6MTgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjIxOTk5ZjdmOTZmYWIxZDAxZjFiYjcxNjdiOGQyYzUxOGQyYjg2NTBmYzljYTdjMTVmZWMwNmFkZmY2ZTQ0N2MiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijc4MDA2OTk0MGY0ZmY0NTExOGFiMTA4YjM1ZGUxYWVkNDY4YTlkZTBlNWI1NmRhYmEzOTdmY2ZhZDg3ZDI5OTUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUyODdmN2FhZGRhMjJhMTUyNzI2YTMxZjQyNGMxMDUwZWM2ZDY0ODUyODA4NDFiZDBjYzA2ZDU2MDU3MTRkZDQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjA0YWQzODUwNDI2OWJiNWM5NDY1YTE4YzQ4ZmE4MGUwMzY1NDg4ZDBjNDk2ZmJmYmEwMzg2Yzc2Y2Y5ZTM1ZmMifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_ecd9502403084cae8ff8f7ee41cedf0f",
+      "statement": "filterPaths never selects metadata, lets profile excludes win, and lets profile includes bring back files matched by the default exclusions (node_modules, dist, build, coverage, vendor, lockfiles and snapshots).",
+      "evidence": [
+        {
+          "resource": "repo://src/adapters/files.ts#L14-L26",
+          "version": "repo-lines-v1:sha256:c4a1ec9f0dba065fb69d89fe29dcc9e7b4f758b3b89a4b62a6bcf09c2147e7a6:eyJzZWxlY3RlZExpbmVDb3VudCI6MTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY1MDhjOTZkMjA5NzUzOWQwZDgzZWU4NjEwOWNlMTg5MmI5OWE4YWU3ZjNkNjM3Yzk4MWNmNDJhNmQyYWRiOTEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImIwMmQyYzBkNmRjNWU3NGQ5MmZhMTRiOTFkYmVhMjY0MDkwYmViMzVmZGI5MTg4ZDliMzQxMTgxZGNlOWY0Y2UiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImMxNTJmMTg0MGY2M2FmOTcyZTVmYzhlOTMyMTkwNjZiMmNkMWNiMjk0MjZlMzNkZjEwNzlhMzQxNzVmYmY1MzgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImRmZTg3YWRjNjljOTY5ZDA5ZjE0ZmMyYWY3NDgxNjA5M2EyOTAzYzU4YTk0YTk3MzlmNDhmNjczOTU0ZDdkMjMifQ"
+        },
+        {
+          "resource": "repo://src/adapters/files.ts#L80-L96",
+          "version": "repo-lines-v1:sha256:7aa8642d0798b63ad578a0163c8bfb960c26d7d1231f62e1a64992462130f6f7:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImVhZjIyY2YwNzMyNTkyYzI0NzE0MWNiZTYxZWZhMTEwMTI2MTJmNWEzMTIyYjlhZjliYmFmNTJmNTcyNGQxOTQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZmYjI5ZDIwMThkMmNiYzA4YzdjZmRmNWRiNmQ1NTRhZjFkY2E3YzFiYTVkM2Y2M2FkNTc0ZGE4OWQyMGFhNTgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImU3ZTczMjJjYTBmNjdkZmU4ZDA3ZGZjOWQ5MTg3MGQ2N2QzOGZkMTdkZGVmMzc2N2IxNDUyODhmNDlkZDU1ZDgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjNhZjljYjE0ZjY3NGI5ODE5MjBiMmQ4MjAxNTc3YWJiZWE1OTNiNjZmNmUwMzU1ZDBmYzIyNzMzNDNiNzIwMzUifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.2",
+    "at": "2026-10-20T12:02:39.628Z"
+  }
+}

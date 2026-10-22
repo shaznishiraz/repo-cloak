@@ -37,18 +37,27 @@ interactive mode with no arguments. Full list and flags: [cli.md](cli.md).
 
 ## Interactive flow
 
-The everyday start is `cd` into a source worktree and type `repo-cloak`.
-Details, including worktrees: [sync.md](sync.md).
+Type `repo-cloak` anywhere. Outside a cloak workspace it first asks which
+source repository and worktree to use. Details, including worktrees:
+[sync.md](sync.md).
 
 ```
 repo-cloak
    |
-   +-- where am I?
-   |     cloak workspace ----------------> pull / push / status / ui
-   |     source worktree, branch B:
-   |        workspace linked to B exists? --> pull / push / status / ui / new
-   |        none yet ---------------------> continue below (first run)
-   |     not a git repo -----------------> error
+   +-- in a cloak workspace? --------> pull / push / status / ui (source from manifest)
+   |
+   +-- source repository?  (select)
+   |     > current directory's repo      default when run inside one
+   |       repos already registered      from the store
+   |       Enter a path...               checked to be a Git repo; ~ = home
+   |
+   +-- worktree?  (select, only if the repo has more than one)
+   |     > current worktree, else the main worktree (default)
+   |       other worktrees with their branches
+   |     everything below runs in this worktree, on its branch B
+   |
+   +-- workspace linked to B exists? --> pull / push / status / ui / new
+   |   none yet ---------------------> continue below (first run)
    |
    +-- workspaces root set?  no --> ask once, save to config.json
    |
@@ -57,7 +66,8 @@ repo-cloak
    |
    +-- create workspace:  <root>/<anonymized repo name>-<short id>/
    |
-   +-- what to pull?  files (tree) | commits | working changes | extra paths
+   +-- what to pull?  files (tree) | recent commits | typed commit IDs/refs
+   |                  | working changes | extra paths
    |
    +-- preview (N files, M replacements, secrets found)  --> confirm
    |

@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { checkbox, confirm, input, select } from '@inquirer/prompts';
 import type { SavedProfile } from '../core/profiles.js';
 import type { PullPlan } from '../core/pull.js';
@@ -51,8 +51,17 @@ export function createSyncServices(cwd = process.cwd(), store = createStore()) {
         })),
       });
     },
+    /** Suggest the launch directory, or the folder holding its repo (a workspace can't live inside it). */
     async workspacesRoot(): Promise<string> {
-      return input({ message: 'Where should cloak workspaces live?', required: true });
+      const here = resolve(cwd);
+      const repo = await git.findRepo(here).catch(() => undefined);
+      const answer = await input({
+        message: 'Where should cloak workspaces live?',
+        default: repo ? dirname(repo.topLevel) : here,
+        prefill: 'editable',
+        required: true,
+      });
+      return resolve(here, answer.trim());
     },
     async confirmProfiles(plan: PullPlan): Promise<boolean> {
       process.stderr.write(

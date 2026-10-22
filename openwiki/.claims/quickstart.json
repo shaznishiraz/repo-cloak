@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:0b3e494d0b07a792ef597e905ea869aeac49d5787629f75ad20834673bf37ac5",
+  "pageVersion": "sha256:ca4cba56899afa8499f2cf470f63e845318eeaeb3afa229996eababbeb1f2e78",
   "claims": [
     {
       "id": "claim_b9d59ec9d4784f5eb8f900f8e80d2be6",
@@ -27,22 +27,32 @@
       ]
     },
     {
-      "id": "claim_7aa533d1376540428909c8fc0363e6db",
-      "statement": "The CLI currently registers no subcommands; it only defines the program name, description, and version flag before parsing argv.",
+      "id": "claim_81b22f42bb3741baa03716afbbb78613",
+      "statement": "The CLI registers schema, profile, push, pull, workspaces, status and ui commands, and runs guided interactive mode when no command is given.",
       "evidence": [
         {
-          "resource": "repo://src/cli.ts#L1-L3",
-          "version": "repo-lines-v1:sha256:151b47fc49ffee94dabf661a846ac1934871d6f96b10266c8a79ee3de94738fa:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMGFhYzE1ZTBmZjBkYjVjMDkzZmVhMTlhNzExZjdlYzJkYWJmZGJiZGE0MTJmZGM3YmI4YWQ0YTAxODQ5ZTA4MSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiOWViZTJjNWZmMTQ5ZThiNmNlNjM3ZDUyZjY3MTAwODFkYzRmZDZkMzEwNTBhNjMxNjVhODJkZTlhMjU2ZDk0NCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjAsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjAsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSJ9"
+          "resource": "repo://src/program.ts#L25-L68",
+          "version": "repo-lines-v1:sha256:cfde3aead810aa5552a0bacd94c63b86beef3e4b85a4a425fa4694e4300934a4:eyJzZWxlY3RlZExpbmVDb3VudCI6NDQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImJmM2I0ZjllMzg5Mzk0OTNiOWZmZTUwN2NmMzMzYTZhNjk0MzIzMmY4MzFlYWFhZGZjZWI5ZGI5NWMwZDBjYjUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjcwNGE1YzhiMDMxYTg0M2ZlYjZiMTA0ZjQxYWNkYzY5ZTRiMDExNTYyN2RhMDk2MWI5NjZlZTUzYjk1ZDQyZTciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_f45e70144605413992bfd3108c685517",
+      "statement": "push and pull are direction-relative: push extracts from a source worktree or restores from a workspace, and pull restores into a source worktree or refreshes a workspace.",
+      "evidence": [
+        {
+          "resource": "repo://README.md#L97-L104",
+          "version": "repo-lines-v1:sha256:c5d867fa946f725c88063aeb72c5b75655671534d28fbe78781da6de269000a8:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZWYwMTZkNWFmYjEyY2NlMGRiY2M5NjljYjk4MDI0MjYwYmU1MTY1MjQ1NWE2YTFjODk4ZjY2MmVhZjkwZGE2MSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYzA3ODI0MzM4ZmZlYjE1ZWRhZmY3ODVkODc3Mzk3NjQ2ZjExOGYwN2UyMGE2YzRlMWJlYWQ2ODBkNGNiZTk5MSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYTU3OGQ2MjM5MzE1NjQ3MzMzOGIwMGUyODA5Nzk2NDJkMmUyZmEyODdjOWRkYzJjMWMyOTAyODQ1ZGZiN2JmMiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMWY4MGE2YWMyMDk1M2Q3YmI1YTdhMTMxZWU3MDEyZjZmMWVmNzdlZDJhODQ2YzFkMTM2MDFlMjVhMDcxMjM2YiJ9"
         },
         {
-          "resource": "repo://src/program.ts#L10-L15",
-          "version": "repo-lines-v1:sha256:21c4d9c3adced18341300783160fd38f25cded97cef08e04a53ced3be0c576ba:eyJzZWxlY3RlZExpbmVDb3VudCI6NiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiODQzMmMyYTg0MTc4Yjc1Y2NhYmFmNjlmZDQ5YzlhODFmNGJlNWYyZmE4ZDhlNDEzMTVmNDQ4MmZkZTk4OWZkYSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDEyY2EzNDVjY2Y3NWJmOWMwODA2YmNlNjk1YmU4ZGU4MDhiNzk5ODQyNTFhN2E1NGQyMDJjZjYxMDFkZDQ1MSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNzA0YTVjOGIwMzFhODQzZmViNmIxMDRmNDFhY2RjNjllNGIwMTE1NjI3ZGEwOTYxYjk2NmVlNTNiOTVkNDJlNyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjAsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSJ9"
+          "resource": "repo://src/commands/sync.ts#L9-L13",
+          "version": "repo-lines-v1:sha256:fdb7e2f85c4a63b1c146bfb64432a96e6fa9ba638044cd5d841fb2f9890de8b3:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNTAzNGUxODY1OTE5ZWI2MWE5MGE1NzIyMjY4YjBkMDRiZGJkNDEwZTZlZTY5OWExNzFjNWNlMTQ1ZTgwYmQ4MyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiODczNTUxODg1ZTdhOTlkNGYzODIxODJiYTU3N2IyMTljMDk5M2Q3Mjg5NmIzYTI1ODYwNjNiMjFlN2RmNTk3YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMmE2YzVjOTBmOTVhODg1YWQ4NjM2ZDFiZDVjZDE0N2ZlOTAwYmNhNDUyZmJkOTRhZjZmZjkxZWM5M2IwODVjZiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYTNlZjQzNTljNWUxODY3ZGU4ZTMxMDMwYjRiM2JjYWQ0ZjMzZTM1NGYzOTg4MTM4NTZlZjU0OTlhYTZkZmJkYiJ9"
         }
       ]
     }
   ],
   "verification": {
     "by": "openwiki/0.7.2",
-    "at": "2026-10-16T13:36:07.841Z"
+    "at": "2026-10-20T12:02:39.628Z"
   }
 }

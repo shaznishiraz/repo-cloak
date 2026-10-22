@@ -57,13 +57,34 @@
             <div id="form-fields">
               <label>Name<input id="profile-name" required /></label>
               <label>Description<input id="profile-description" /></label>
+              <label
+                >Exclude files (one pattern per line)<textarea
+                  id="profile-exclude"
+                  rows="3"
+                  spellcheck="false"
+                  placeholder="*.schema.json&#10;generated/&#10;/config/secrets.yml"
+                ></textarea>
+              </label>
+              <p class="muted">
+                Like .gitignore: a name such as <code>*.schema.json</code> matches in every folder,
+                <code>generated/</code> is a folder and everything in it, and a leading
+                <code>/</code> matches only at the repository root.
+              </p>
+              <label
+                >Include files skipped by default<textarea
+                  id="profile-include"
+                  rows="2"
+                  spellcheck="false"
+                  placeholder="package-lock.json&#10;dist/types/"
+                ></textarea>
+              </label>
               <div class="toolbar">
                 <h3>Rules</h3>
                 <button id="add-rule" class="quiet" type="button">Add rule</button>
               </div>
               <div id="rules"></div>
               <p class="muted">
-                Use JSON for advanced options such as styles, forms, exceptions, and file filters.
+                Use JSON for advanced rule options such as styles, forms, and exceptions.
               </p>
             </div>
             <label id="json-field" hidden

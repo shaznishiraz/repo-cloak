@@ -78,3 +78,20 @@ it('rejects unknown detectors and common names without explicit styles during pr
     }),
   ).toThrow(/acme\/company.*styles/);
 });
+
+it('validates profile file patterns with the profile and list in the message', () => {
+  const base = { kind: 'profile', schemaVersion: 1, name: 'files', rules: [] };
+  expect(validateProfile({ ...base, exclude: ['*.schema.json', 'generated/'] }).exclude).toEqual([
+    '*.schema.json',
+    'generated/',
+  ]);
+  expect(() => validateProfile({ ...base, exclude: ['../secrets/**'] })).toThrow(
+    /files exclude "\.\.\/secrets\/\*\*": pattern cannot point outside/,
+  );
+  expect(() => validateProfile({ ...base, exclude: ['*.sql', '*.sql'] })).toThrow(
+    /duplicate pattern/,
+  );
+  expect(() =>
+    validateProfile({ ...base, include: ['package-lock.json'], exclude: ['package-lock.json'] }),
+  ).toThrow(/both include and exclude/);
+});

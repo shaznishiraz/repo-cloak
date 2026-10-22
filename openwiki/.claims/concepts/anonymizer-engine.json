@@ -1,0 +1,166 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:3c9e2f502c8504a58244413057b175339355ef2cd560bfcbf9f195561d975e72",
+  "claims": [
+    {
+      "id": "claim_8ce1ffc0e19a4794b6b31059c55f3265",
+      "statement": "Literal rules are split into NFC-normalized words and rendered in every combination of lower, upper, title and camel casing with no separator, underscore, hyphen, dot, space or slash, unless styles restricts them; forms add irregular spellings.",
+      "evidence": [
+        {
+          "resource": "repo://src/core/variants.ts#L44-L114",
+          "version": "repo-lines-v1:sha256:f74823bc96a37821e4e28bed331d9281d7bcb48dbd3be70c813d22d885fb873e:eyJzZWxlY3RlZExpbmVDb3VudCI6NzEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQyOWNjNjNjYzY3MWUwN2MxZmQyNDQxMDU4MDRmYmY4MDUzZmE2MTMwZGYwOTNmYzZhNzQxMzczZWU4NmE3YWQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjI1OTQyNzBlNmU3ZDk0YjgzMDE4ZmY4M2UxN2JmZTViMzc3ZTgxNzY4NGZmNmNmOGY5NzZiM2QzZTFhYjE2NzgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjE2ZTZkNjU4NzM5MjhmZWVmMzM1Y2VlNjEwNzYzYmYyMjA3MzQyYzBmM2RjYTg0ZjViMmRlMDE4NDZhNmUyMDkifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_8a0ffec2cc9a442d935334b794bc3989",
+      "statement": "Common words used as a literal match require explicit styles or common: false.",
+      "evidence": [
+        {
+          "resource": "repo://src/core/variants.ts#L14-L30",
+          "version": "repo-lines-v1:sha256:90164b6cbb72424f95d1c259bc77b86d25d4a635f83ae3d9427dbef849ab7801:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNiNGRiZjg4NjliNjQyMzc3MmQ3ODkxNGNlNDMxZmE2NDM3NjYyMDAxZWVhOTE1Y2U0ZDc5NjI3MGUyYjFmMzAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU1ZTI2Y2Q5MjM2NmY2MGQ4ZWQ5MmQwMjM5ZjA3ZmVmNzRjYWMxNGFhNjlhZGRmOWMyY2MwZDExZWIwMGE0NjMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjAyZjI4NzM3NDExZTI5ZTg1NmViY2VmYTRhMmU4NDY0MWJmYzg2NGQ0M2VhYjAyNmFlODhhOThkYTQyOTRkM2YiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjRlOWQzZDE4MTBlYmI5OTliNTY1ZTJhNDQ0OGFiNTczNjIyZDJmOTIwOTE2MTQ2NWNkOWYyMGU3NTQ0MjBiMzUifQ"
+        },
+        {
+          "resource": "repo://src/core/variants.ts#L77-L83",
+          "version": "repo-lines-v1:sha256:5b9939eaced72a6f532732fb0cf743dabe4947496e1e5f5ffecedfd471bcf3e2:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNjg3NjUzNzFhZWExY2M3ZDQ2ZWM2ZWZjY2JiZTllOWU3M2M5MTg5NGYwZDA2YzcxZjEyNWFjOGJlMjU1YjdiYSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMjdlNTc4OGQ1ZDlkNzNkMjRhODFkYmMwYTVhNzRiZmE4MmM5YzNiM2FmOTllNTJhZjc5NmU5MGI0NjhhOGEzZCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNzljMTg4NTc2M2U4NGFiN2Y4OTA5NTQxMmE4MGUzM2ZhNDk1NWFiNjlhOTA4ZDljOWI5MTIxMTc2NzE0ZTE2OCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMGU4Nzc1NWU2NjAwYTMzYmRmNTY2MGM4NzVmYWU2MzRlOGYxYjBkYzZlZjAxYzc0Y2VlZTBhOWNlNjIyZGI4NSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_9335ddd2d91a4d5a9818e0ad950f3e58",
+      "statement": "compileVariants rejects original or anonymized variant collisions between different rules and rules whose original and anonymized spelling are equal.",
+      "evidence": [
+        {
+          "resource": "repo://src/core/variants.ts#L124-L158",
+          "version": "repo-lines-v1:sha256:7a450dd2c8bbe6aa4d93434fd6c2033a5649f4f189bf0e35b3864277e6e54470:eyJzZWxlY3RlZExpbmVDb3VudCI6MzUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI0NDQ3NWJhYzY2MDg5NGU2MWY3YTE0MzQzZGZkNjkxODdiMTc4NjdhMWQyMTVkZGZlYjAxMTQ5MDU5MTQwOGEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjA5NGZjMGMxNzNkMWVjM2ZjNTAxZDdkZmE5Mjg1NTAxYzUyN2NmYjQ3MTI1ODNkYTNjYzM2MTgwNTY2YjRiZTMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImY5NDE1ZjNiMGI5ZWM3MDYwZTZiODZhMzhhYjY0OGIwNmE2MjMyNTk0MjUxMGRjYjNlMTE0NjhjNTYxNTJkZmYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_70b78bf5c8094ce88465e72fbc7e2352",
+      "statement": "Rule warnings flag literal matches under four characters and replacements that are short or common words.",
+      "evidence": [
+        {
+          "resource": "repo://src/core/variants.ts#L160-L178",
+          "version": "repo-lines-v1:sha256:10113e7808a7590a2f6e7130d74770615b12a5c59a24d0d33dda59f6b66897b6:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI0ZTY0Y2UzNzkzYjRkZmIxNTA4OTI1ODJjZjVmMTMwNjFiM2FhOTM5MWIyMzQ5YWQ3NzgwYzI3NDRhZmVjZmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjI4MGNmY2QyOGJhOWU1YzY3YTNhNWE0MmM1YjU0OWVlZjAzYmE1N2Y0ZDQyMzlkNzBlZTNiZjdjZjRlNGM3NDkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_655dc3a0f13e463c81abaf946d935303",
+      "statement": "Each scope compiles literal variants into Aho-Corasick forward and reverse matchers, and overlapping matches are resolved leftmost-first, then longest.",
+      "evidence": [
+        {
+          "resource": "repo://src/core/compile.ts#L9-L33",
+          "version": "repo-lines-v1:sha256:731eb18370734310b2a08f9baca5190ad70a0fda4595a720bb0462e556312047:eyJzZWxlY3RlZExpbmVDb3VudCI6MjUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjExZjA1MjJhY2I0NGM0YzAwYjM2MzExZmEwNmExZDQxMDlkM2Y0NjcwNzAxOTI1OTJlYWNhNTBlMGNjMzE5OTUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImYzNDUzMWNiY2VhYzFmNTgwNjE5NWUxYTIwNzI2NzFiNWFlYzNiNzRhYjRjNTUzNGMwYTkyYzczZjJhOWU5ODMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoyLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImI2MTliNTNmNDVlYjMzYzRkZDM1MzIyMjY1NmNiYWNhYTY3NGZiMDQzY2Q0YjhlMjUzYTY0MzU0MjU4MzY0ZjcifQ"
+        },
+        {
+          "resource": "repo://src/core/matcher.ts#L1-L48",
+          "version": "repo-lines-v1:sha256:83bd34d0a22d71ab6d87497c05ec9d4aa7770a56aec449e0571b01fe66eb40f1:eyJzZWxlY3RlZExpbmVDb3VudCI6NDgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQwNzc2YmJlZjU5YWUwMjFlOTZiYTBjZmIzMTFiOTEzNzBmMDNjMTc3ZjFjNTQ0MjU4M2U2MDkwNDYwYTE3NWIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_2ec0e32ea6e440b2acf7ce223b87b239",
+      "statement": "Token boundaries accept non-word neighbours, letter/digit switches, lower-to-upper humps and acronym edges, plus trailing s, es or 's suffixes; word mode accepts only non-word neighbours and anywhere mode accepts every match.",
+      "evidence": [
+        {
+          "resource": "repo://src/core/boundaries.ts#L13-L32",
+          "version": "repo-lines-v1:sha256:28b4aa4ca763e4a43d18aa48bb18bccc433f35d0b183992a259ddac2593cbf82:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA0NGU5ODIwYzJkMDEwNDY5YWRlOTNlOWFjMGZjNTk3NDdmOWVlMjhiZDg1NTFmY2Q5YzExZGRhN2I5NjZiOWEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImIyNGE5N2Y1YTc1ZTkzNTViNjM4OGJkMmJlYmQ0OGQ0M2FhNmFlYjUyY2VhNDA1YTQwYzlhMTRiNTA0OWZlNzciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImU4NDFmMzBlZWFhNTZiNTJlOGYyMmVkY2RjYTQ3ZDdhZTYwYTdmMTZiN2UwMGJiYWM3OGNmNjdjMjE3N2QwY2UifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_a5244f0a9660485ca333efe32fb5abf7",
+      "statement": "anonymize refuses source text that already contains an anonymized variant, a ledger value, or a REDACTED_ placeholder when secret rules are active.",
+      "evidence": [
+        {
+          "resource": "repo://src/core/replacer.ts#L34-L49",
+          "version": "repo-lines-v1:sha256:b8ab1794525903dc9f3046636f962c963e25222856590b2f5093181178479a50:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjVkYzM3ZTYzYzczNTAzMTY2NmE5Yjc2ZmYwMGNkMWNmNDQwY2JlMGI1MzNmMjBiNDYxYTlhMTFkZjAyMzM5YWQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjEzZmU2NDVhMDU3Mzg4ODNhODFmNGVjZGVkOThjM2NhMDU0OTY1N2NmNWFkMjk4NGEwMjk0N2NhODAzNGI5ZjUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImNlZGEyM2JlNDE3YjJjZTQxMDFmZDAxNTk1Yjg5MTYwM2Y1OTcxY2JlZDc1N2ZhMTIwMzhjY2Y0MzIyMzQ0ODIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_6d1c7c1fb1bc456ebaa47ef9d6bdaae5",
+      "statement": "After applying replacements, anonymize restores the result in memory and throws a round-trip verification error if it differs from the input.",
+      "evidence": [
+        {
+          "resource": "repo://src/core/replacer.ts#L97-L106",
+          "version": "repo-lines-v1:sha256:07f732b003beb2a5530b16bdb40c644ab903158f2cd0911c6605b9372a34891c:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhlNzg5ODFiZjczNjJmOGI5NDQ2NGZiZDFiZDk0Yjg1NzdhNTEyZjk4OTU1ZDFiNjQ3ODM2MzYyMmIwNzEzNDciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImIxODJjNTg2M2U0OTc5YmIwMmU0NzM4ZTk5NDkwNTU0YTJmOGY5NzkyZjM2MGMyYTE2ZWNiY2MxNDkzZDlkYjUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQyZDE1NGVjZjE3MzkwNGE3NTljMWZlMGIxMGE3YTQ0ZWE2Y2JiMmU5YTExZTI4NTdjZDY5MGQ3YjUxYmY0NzUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_9e233d763c314acdaff345fdc1d815ca",
+      "statement": "Regex rules expand capture groups in their replacement and reject empty matches, empty replacements and replacements already present in the text; dynamic matches that overlap literals are skipped, except secrets, which are errors.",
+      "evidence": [
+        {
+          "resource": "repo://src/core/dynamic.ts#L20-L86",
+          "version": "repo-lines-v1:sha256:6c465403984125af984faa1fe44777121a024b1f5160c6a2eba4ecf6d15a1936:eyJzZWxlY3RlZExpbmVDb3VudCI6NjcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBlMTRjNzM0YWRlZTgwOWU0NzJmOWNmOTdmZGMyMGFjNTY3Nzk1YTMyZDY1NjI5ZjM5OWM2OTc0MWMyZDUwODQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImMxYzAzMTNjMjk5MzFlYzI4ZGU5YmU0MTZiNzI1ZmExYWE0MWE2MGJjNmY4M2RhYzc4NTQ2MWVhM2ViNTQzMTgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_ed2b864df3914912853f233bd0a9e06e",
+      "statement": "The built-in catalog has 17 secret detectors, some capturing only a secret group and some requiring a minimum Shannon entropy.",
+      "evidence": [
+        {
+          "resource": "repo://src/core/secrets.ts#L1-L98",
+          "version": "repo-lines-v1:sha256:838257d612c6026891d40bdb71fa56104dfa8b01d555d3d637b5cc3d8bd0c047:eyJzZWxlY3RlZExpbmVDb3VudCI6OTgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk4YjU0NDhiYWY4MGI4ZjAwN2FjODI1YzM3OTZiZTZjOTU2YTUyM2UxNzFkZDFmYjhiZGFiZjFiYmZlNzY2N2QiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImIwMmQyYzBkNmRjNWU3NGQ5MmZhMTRiOTFkYmVhMjY0MDkwYmViMzVmZGI5MTg4ZDliMzQxMTgxZGNlOWY0Y2UiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImRiZWQ1MmExMmY1ZjdmMzAwNzRlOWY1MjlmNTQ1N2NiNjgxMzkzZjdiOWQyMWZiYWZjMGRmM2I3ZDY2NDhiNjEifQ"
+        },
+        {
+          "resource": "repo://src/core/secrets.ts#L106-L116",
+          "version": "repo-lines-v1:sha256:bf334689c904b5124db27a6b701a4796bcab8298cd559d4d4e426b576d1eaf7b:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU3ODY0OGUxOTllN2U2ZWJkMDhmNDc5MjY5ODg2MzI1OGExOWE4ZTMzMjIyNjkxYjNmM2Y5ZTAzYzM5YTBiNGMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjYwZWQ3YmI5NTQ3NjYyZDc2NzlkNWUzZjFlNTQ3ZTEzN2Y1OGY0ZGU2NWU5ZGNjOWQzZmZlMmNhNjUwNzg5NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_21bf6ef0f5a442a296d2304c14460021",
+      "statement": "Secrets are replaced with REDACTED_<DETECTOR>_<n> placeholders that are reused for the same value.",
+      "evidence": [
+        {
+          "resource": "repo://src/core/ledger.ts#L77-L89",
+          "version": "repo-lines-v1:sha256:85fa3a5363bca9e0b838e7c8a58c89c17b5597724a57689464f2803b706dab9d:eyJzZWxlY3RlZExpbmVDb3VudCI6MTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI1NDczZDAxYTQzYzE1MDk3NmNmMTg5YjMwMjM5ODRmZmZjMzI0YjNlOThlNTZmOGI1YjAwODlhMzYwODM3ODAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImZjYjE5OTc1MzkwNWNjNWJmMTlkZDgyZDA4M2NhOGRmYTk2Y2FmMDY4Njc4NDg1ZGQyMTExNWIyNmExMTI5N2IiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_80b3addc72024864a42c8d5ffab576eb",
+      "statement": "The ledger records concrete replacement pairs per scope and must be one-to-one in both directions.",
+      "evidence": [
+        {
+          "resource": "repo://src/core/ledger.ts#L4-L63",
+          "version": "repo-lines-v1:sha256:bacba47f65467f38df6471444e63f0d3f0e9a43f6be23e80517b7ff0236347ed:eyJzZWxlY3RlZExpbmVDb3VudCI6NjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM5ODg5NzcyOTU3MTlkNmFlNWRmYmM1NmRhN2I2YzU1MjQwOWU4Zjg5MTUzMWMzZDVmZTliNjllMTFmNWQ0ZWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImY1MDMzMmUzODE0ZDBjYjliNTY1ZTY2YzhkNzlmNzliNTA4NzU2MDY5ZDA3YTBiMWNjNWNlY2RmNjZhMjkzMDEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQxN2Q2ODBlODY2YjFjZDExZjJlMWM3OTUxNTdkMTRhYjFhYmIzNjE3MTlkYzQyNmE3MjM5Zjc0ZTIyOWRmNTYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_ad551d79c00b49b2b48a8166b1b0e969",
+      "statement": "restore uses ledger pairs plus reverse literal variants, so newly written anonymized names are restored, and then fails if a REDACTED_ placeholder or any anonymized residue term remains in the restored text.",
+      "evidence": [
+        {
+          "resource": "repo://src/core/compile.ts#L16-L21",
+          "version": "repo-lines-v1:sha256:fffa545abfd2d13dfd05f43f52f8c71e5637c480856ea6394fd7391cefc14552:eyJzZWxlY3RlZExpbmVDb3VudCI6NiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiM2M4ODAxMDlhMjBiYzBmN2U4ZGE2ZGZhNjBmNTc0ODBhZGM2N2VkNmFhZWQzODQ1ZjllZWMwM2MwNTBkNGVkNSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNzBkMmVhMDJmNDc0MjkwOGIxZDMwMWM1MjFhYzk4YWUzNDdhZjlmYjE3ZTNjYzk5YzIwYmNlYjk0YTIzNWFmMyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiODA2OTM4ZmQyYzBjMTYwMWY2NTI3ZDBiNTU2YmI0YWFjZGYwMTUwNDdlYWZlYzNmZTgwNGVkM2FhYjdjNmI4YiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiOGVkNDE2ZTAxMGFmMGNmOTlhNzk3MTc3N2IxMjMyMGVkNzUyOTBlNTk2NmFlZjk4M2UyZDQ1ZDU3ZjQ2M2Q3NCJ9"
+        },
+        {
+          "resource": "repo://src/core/restore.ts#L9-L74",
+          "version": "repo-lines-v1:sha256:c052ce383a51971e8e91836a34e2908c73433ac317715123f7cbce2da17b7dcb:eyJzZWxlY3RlZExpbmVDb3VudCI6NjYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMzMDMzZDZkNWIzMDM2YTcyZTBiOTdiYzhkYjU0MWUyNzM5MWMwM2VhMWYzYTQzY2VmODIyMzYxMmQyY2YyMWIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjMwNGI5M2IyZThhMmZiNTFjYWQ0NTEzMjBlYjE2MTI2MTMwMDMzNGU3ZDk0MGI3ZmMzN2IxMDNhMjQwMTY3OWMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_c2476ab4db5a49c3a08fd16bd1ea9ed6",
+      "statement": "Paths are transformed segment by segment in the paths scope, must stay portable and avoid .git and .repo-cloak segments, and are checked for case-insensitive NFC collisions between files and folders.",
+      "evidence": [
+        {
+          "resource": "repo://src/core/paths.ts#L7-L84",
+          "version": "repo-lines-v1:sha256:36e32456bf5deb43275e8d57bbb28f7a41b70eea21ec201471a4c633a8ad37de:eyJzZWxlY3RlZExpbmVDb3VudCI6NzgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImIwMjhmYjk2ZTA2NTkzOTEyMTg2NjhjZDU1MjUyZjY3OGIzYjU5ZDJmYjFhODUyMzJmOGUzOTdkNzdjN2ZlMmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImZiODcyNDBkZThiMGRjYWVhNGM2NWQ3ZjUwNzVhMjUzZTljYTc5YzI5MTE1ODMwMDdiN2E0NzFlNzFmMTJkZTQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.2",
+    "at": "2026-10-20T12:02:39.628Z"
+  }
+}

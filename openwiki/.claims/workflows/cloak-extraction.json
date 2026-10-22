@@ -1,0 +1,132 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:5c9905d3f7170e6c2e1121f8890a3eb4b78742ad032f61c95c62a3b3212a5678",
+  "claims": [
+    {
+      "id": "claim_79004834475b401c846f2299b9736c91",
+      "statement": "preparePull resolves --to against linked workspace ids and folder names, otherwise refreshes the workspace linked to the current branch, failing under --yes when several are linked.",
+      "evidence": [
+        {
+          "resource": "repo://src/commands/pull-setup.ts#L52-L83",
+          "version": "repo-lines-v1:sha256:a1b3ee89a384482870f422ea613ecdc3be952a71e940dae30a09c23c684bf37d:eyJzZWxlY3RlZExpbmVDb3VudCI6MzIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhkZGEyMzZhYzQ0NjMyZGY5ZGY4ZjM5NzMxNzMxNTM4ZGI1ZDU0ZDhlMWQwZTZhNjRlOTE5Y2EwODI1ZTEzOWEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI3ZTU3ODhkNWQ5ZDczZDI0YTgxZGJjMGE1YTc0YmZhODJjOWMzYjNhZjk5ZTUyYWY3OTZlOTBiNDY4YThhM2QiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjMzMzAyMjhmYTc0ZTlhZjY3NzMxNzJjOGRkYzNkY2Y3ZjA2ODNkMmQ3NWUzY2Q5ZTEyZTJkYTY0NzU0ZmM2ZjMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjRmNWVjODI2ODk4MTE5NjkxOTM4NzRiMGQ1MjIxOWMzYjkzYzAzNjZjMjRmMTA5M2JjMDFhZTViYjM3MzFjZGEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_71c96776401348d7a1cf54fd9308e47b",
+      "statement": "A new workspace is created under workspacesRoot, which is asked once interactively and saved, and is named after the profile-anonymized repository folder name or 'workspace' plus the first eight characters of the workspace id.",
+      "evidence": [
+        {
+          "resource": "repo://src/commands/pull-setup.ts#L88-L115",
+          "version": "repo-lines-v1:sha256:21ec55222235fbd9a26c0d78b6dfdf5a9706588ae0812767373ad987ef3e57a9:eyJzZWxlY3RlZExpbmVDb3VudCI6MjgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjUwZjYzNWNlYzVlNmYzMzQyYWYxYzk0ZGM3ZTAxZGVmZDI4NWVhMjBmZGQwYzc0NDgyMWVhZWQzN2E4MWUxZTEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI3ZTU3ODhkNWQ5ZDczZDI0YTgxZGJjMGE1YTc0YmZhODJjOWMzYjNhZjk5ZTUyYWY3OTZlOTBiNDY4YThhM2QiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImM3ZmIyZTA3NWQ4NWZkOGQ3ZmQ3MDEzZmQ1MWI5NzRmYzI3YjU4YTQ3ZTlkMDFjNjQxMDc5ZTQ0MmNmZjI1MjAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJmODJkOGIzYmQwZGRhZmQ1ODYwMDVjZDk1Y2E3YjdmNTNjZTc3MTNhNmM2MDViM2YzYjY5NTkwNTA1Y2JiYmIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_d8b25a3a94b946ac8d0da4ab446421ca",
+      "statement": "The destination must be separate from the source, must not be inside another Git repository, and must be empty when new; a first extraction requires --files, --commit or --working.",
+      "evidence": [
+        {
+          "resource": "repo://src/commands/pull-setup.ts#L116-L138",
+          "version": "repo-lines-v1:sha256:5bf9e7d5633a76136081924c8ec317ea2b6136f58671a5a9e732994d7bfc9181:eyJzZWxlY3RlZExpbmVDb3VudCI6MjMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFkNTk3M2RlMjdiN2I5OTZjY2YxN2ZjMzBiMzQ4MWY0MzFmY2JlOTRlZDllNTViNDQ3YjhiMTQ3MGE3OTI4MzgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFhYWUwODg0OWE5NmFlOWEyZDNlZDBmZjY0OGFlZDY4NzhmZDg0YzVhNjExZGJlY2U1YjRhYjJhZGRkZTI0YjEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImIyMTVhYzE0MGE1MGUwNGRiM2VhZTc0ODZlNGYwZWRmMzY1Mzk4ZDNlYzY2MmMzM2U3YmU5ZWI1NWFlNDlmMzYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijk0NjVhMzc1NzZkZTFiZmJhODUyN2Q5M2VkOTg3ZDgxMzU4YjY3MjNiNDY0Yjk2NjA4OWY2NzQ3MzBiMzRjOWYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_c71c102d8169420d90bbfd5eed91771e",
+      "statement": "Selected files are the union of expanded --files paths, files changed in each --commit and working changes, filtered by profile patterns; a refresh without selection reuses recorded paths, adding them when profiles changed or tracked files are requested.",
+      "evidence": [
+        {
+          "resource": "repo://src/commands/pull-setup.ts#L139-L157",
+          "version": "repo-lines-v1:sha256:be5d175b3aa350fcb526796bd0602e3f42216cc9bbaf4ef627793b0663c0f3e3:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxNzAyNmYzNWY2MzRmZTE2OGIwMmRkZDM5ZDQ4ZGUwZWI1YmYyMmFkODUzYTkxNDY2MTUyMjVlYTczYTk3MTAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjNhM2U0NmY5NDI3NmI2ZjZmNGVkMWYwMmFmNzhiZWY2YTJlZTFjNDM5ZGQ1NTg0Yjk3Mzk0ODMxMzIxNGQyYjciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjhlODU3YjRhZWU4OWYyMTRlMjY3ZTJjY2FjMTRiOTViNzQ2ODM2NzA1ZWE4MGQ1NmJkNjQ2YWU4NmMzYTFiYTkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjVmMmVkZjZkZjJmMmI4NTA5YTFkMzk1ZDhmNGZkNDBhYzI1OTQzYjE4ZGIxNTEzMWI0MmUzM2FhMjFkNDQ3NDQifQ"
+        },
+        {
+          "resource": "repo://src/core/selection.ts#L9-L17",
+          "version": "repo-lines-v1:sha256:22da8bbb669435af76e984e19eca83efa47112dd92d2832474bfe67c506b10eb:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZDlhZjhmYzBhNmI5OGUyNGNiY2ZiNjc3ZjgxMjUzMzVjYzdjYzA0MjA5YWVhNjJiN2JlZTI4M2RkNDc3ZTcxYSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDEyY2EzNDVjY2Y3NWJmOWMwODA2YmNlNjk1YmU4ZGU4MDhiNzk5ODQyNTFhN2E1NGQyMDJjZjYxMDFkZDQ1MSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMmFhYjRmOWU4ZWQ2MGE4ODUwZjEzNzQ3ZjJmYTg0ZTU5YmEzNDQzN2Y3MzI1Mzk4NmJiMDdlOTJlMDRjNDFhZSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjAsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_fe3d575c305f49bcaebba7a4d99b4768",
+      "statement": "commitFiles lists files changed by a resolved commit with diff-tree, including root and merge commits, and workingFiles reads porcelain status including untracked files and both sides of renames and copies.",
+      "evidence": [
+        {
+          "resource": "repo://src/adapters/git.ts#L82-L116",
+          "version": "repo-lines-v1:sha256:140894c2e8e7ea867a60715f556273bdc7c8aa8fce10dc1cac768aac99124cbc:eyJzZWxlY3RlZExpbmVDb3VudCI6MzUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMzMzYwNjM1NTI5YTE1Zjk0ZGFkNzAxMzM3MDhiMTExOTNkZTQwNTBmYjBjY2RjMTgzNWMyODI1MDg2ZmJlYzUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImJjMDUzZDBjMjBlZjkyZjk3Mjc0N2MwYjUzNWUxN2FkMzM0Njc4ZDk4ODgyN2U1MzdmNzNiZWI2OTEyMWM3ZTAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImNiODc3OWU0ZjBkNDM4NTUzNjljNjlkN2Y1YTc5NTg0NjRiMmNhNjE3M2M2NmFkZGNhZmQ4ZDhlZDJkMWQ4NjYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_0378359dc2e94591beaee37a07d9e57a",
+      "statement": "runPull plans the pull, returns early for --dry-run, asks to confirm profile changes and the pull unless --yes, and then saves.",
+      "evidence": [
+        {
+          "resource": "repo://src/commands/pull.ts#L18-L53",
+          "version": "repo-lines-v1:sha256:45b0aeae5540c38ba6d97b9cf436afbfacb7037c33921be4efd4bd6e7ce7c66a:eyJzZWxlY3RlZExpbmVDb3VudCI6MzYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM2NzQ1NzdiMDc4ODM1YTZlNzBlZmIyOTY4MWFmMTU2MDgwYzdiODE3Mjc4MjMzZjI3YzBkODM3MzY4Yjc3MjkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjkxN2I3NGIyZTVjZmM2MGU5YTVkNmM5MjQzMzRlN2M5MzlhNjk3ZTAwYzA4YTk3MGU1MjIwMDZkOTFhM2NlOTkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_e7a68e4ddf1e4fdeafcfe590ede109e1",
+      "statement": "planPull refuses profile changes while tracked workspace files are edited or without refreshing every tracked file, keeps edited workspace files, and throws a ConflictError when both source and workspace changed.",
+      "evidence": [
+        {
+          "resource": "repo://src/core/pull.ts#L54-L100",
+          "version": "repo-lines-v1:sha256:295f7fcb8ac8d33698aeec83cfe581005d61cf7116b7431dcba82fa7a64c5f1f:eyJzZWxlY3RlZExpbmVDb3VudCI6NDcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImIwYjNlN2JiM2UzMjQxYTc0NGZiZTQ3MmNkMzY0NzBhMmJkZjY3MmFkNjgxZTk3YThjODdkOWM3OWYyZTQyNGQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjgxMzEwOTg0YTRjNDdkNmNmZWZjOWI5NmNkNGI1MzJlYzhiMzVmZjFlMjI2ZjEzN2I1NzhjOGU4ODFmZTBjZmEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjUzOTBiZDEzNDQ1NGU0NmY4YmZjZTlkYWIyZTM4MzI0NzY4ZDhlYmIxMzQwZDZlMzE3YjgxZWZiZTE4MTQyYWEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_323a7b683fe94dcfa9c6bec77853fb82",
+      "statement": "planPull anonymizes paths and text contents with one ledger, copies binary files unchanged with a warning, deletes vanished or renamed files, refuses to overwrite untracked workspace files, and only writes files whose bytes changed.",
+      "evidence": [
+        {
+          "resource": "repo://src/core/pull.ts#L70-L154",
+          "version": "repo-lines-v1:sha256:9952751d5a333c2a2f6e129214c076b80db24b7a2d1205923bf1fd1763c77f93:eyJzZWxlY3RlZExpbmVDb3VudCI6ODUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjlhN2I3NDkyOGI3NGZiM2ViYzZkMjY0YWNhYTYzNTVmZjlhYWRiOTM1MDMxZmQ3NGViZTk4OTg0MGRkZTA5YTAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI3ZTU3ODhkNWQ5ZDczZDI0YTgxZGJjMGE1YTc0YmZhODJjOWMzYjNhZjk5ZTUyYWY3OTZlOTBiNDY4YThhM2QiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjM5ODA2NDQ3NWVmMzNhMjk1MTgyZWIyOWZiOGVlNmJhNzcyOWQ1OGYzYzhjYmYwMzc1MWY1ZWI3OTkzOTUxNDIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjRlZGVlMmMxMTdhODA1ODYyYmE3ODdiM2MyOGUyYjJkZTAwMzlhMmVjNjAxOTFkYTJhNjcwZDFhMWIxZWIwNGIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_47763ae74502487ea6f168362d1358ee",
+      "statement": "The manifest plain part holds file hashes and pull history while the sealed data holds the source path, origin worktree/branch/commit/dirty, target branch, profile references with content hashes, merged rules, ledger and original paths; target is carried over from the previous manifest.",
+      "evidence": [
+        {
+          "resource": "repo://src/core/manifest.ts#L20-L50",
+          "version": "repo-lines-v1:sha256:08386f37c637d34ddef188b39aebf4b2e5d0a5c8bc967f0e6d4963a0fd9e4e26:eyJzZWxlY3RlZExpbmVDb3VudCI6MzEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM5ZDBmZjU1ZTIyN2NmNTcxNDBmZjE4ZDgxYjQ3NWNiYTM0OWM2ZTVhM2ZmZGRiMTY5ZjQ2MzNiZjUwMmYwZjUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImI2MTI4YTJjZWQ1OGFhMWZkZTVhNmQyNmRlOWZmYjI2YTM3ZDYwMTQ1NDZhYzg3OWYwZWJlZGU2Mjk5NmYzODQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQzNmRjMzYxMzY0ZGE4ZDI5NzFiNzZjMmY5YWYxYTI2OWJmZjZkZjg5ZmNmMDAwM2M3YzUwZTM5NDI1MzRkYTMifQ"
+        },
+        {
+          "resource": "repo://src/core/pull.ts#L155-L199",
+          "version": "repo-lines-v1:sha256:8dddb8253b7409028679f87334c322a6babe364cd4d21b0c329fa126c038ea7b:eyJzZWxlY3RlZExpbmVDb3VudCI6NDUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImEwOGI0MTBhNjgwYTFiZTQwOTYxNWExOGM5OTAzNDA1ZmZhNWYyODJkMzYwNzgwNzY3NDUwZDU1Mzc0NzFiYjIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijg3NjUyYzU1YTlkMzQ4NGYyMWE2NTI4NmU1ZjZhZjFiMWQwNTAxYjBiZjc5NDJkZGRhYzJiNDQxOTczZGQ0NTQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjVjYzgwNmYxOWM2YWM4ODYwOGNjNGNiNWMwMGNjNGZlYzMyODViZWUzNWVkZDIzYmQ4MjNmOWZmZjk2MzkzZTcifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_708e8a6f081e4238ac6fb6bf066232a4",
+      "statement": "The workspace writer locks the workspace, rechecks source and workspace state, verifies the expected manifest, stages backups and new bytes, writes and commits, and on failure restores backups, removes a newly created .git or resets the index, and keeps recovery copies if rollback fails.",
+      "evidence": [
+        {
+          "resource": "repo://src/adapters/workspace.ts#L32-L163",
+          "version": "repo-lines-v1:sha256:912c07ed107735b6853992deb0899d1feea37c4f7b145ee9c48b58ff6188b9f6:eyJzZWxlY3RlZExpbmVDb3VudCI6MTMyLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJmMTA4NjU1YzdjZDIyOGFmZjJjOGI0NzUyM2VkNmI3ZjQzMzMwYTllNzE2Y2RmZWY5MWMxNjNlOWNhMzA1YTYyIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI0MTJjYTM0NWNjZjc1YmY5YzA4MDZiY2U2OTViZThkZTgwOGI3OTk4NDI1MWE3YTU0ZDIwMmNmNjEwMWRkNDUxIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiI0YmUxYTk1NTMxMTY3MDllOTNhMWQ0YWM2MWY1M2ZiOGM4ZWRlYjFkMDMxZTk2YTRmNjIwY2ZhYjY5YTVjNjc3IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MCwiZm9sbG93aW5nQ29udGV4dEhhc2giOiJlM2IwYzQ0Mjk4ZmMxYzE0OWFmYmY0Yzg5OTZmYjkyNDI3YWU0MWU0NjQ5YjkzNGNhNDk1OTkxYjc4NTJiODU1In0"
+        },
+        {
+          "resource": "repo://src/commands/sync.ts#L43-L73",
+          "version": "repo-lines-v1:sha256:acc1c6ac2b941cb24df8a68b312ee42cfc3fd1c1f8ef2dc749d0c54398bba752:eyJzZWxlY3RlZExpbmVDb3VudCI6MzEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU2NjZjMDE5NjZkYjk0MmVmNWQxZjgyYWYzYTUzNzFjNjQ0M2YxOWQ2Y2MzNzA2NGQzMDFjMzBjNDg3YWE5ZDEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFlNjczYWJkNDU3YTk3ZWVhMTdhNjAwNjJlYjBmYWVhNmJkZjA5NDg2OGNjNmI4ZjhjMGViZGEyZjYxZWQ0MmYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijg4YjBmMzRhMWVlMTQzNGQxYWZmOGU4OWNiYzIwMzNjODZjODQyZWYxNjIzNDgwYzBiOTMzZmEwNjI0ZDgwMzQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjRhN2M5ZjIxNDU2MmNjZjY4Mjk1YzM1MTlmZGJiMmJhYjQ2OGEyYTNhNDNmYzg5ZGNhYmQwMDlkODQ4M2Q5ZGIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_232fb5cad2d842dd8a153e464c9fb0f3",
+      "statement": "Workspace Git uses git init -b cloak, refuses staged destination files, and commits with a private hooks path, no signing, no line-ending conversion and a repo-cloak author.",
+      "evidence": [
+        {
+          "resource": "repo://src/adapters/workspace-git.ts#L7-L55",
+          "version": "repo-lines-v1:sha256:8e8edf09b780939d0d2800fb8099e90a489720f60dd706ea212a180b1731953c:eyJzZWxlY3RlZExpbmVDb3VudCI6NDksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM5OTI4NDdlYmZlYjk4MWMzOTY1ODExNzg5NzA2OTk2OTFjZDAyN2JmNjlhODRjNGRiZjFmMzcxN2UzZDJlZDgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijc2YWM2ZjEyNGI1MzY5ODE3YmNmYTZhMDAyYjVmOWRiNDQ0M2M1ZjA1NGQwMzFmMjE5YTVlY2RmMTljNzlhYjQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.2",
+    "at": "2026-10-20T12:02:39.628Z"
+  }
+}

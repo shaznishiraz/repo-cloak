@@ -9,8 +9,13 @@ import { sourceForWorkspace } from './pull-source.js';
 import { resolve } from 'node:path';
 
 export type InteractiveAction = 'extract' | 'restore' | 'status' | 'new' | 'ui' | 'exit';
+export type Worktree = { path: string; branch: string | null };
 export type InteractiveIO = {
   services: SyncServices;
+  /** Pick the source repository; returns a path inside it. */
+  source(current: RepoState | undefined, known: string[]): Promise<string>;
+  /** Pick one of the repository's worktrees; called only when there are several. */
+  worktree(worktrees: Worktree[], current: string | undefined): Promise<string>;
   action(side: 'source' | 'workspace', hasWorkspaces: boolean): Promise<InteractiveAction>;
   profiles(
     available: SavedProfile[],
@@ -23,11 +28,31 @@ export type InteractiveIO = {
   ui(): Promise<void>;
 };
 
-export async function runInteractive(io: InteractiveIO, version: string): Promise<void> {
+/** Ask for the source repository and worktree, then return services rooted in that worktree. */
+async function chooseSource(io: InteractiveIO): Promise<SyncServices> {
   const { services } = io;
-  if (!services.interactive)
+  const here = (await services.git.findRepo(services.cwd))
+    ? await services.git.repoState(services.cwd)
+    : undefined;
+  const known = (await services.store.listRepos()).map((repo) => repo.path).sort();
+  const chosen = await services.git.repoState(await io.source(here, known));
+  const worktrees = await services.git.worktrees(chosen.path);
+  const current =
+    here && here.repoId === chosen.repoId
+      ? await services.files.canonicalPath(here.path)
+      : undefined;
+  const path =
+    worktrees.length > 1
+      ? await io.worktree(worktrees, current)
+      : (worktrees[0]?.path ?? chosen.path);
+  return { ...services, cwd: await services.files.canonicalPath(path) };
+}
+
+export async function runInteractive(io: InteractiveIO, version: string): Promise<void> {
+  if (!io.services.interactive)
     throw new Error('Interactive mode needs a terminal; use an explicit command');
-  const root = await services.store.findWorkspace(services.cwd);
+  const root = await io.services.store.findWorkspace(io.services.cwd);
+  const services = root ? io.services : await chooseSource(io);
   const repo = root ? undefined : await services.git.repoState(services.cwd);
   if (repo) await services.store.registerRepo(repo);
   const linked = repo ? await listWorkspaces(services) : [];

@@ -31,15 +31,19 @@ Once v2 is published, install it with `npm install -g repo-cloak-cli@2`.
 
 ## Start with the guided CLI
 
-From your source repository:
+From anywhere:
 
 ```bash
 repo-cloak
 ```
 
-The menu guides you through profiles, file selection, destination, and a preview.
+It first asks for the source repository (the current one is the default, or
+type a path) and, if the repository has several Git worktrees, which one to use
+(the main worktree is the default). The menu then guides you through profiles,
+file selection, destination, and a preview.
 In an existing workspace, it offers refresh, restore, status, and the dashboard.
-Selection can combine files, recent commits, working changes, and extra paths.
+Selection can combine files, recent commits, commits you type by ID, branch or tag,
+working changes, and extra paths.
 
 ## Use explicit commands
 
@@ -148,7 +152,11 @@ Ctrl+C in the original terminal to stop it.
 - Binary files and invalid UTF-8 are copied unchanged and reported as warnings.
   They can still contain proprietary information; exclude them when needed.
 - Git/tool metadata, dependencies, common generated output, and lockfiles are
-  excluded by default. Profiles can customize `include` and `exclude` globs.
+  excluded by default. Profiles can add `.gitignore`-style patterns: `exclude`
+  (for example `"*.schema.json"` in every folder, `"generated/"` for a folder,
+  `"/config/local.yml"` only at the root) and `include` to bring back files the
+  defaults skip. Exclude always wins. Both are in the profile JSON and in the
+  dashboard's profile form.
 - External symlinks, submodules, and nested repositories are skipped during
   extraction. Restore refuses unsafe paths and symlink destinations.
 - Ordinary write failures roll back affected files. Process or power loss is

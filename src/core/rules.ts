@@ -1,6 +1,7 @@
 import { parseDocument } from './schemas.js';
 import { compileVariants, literalVariants } from './variants.js';
 import { getSecretDetector } from './secrets.js';
+import { patternProblem } from './patterns.js';
 import type { Document, Rule } from './schemas.js';
 
 export type Profile = Document<'profile'>;
@@ -94,5 +95,21 @@ export function validateProfile(value: unknown, source = 'profile'): Profile {
   for (const scope of ['content', 'paths'] as const) {
     compileVariants(profile.rules, scope, (rule) => `${source}: ${profile.name}/${rule.id}`);
   }
+  validatePatterns(profile, source);
   return profile;
+}
+
+function validatePatterns(profile: Profile, source: string): void {
+  const seen = new Map<string, 'include' | 'exclude'>();
+  for (const list of ['include', 'exclude'] as const) {
+    for (const pattern of profile[list] ?? []) {
+      const label = `${source}: ${profile.name} ${list} "${pattern}"`;
+      const problem = patternProblem(pattern);
+      if (problem) throw new Error(`${label}: ${problem}`);
+      const previous = seen.get(pattern);
+      if (previous === list) throw new Error(`${label}: duplicate pattern`);
+      if (previous) throw new Error(`${label}: listed under both include and exclude`);
+      seen.set(pattern, list);
+    }
+  }
 }

@@ -63,6 +63,48 @@ describe('file selection and reading', () => {
       ),
     ).toEqual(['src/app.ts', 'package-lock.json']);
   });
+  it('excludes wildcard patterns in every folder and lets exclude win over include', () => {
+    const profile = validateProfile({
+      kind: 'profile',
+      schemaVersion: 1,
+      name: 'schemas',
+      rules: [],
+      include: ['dist/types/'],
+      exclude: ['*.schema.json', 'migrations/', 'dist/types/internal.d.ts'],
+    });
+    expect(
+      filterPaths(
+        [
+          'src/app.ts',
+          'user.schema.json',
+          'src/api/order.schema.json',
+          'db/migrations/001.sql',
+          'dist/app.js',
+          'dist/types/index.d.ts',
+          'dist/types/internal.d.ts',
+        ],
+        [profile],
+      ),
+    ).toEqual(['src/app.ts', 'dist/types/index.d.ts']);
+  });
+  it('skips excluded patterns while expanding a subfolder', async () => {
+    const root = await fixture();
+    await mkdir(join(root, 'src', 'api'), { recursive: true });
+    await mkdir(join(root, 'src', 'generated'), { recursive: true });
+    await writeFile(join(root, 'src', 'api', 'order.ts'), 'x');
+    await writeFile(join(root, 'src', 'api', 'order.schema.json'), '{}');
+    await writeFile(join(root, 'src', 'generated', 'client.ts'), 'x');
+    const profile = validateProfile({
+      kind: 'profile',
+      schemaVersion: 1,
+      name: 'schemas',
+      rules: [],
+      exclude: ['*.schema.json', 'src/generated/'],
+    });
+    expect(await expandPaths(root, join(root, 'src'), ['.'], [profile])).toEqual([
+      'src/api/order.ts',
+    ]);
+  });
   it('skips nested repositories and external directory symlinks', async () => {
     const root = await fixture();
     const outside = await fixture();

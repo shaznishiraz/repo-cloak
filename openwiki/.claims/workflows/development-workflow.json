@@ -1,18 +1,14 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:e782873f2d89f11a9dd9e8589a3dee5f8cc7714c7df4913be9fc60e3f602a336",
+  "pageVersion": "sha256:23aaee6c89628136913e7f4d754752853503ccc468ff8ce2fcaeeb60c948742d",
   "claims": [
     {
       "id": "claim_f3899fa30c604c7290910bdb47d9d86f",
-      "statement": "Changes follow a design-first lifecycle: write docs/design/<topic>.md with an ASCII diagram and key types before coding, implement with tests, sync the design doc on divergence, then update OpenWiki.",
+      "statement": "Changes follow a design-first lifecycle: take the next step in docs/plan.md, add missing design to docs/design with ASCII diagrams and key types before coding, write a test per acceptance scenario, tick the step and sync the design, and update OpenWiki only at milestones.",
       "evidence": [
         {
-          "resource": "repo://AGENTS.md#L46-L58",
-          "version": "repo-lines-v1:sha256:492b3b2bd476ada702fd1ba8032a19a9abbfd4081e2ef194ebbeef37334fca95:eyJzZWxlY3RlZExpbmVDb3VudCI6MTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI1MzgyZWQ4NjQ3ZDRmYmEyMWJhYmVkMjI4MDNhYzZhODY2NjliOTUyNzY1ZjEzNTIxYzdjZGYyMjM3MTcyNGMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBiNDczODEzM2Q0NmE2MDVhZjM3YzFmNjg4ZjlkMzFlMjVmOTAzZWEyNzAyNDAzNTk4NTM5NzlmYTVhODc4MTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImQ3NmQ3Mzk1YTIxYmMxMTRjMjQ4YzEyMzUxYjU4MWRiNDhhZjkxMWIyZmIwYjZhNjU4NWQ0NDhkMjgxOWYwMWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjcxZTg1NjExNjFhMGQxM2U1MDNiNDNmMzZiMTE4OWUzMjA4ODhjMzMxMTc5YmJiNTA5ZDJlZDRhNDliNmEwOGQifQ"
-        },
-        {
-          "resource": "repo://docs/design/README.md",
-          "version": "repo-file-v1:sha256:d73ed8df7f4e77dd0c3d56497cfb0221891bb75f969b5ba14431ea103b8993f7"
+          "resource": "repo://AGENTS.md#L46-L61",
+          "version": "repo-lines-v1:sha256:fd9837e83af250b3f3b8276fe974a9041c4ebb2249c629ab98afd330305aa14f:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI1MzgyZWQ4NjQ3ZDRmYmEyMWJhYmVkMjI4MDNhYzZhODY2NjliOTUyNzY1ZjEzNTIxYzdjZGYyMjM3MTcyNGMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdhMmY1ZjA3NjlmZWM5YzAwMGZhYzk3N2IwY2M4ZDE0OWIyNjI4M2YyY2RmZGMyZWFiNDZiM2UxOTk2MjA4MzciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImQ3NmQ3Mzk1YTIxYmMxMTRjMjQ4YzEyMzUxYjU4MWRiNDhhZjkxMWIyZmIwYjZhNjU4NWQ0NDhkMjgxOWYwMWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImIyNzYyOWRhNWViYzc2ODlkNmE2ODgwNTU2MDQxNGYwNmM2MTE2NWZjOGZhZTRmNDA1NmNkMTFjNmFkY2U4NmYifQ"
         }
       ]
     },
@@ -38,21 +34,21 @@
     },
     {
       "id": "claim_c29ff5744c294e6783f4f8069187b9e8",
-      "statement": "ESLint combines @eslint/js recommended, typescript-eslint strict, and eslint-config-prettier, and ignores dist/, archive/, and node_modules/.",
+      "statement": "ESLint combines @eslint/js recommended, typescript-eslint strict, and eslint-config-prettier, and ignores dist/, archive/, node_modules/ and the e2e build and report folders.",
       "evidence": [
         {
           "resource": "repo://eslint.config.js#L5-L10",
-          "version": "repo-lines-v1:sha256:0c4b8136dd9089ca7da653b755bafd071c52c0df589a0ebc1d2cc57883172267:eyJzZWxlY3RlZExpbmVDb3VudCI6NiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNmNhZjJhNjczNzgwNzBmM2RmMDBmOTUzYmNkNTcyYWIxM2YwN2M3MGFhNDRkNjI3MzM0YzcyMmZmZmI3MGQyMyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDk5NjdlYzFlZDM4MzZmOGViMTdhZmYxNzJiNWJmZWY3ZGU2MDQ4NWE0MzljNmNhMTFjNTkxZTE3NTU3MzlhZSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiM2I4N2Q1YTUyMWY1NTEyMzlmMTMyODdhNGMyNDJiOWVkNmUzY2NlYzEwOTMyZWRlNzc5ODhlMTEwZDI0MDAxMCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjAsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSJ9"
+          "version": "repo-lines-v1:sha256:1d6d4b24f4412f6627cf90c3b160ef9f0e1952d2507b46f6ba03e8f0ede2de7f:eyJzZWxlY3RlZExpbmVDb3VudCI6NiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNmNhZjJhNjczNzgwNzBmM2RmMDBmOTUzYmNkNTcyYWIxM2YwN2M3MGFhNDRkNjI3MzM0YzcyMmZmZmI3MGQyMyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDk5NjdlYzFlZDM4MzZmOGViMTdhZmYxNzJiNWJmZWY3ZGU2MDQ4NWE0MzljNmNhMTFjNTkxZTE3NTU3MzlhZSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiM2I4N2Q1YTUyMWY1NTEyMzlmMTMyODdhNGMyNDJiOWVkNmUzY2NlYzEwOTMyZWRlNzc5ODhlMTEwZDI0MDAxMCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjAsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSJ9"
         }
       ]
     },
     {
       "id": "claim_735cbb51f77547ddb0c723397b9f2564",
-      "statement": "Vitest only collects test files matching tests/**/*.test.ts.",
+      "statement": "Vitest collects tests/**/*.test.ts with at most four workers and enforces coverage floors of 85/83/75/85 percent overall and 95/93/85/98 percent for src/core (lines, statements, branches, functions).",
       "evidence": [
         {
-          "resource": "repo://vitest.config.ts#L3-L7",
-          "version": "repo-lines-v1:sha256:5253b27a5efe96681477cab7894ea02ac0801527a3dc5021390ce3bf20606c9f:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYjJjZWNiMTQ0YTQ2ZjVkY2YxMmE2MTY5ZmNlZWQ3Njk1ZTgyOTRiMDkwZGU3NmYzNjYxY2RkMDI0OTMwMDE0NyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZjZmNWI0MGIxNTg0NTdkMTc4NjRmMjE3OTA3ODZkZDVhMmVjZGI2NGI2NmE2NTFmNzg4ZDRlMjVjZDMzMDNkMiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjIsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYjQwMDBhMDFmOGY4MDhjMDY5OGMyOWEzM2MzNzNiZDcwYmZhZjM3ZWY3YjI2Mjc3MDEyNjZiMzY5ZDYwZTYyMSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjAsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSJ9"
+          "resource": "repo://vitest.config.ts#L1-L21",
+          "version": "repo-lines-v1:sha256:a3fb5e60578da6cc4d407d6ce53ed597ebdf55ef390150b35d31b0e61aad9aa2:eyJzZWxlY3RlZExpbmVDb3VudCI6MjEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY0YTE5MjExYzNhMDNiOTg3OTQ3ZjI0YjY5YmRjYzQ2OWY0Nzk0ODI5YTVmNWE0YTE4OGVhMmUxODE2NTRiOWIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY2ZjViNDBiMTU4NDU3ZDE3ODY0ZjIxNzkwNzg2ZGQ1YTJlY2RiNjRiNjZhNjUxZjc4OGQ0ZTI1Y2QzMzAzZDIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
         }
       ]
     },
@@ -69,10 +65,54 @@
           "version": "repo-lines-v1:sha256:db5fa7eabb0f39aab9a3059d93b7dba6e32ed54e6f3a4238bbac85e4efd75b05:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZWQxOWQzYzljOGE1ZTM0ZDAxNzllMGIxYTljMjkwN2QyZTY1NzczODczM2U0YTQzMmE4Y2Y4MWM3NmNlNTZmMSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNjlhOGQ0NTY0MzFkYzkyNjE4ZTMxNGU2MDE1ZDZhMTJhMjdiOWQyNDY3ZTEyZjFhYzMxYjA0ZTM1ZWJkMGRiMCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjAsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjAsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSJ9"
         }
       ]
+    },
+    {
+      "id": "claim_196244930bae438191777451841d94c6",
+      "statement": "The browser suite runs dashboard.e2e.ts on Chromium with one worker, no retries, and list and JUnit reporters against a fixture server started on a free port.",
+      "evidence": [
+        {
+          "resource": "repo://e2e/e2e.config.ts#L1-L19",
+          "version": "repo-lines-v1:sha256:3b107185317225b7405ff24dc15f852e95194504e717da1ac2f85c66b4b895cc:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjkxZmJkNmE0ZjJmMTExM2MxNDFhYzBlY2I1NDQwMTAwNGRjMjVmMTZmMzBjM2YxNTAzNjUwYzJhOTk3MTYzNGEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQzN2YyMmFkYjg2MjljZjdjYzUwYTNiZmRhNTE0NWI3NDJjNDM2ZDE2YjEzOThiYmEzNWViOTUxYWQ1MDMzMzYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        },
+        {
+          "resource": "repo://package.json#L27-L27",
+          "version": "repo-lines-v1:sha256:17106b242704d23122de747a5b272f78040019948800da91948600e54b85f148:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMTcxMDZiMjQyNzA0ZDIzMTIyZGU3NDdhNWIyNzJmNzgwNDAwMTk5NDg4MDBkYTkxOTQ4NjAwZTU0Yjg1ZjE0OCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMTcxMDZiMjQyNzA0ZDIzMTIyZGU3NDdhNWIyNzJmNzgwNDAwMTk5NDg4MDBkYTkxOTQ4NjAwZTU0Yjg1ZjE0OCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMTZmMGE3YTBkOTFjOTRjOTdhZTEzNTg0OGJmYmE0YTJhZjliZmU5NmQ2MDgzZTc4ODU3NDg1ZTYxYmE0YTM0NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYzlmNDE3ODBlNzUxMjdmNzdjMjgxMjBiZjkyOWJmZWQ0YjllNzFmNWIwMmViMTZhZjUyZDBjYTc1ZGQ0Y2NiMyJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_f08eb4c0867649ca95a8aa22958bfd08",
+      "statement": "CI runs on pushes and pull requests to main or master and on dispatch, across Ubuntu, macOS and Windows with Node 22 and 24, performing install, typecheck, lint, tests (coverage on Ubuntu with Node 24), build and the package check.",
+      "evidence": [
+        {
+          "resource": "repo://.github/workflows/ci.yml#L1-L69",
+          "version": "repo-lines-v1:sha256:cfbb39d38466dd44ceb9f20b7b0b3002961be1482cba6688b7784e929860aec5:eyJzZWxlY3RlZExpbmVDb3VudCI6NjksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA2ZTFiMzJmYTA5MDc5YWUyZjAwMDFmZmYwZWNhMjdiNDk4NTk1N2Q0ZWI0ODU3OTI5YjNjZjA1OGZhYWU1NDEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE2NmQwNGZhNzkyMDQxYWEwNGMxY2ZmYjZkN2IxNWFkYTc1N2UxZGU4OTFlNDY2MzFmYmZmYzU2YTFhZThmNjkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_9d96120098814435b3691cae8c8b34f1",
+      "statement": "scripts/check.sh runs typecheck, lint, coverage, build and the package check, stopping at the first failure.",
+      "evidence": [
+        {
+          "resource": "repo://scripts/check.sh#L1-L10",
+          "version": "repo-lines-v1:sha256:31a228c7ee7cca9d881bf6de9472e90e4bf4f34b28e054cde3e103060ff5dd52:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE4MDc2ZDNkMjhkMjFlMDIwMTJiMjBlYWY3ZGJmNzU0MDlhNjI3NzEzNDQzOTAyNWYyODJlMzY4ZTMzMDVhYmYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImEyNDdhMGM5Y2UxZTdiOTgzNWIxM2ZmMDU2Y2ZkMTgwMjVmMDA2OGJiNmZlYmY3MDIwMTY1MGIzYjFiNDM2NTAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_ac9aeceb08d142dbadb1ae5da60cbdc5",
+      "statement": "dekit.yaml defines development, check, release, website and wiki tasks with autostart disabled by default.",
+      "evidence": [
+        {
+          "resource": "repo://dekit.yaml#L1-L12",
+          "version": "repo-lines-v1:sha256:e8b3ee2d0684f9f4aba5825a72ce494aec0f8aef066f19863453be87b3b1b0ed:eyJzZWxlY3RlZExpbmVDb3VudCI6MTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQwYzAyMmQ0ZTZmZGRjZmY1OWZhOGQ1ZWE5NTM2NjRlM2ZiZDBjNzRjNzZiYTk0NjJhOTkwMmQwNmFkZWYyZjkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE5NDkyYmJiZTQyMmY5ZmRmMzk5OGZkOTNmMjg2Mjk3NjNhNmU2YTU0ZDY1YjY3MmVlOTg5OGMwMDBiYjllYTQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUxYWFjYzE3YzVlMjU2ODEwNGFiYmZlZTFkOGE1MDZhMDg5OWE0NjQwYzY5NzM1ZGI3Yjc5Mjg2ZWQ4NTg2OTEifQ"
+        }
+      ]
     }
   ],
   "verification": {
     "by": "openwiki/0.7.2",
-    "at": "2026-10-16T13:36:07.841Z"
+    "at": "2026-10-20T12:02:39.628Z"
   }
 }

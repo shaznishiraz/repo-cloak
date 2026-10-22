@@ -177,14 +177,19 @@ reads commit data directly and leaves the source worktree unchanged.
 Design: [overview.md](design/overview.md) (interactive flow).
 
 - [x] Detect location: cloak workspace, known source repo, new repo
+- [x] Ask for the source repository (current, registered, or a typed path) and its worktree first
 - [x] Profile multi-select with create-new, validated live
 - [x] Selection (tree, commits, working changes, extra paths), destination suggestions, preview
+- [x] Typed commit IDs, short IDs, branches and tags, checked against the repo as you type
 
 **Acceptance**
 
 - **WHEN** `repo-cloak` runs in a cloak workspace **THEN** it offers push, re-pull, and UI.
 - **WHEN** it runs in a known source repo **THEN** the last-used profiles and workspaces are suggested first.
 - **WHEN** it runs in a new git repo **THEN** the repo is registered before continuing.
+- **WHEN** it runs outside any repository **THEN** it asks for the source repository path before anything else.
+- **WHEN** the repository has several worktrees **THEN** it asks which one, defaulting to the current one or else the main one, and links the workspace to that worktree's branch.
+- **WHEN** a typed commit ID is not in the repository **THEN** the prompt rejects it and asks again; duplicates of recent selections are ignored.
 
 The UI entry starts the machine-wide dashboard. Other actions route through
 the existing sync/status commands. The file picker is

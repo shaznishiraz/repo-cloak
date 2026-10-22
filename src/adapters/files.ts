@@ -2,10 +2,10 @@ import { existsSync } from 'node:fs';
 import { lstat, readFile, readdir, realpath, stat } from 'node:fs/promises';
 import { isAbsolute, join, relative, resolve } from 'node:path';
 import { glob } from 'glob';
-import { minimatch } from 'minimatch';
 import { isBinaryFileSync } from 'isbinaryfile';
 import pLimit from 'p-limit';
 import { validateRelativePath } from '../core/paths.js';
+import { compilePatterns } from '../core/patterns.js';
 import type { SourceFile } from '../core/pull.js';
 import type { Profile } from '../core/rules.js';
 import { errorCode } from './atomic.js';
@@ -49,11 +49,14 @@ export async function expandPaths(
     const info = await lstat(absolute);
     if (info.isDirectory()) {
       if (absolute !== root && (await exists(join(absolute, '.git')))) continue;
-      const ignore = [
+      // Prune what can never be selected; filterPaths makes the final, authoritative decision.
+      const ignored = compilePatterns([
         ...metadata,
         ...(profiles.some((profile) => profile.include?.length) ? [] : excluded),
         ...profiles.flatMap((profile) => profile.exclude ?? []),
-      ];
+      ]);
+      const base = relative(root, absolute);
+      const fromRoot = (path: string) => join(base, path).replaceAll('\\', '/');
       const files = await glob('**/*', {
         cwd: absolute,
         dot: true,
@@ -61,22 +64,10 @@ export async function expandPaths(
         follow: false,
         posix: true,
         ignore: {
-          ignored: (path) =>
-            ignore.some((pattern) =>
-              minimatch(path.relative().replaceAll('\\', '/'), pattern, {
-                dot: true,
-                nocase: true,
-              }),
-            ),
+          ignored: (path) => ignored(fromRoot(path.relative())),
           childrenIgnored: (path) =>
             path.fullpath() !== root &&
-            (ignore.some((pattern) =>
-              minimatch(`${path.relative().replaceAll('\\', '/')}/`, pattern, {
-                dot: true,
-                nocase: true,
-              }),
-            ) ||
-              existsSync(join(path.fullpath(), '.git'))),
+            (ignored(fromRoot(path.relative())) || existsSync(join(path.fullpath(), '.git'))),
         },
       });
       result.push(
@@ -86,16 +77,17 @@ export async function expandPaths(
   }
   return result;
 }
+/**
+ * Final selection filter for repository-relative paths. Metadata is never copied; a profile
+ * exclude always wins; profile includes bring back files skipped by the default exclusions.
+ */
 export function filterPaths(paths: string[], profiles: Profile[]): string[] {
-  const includes = profiles.flatMap((profile) => profile.include ?? []);
-  const excludes = profiles.flatMap((profile) => profile.exclude ?? []);
-  const matches = (path: string, patterns: string[]) =>
-    patterns.some((pattern) => minimatch(path, pattern, { dot: true, nocase: true }));
+  const isMetadata = compilePatterns(metadata);
+  const isDefault = compilePatterns(excluded);
+  const isExcluded = compilePatterns(profiles.flatMap((profile) => profile.exclude ?? []));
+  const isIncluded = compilePatterns(profiles.flatMap((profile) => profile.include ?? []));
   return paths.filter(
-    (path) =>
-      !matches(path, metadata) &&
-      !matches(path, excludes) &&
-      (!matches(path, excluded) || matches(path, includes)),
+    (path) => !isMetadata(path) && !isExcluded(path) && (!isDefault(path) || isIncluded(path)),
   );
 }
 async function nestedRepo(root: string, path: string): Promise<boolean> {

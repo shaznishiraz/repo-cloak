@@ -44,6 +44,15 @@ export function createSyncStore(store: ReturnType<typeof createStore>) {
     readConfig,
     readRepo,
     readSnapshot,
+    /** Registered source repos whose folder still exists. */
+    async listRepos(): Promise<{ repoId: string; path: string }[]> {
+      const repos: { repoId: string; path: string }[] = [];
+      for (const id of await store.listDirectories('repos')) {
+        const repo = await readRepo(id);
+        if (repo && (await exists(repo.path))) repos.push({ repoId: id, path: repo.path });
+      }
+      return repos;
+    },
     async registerRepo(repo: RepoState): Promise<void> {
       const directory = join(store.root, 'repos', repo.repoId);
       await mkdir(directory, { recursive: true, mode: 0o700 });

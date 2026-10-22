@@ -217,7 +217,9 @@ Rules:
 
 - **No init command.** The first `repo-cloak` (or `repo-cloak push`) in a
   worktree creates and links the workspace.
-- **Workspaces root** is asked once and saved as `workspacesRoot` in
+- **Workspaces root** is prefilled with the directory repo-cloak was started
+  in (or the folder holding the repo, when started inside one), asked once, and
+  saved as `workspacesRoot` in
   `config.json`. `pull --to <dir>` overrides it for one workspace. The root
   must not be inside a source repo.
 - **Profiles come first**, because the workspace folder name is anonymized

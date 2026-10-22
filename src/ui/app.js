@@ -251,7 +251,10 @@ function openEditor(saved) {
   if (!canLeaveEditor()) return;
   editing = saved
     ? structuredClone(saved)
-    : { scope: scope(), profile: { kind: 'profile', schemaVersion: 1, name: '', rules: [] } };
+    : {
+        scope: scope(),
+        profile: { kind: 'profile', schemaVersion: 1, name: '', rules: [], exclude: [] },
+      };
   $('editor').hidden = false;
   $('editor-title').textContent = saved ? `Edit ${saved.profile.name}` : 'New profile';
   $('delete-profile').hidden = !saved;
@@ -274,7 +277,24 @@ function readForm() {
   else {
     editing.profile.name = $('profile-name').value;
     editing.profile.description = $('profile-description').value;
+    // Empty lists become undefined, which JSON leaves out of the saved profile.
+    const exclude = lines('profile-exclude');
+    const include = lines('profile-include');
+    editing.profile = {
+      ...editing.profile,
+      exclude: exclude.length ? exclude : undefined,
+      include: include.length ? include : undefined,
+    };
   }
+}
+function lines(id) {
+  return $(id)
+    .value.split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+function patternList(value) {
+  return value === undefined || (Array.isArray(value) && value.every((v) => typeof v === 'string'));
 }
 function setEditorMode(json) {
   if (
@@ -282,12 +302,14 @@ function setEditorMode(json) {
     (!editing.profile ||
       typeof editing.profile !== 'object' ||
       !Array.isArray(editing.profile.rules) ||
+      !patternList(editing.profile.exclude) ||
+      !patternList(editing.profile.include) ||
       editing.profile.rules.some(
         (rule) => !rule || !['literal', 'regex', 'secret'].includes(rule.type),
       ))
   )
     throw new Error(
-      'The form needs a profile object with valid rule types. Keep editing JSON to correct it.',
+      'The form needs a profile object with valid rule types and pattern lists. Keep editing JSON to correct it.',
     );
   raw = json;
   $('form-fields').hidden = json;
@@ -301,6 +323,8 @@ function setEditorMode(json) {
 function renderForm() {
   $('profile-name').value = editing.profile.name ?? '';
   $('profile-description').value = editing.profile.description ?? '';
+  $('profile-exclude').value = (editing.profile.exclude ?? []).join('\n');
+  $('profile-include').value = (editing.profile.include ?? []).join('\n');
   $('rules').replaceChildren();
   if (!Array.isArray(editing.profile.rules)) throw new Error('Profile rules must be an array');
   for (const [index, rule] of editing.profile.rules.entries()) renderRule(rule, index);

@@ -62,6 +62,8 @@ export function createProfileCommands(io: ProfileIO) {
         schemaVersion: 1,
         name,
         rules: [],
+        exclude: [],
+        include: [],
         extensions: {},
       });
       return io.store.save(scope, validateProfile(await io.edit(profile)));

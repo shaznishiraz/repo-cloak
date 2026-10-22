@@ -99,3 +99,17 @@ it('selects current working paths and changed commit paths, including spaces', a
   expect((await worktrees(repo))[0]?.branch).toBe((await repoState(repo)).branch);
   await expect(commitFiles(repo, '--bad-option')).rejects.toThrow();
 });
+
+it('resolves typed commit IDs, short IDs, branches and tags to full commit IDs', async () => {
+  const { repo } = await fixture();
+  const { resolveCommit, repoState } = await import('../../src/adapters/git.js');
+  const { commit, branch } = await repoState(repo);
+  if (!commit || !branch) throw new Error('fixture has no commit');
+  await exec('git', ['-C', repo, 'tag', 'v1.0']);
+  expect(await resolveCommit(repo, commit)).toBe(commit);
+  expect(await resolveCommit(repo, commit.slice(0, 7))).toBe(commit);
+  expect(await resolveCommit(repo, branch)).toBe(commit);
+  expect(await resolveCommit(repo, 'v1.0')).toBe(commit);
+  await expect(resolveCommit(repo, 'does-not-exist')).rejects.toThrow();
+  await expect(resolveCommit(repo, '--bad-option')).rejects.toThrow();
+});

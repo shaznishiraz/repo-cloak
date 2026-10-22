@@ -6,7 +6,7 @@ import { createSyncServices } from '../../src/adapters/sync-services.js';
 import { createStore } from '../../src/adapters/store.js';
 import { runGit } from '../../src/adapters/git.js';
 import { runInteractive } from '../../src/commands/interactive.js';
-import type { InteractiveIO } from '../../src/commands/interactive.js';
+import type { InteractiveIO, Worktree } from '../../src/commands/interactive.js';
 import { listWorkspaces } from '../../src/commands/workspaces.js';
 import { validateProfile } from '../../src/core/rules.js';
 import { createProgram } from '../../src/program.js';
@@ -44,6 +44,8 @@ async function fixture() {
   );
   const io: InteractiveIO = {
     services,
+    source: async (current) => current?.path ?? source,
+    worktree: async (trees) => trees[0]?.path ?? source,
     action: async () => 'new',
     profiles: async () => ({ selected: [profile], create: false }),
     createProfile: async () => {
@@ -177,4 +179,64 @@ it('opens the dashboard directly from the guided menu', async () => {
   io.action = async () => 'ui';
   await runInteractive(io, '2.0.0');
   expect(io.ui).toHaveBeenCalledOnce();
+});
+
+it('asks for the source repository when started outside any repository', async () => {
+  const { io, services, source, root } = await fixture();
+  const outside = join(root, 'elsewhere');
+  await mkdir(outside);
+  services.cwd = outside;
+  io.source = vi.fn(async (current, known) => {
+    expect(current).toBeUndefined();
+    expect(known).toEqual([]);
+    return source;
+  });
+  io.worktree = vi.fn(io.worktree);
+  await runInteractive(io, '2.0.0');
+  expect(io.source).toHaveBeenCalledOnce();
+  // A repository with one worktree skips the worktree question.
+  expect(io.worktree).not.toHaveBeenCalled();
+  const workspace = (await listWorkspaces({ ...services, cwd: source }))[0]?.path ?? '';
+  expect(await readFile(join(workspace, 'Northwind.ts'), 'utf8')).toBe('class Northwind {}');
+  io.source = vi.fn(async (_current, known) => {
+    expect(known).toEqual([source]);
+    return source;
+  });
+  io.action = async () => 'exit';
+  await runInteractive(io, '2.0.0');
+});
+
+it('asks which worktree to use and links the workspace to its branch', async () => {
+  const { io, services, source, root } = await fixture();
+  await runGit(source, ['add', '--', 'Acme.ts']);
+  await runGit(source, [
+    '-c',
+    'user.name=Test',
+    '-c',
+    'user.email=test@example.com',
+    '-c',
+    'commit.gpgSign=false',
+    'commit',
+    '-m',
+    'base',
+  ]);
+  const feature = join(root, 'feature');
+  await runGit(source, ['worktree', 'add', '-b', 'feature', feature]);
+  await writeFile(join(feature, 'Acme.ts'), 'class Acme { feature = true }');
+  io.source = vi.fn(async (current) => {
+    expect(current?.path).toBe(source);
+    return source;
+  });
+  io.worktree = vi.fn(async (trees: Worktree[], current: string | undefined) => {
+    expect(trees.map((tree) => tree.branch)).toEqual(['main', 'feature']);
+    expect(current).toBe(source);
+    return feature;
+  });
+  await runInteractive(io, '2.0.0');
+  expect(io.worktree).toHaveBeenCalledOnce();
+  const [linked] = await listWorkspaces({ ...services, cwd: feature });
+  expect(linked?.target?.branch).toBe('feature');
+  expect(await readFile(join(linked?.path ?? '', 'Northwind.ts'), 'utf8')).toBe(
+    'class Northwind { feature = true }',
+  );
 });

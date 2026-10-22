@@ -1,0 +1,108 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:643e073269f0ef06c155634091fd6780f1d68bcb2eea3a54b8b5bed0ece17630",
+  "claims": [
+    {
+      "id": "claim_ade48ed895fa4c72830463d0917872ff",
+      "statement": "Outside a cloak workspace, interactive mode asks for the source repository (current repo, registered repos sorted by path, or a typed path), then asks for a worktree only when the repository has several, and continues with services rooted in the chosen worktree.",
+      "evidence": [
+        {
+          "resource": "repo://src/commands/interactive.ts#L32-L60",
+          "version": "repo-lines-v1:sha256:d62dce8a5e73a8ef45ea5251328035e70de918695ed9c8efe766f50582652e93:eyJzZWxlY3RlZExpbmVDb3VudCI6MjksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE3MDJlMzMzNjgyMWI0MDc4YmRiM2JjM2M3NTcwYzdlNTEwOWNiNzYzOGYwNGM0YWNhYzFkNjg5YzU3NTNjODEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjVjMWU4YWJhYjRlY2I1ODQyNTQ3ZGZmN2Q2NTJmY2Y0MjE3OTdkYjY2YzY2NDZlODkzNTUwYzAyNTM5MTc2MjQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjRlOTUzZDlmNDhlNTA0MDhjNjc5Y2QzZTA4YmRlYWVmZmZjODBhMDFiNDg0MzQwNmJkNTUxYjhkZGRlM2JiM2UiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjVmMWVhZTlmMTEyNjRiZmU1MjUxZWYxMTZlOTY2NjZhMTdlN2JkZDA3N2M5MGRjZDFmM2YzYTFlZmI5NTY2OTEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_6adf6a73f7d540afbb831f7f81294a67",
+      "statement": "The source prompt defaults to the current directory's repository, validates typed paths as Git repositories, and expands a leading ~ to the home folder.",
+      "evidence": [
+        {
+          "resource": "repo://src/adapters/interactive.ts#L40-L67",
+          "version": "repo-lines-v1:sha256:1f4425d1ba2c5006e3da86d921e13a257b7223d4603cd0c95e703dbe079691fa:eyJzZWxlY3RlZExpbmVDb3VudCI6MjgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjNhMGI1YjhjODQxNDY2ZTA5NjU3NGRmYTExYjc5ZGE4NGIzYmIwODM0MGM5NjdkOWU4NzAxYjQxOWVlNzIwZDkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFmMGNkYjk3MmE3YmZiN2VkMjQ2ZjlmZjY3MjM4NWU1NWY0OTY4ZmMxMTA0M2RjNWI2ODRkNTFkZmEzMWRiY2IiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjU3MzViMjMxNTFlYWIzZjhhNjg5OGY4OTY4Y2MxYjE5MDUzYzRmYTI2MWUxYTMyNzYxYTlkZDlhNzdkZmJkZGQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJiM2RlZDExYWEyNmI0NDUxZWQ3YWExZGIxNDlhMmVkOGJhYzVkMjI1ODY5YzNlNDY4YTVkNThmOTE2YTMyZmYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_b6109b23a4c348db8ae92764beb28d13",
+      "statement": "The worktree prompt lists only worktrees whose folder exists, labels the first as the main worktree, and defaults to the current worktree or else the main one.",
+      "evidence": [
+        {
+          "resource": "repo://src/adapters/interactive.ts#L68-L82",
+          "version": "repo-lines-v1:sha256:39536683c85e5a6d0d931473ffc18f7887e8ed098e2757065da8d482371a19db:eyJzZWxlY3RlZExpbmVDb3VudCI6MTUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImIzOTNjOTEyODA2NjZiY2YwZWJkNzdiZGM3N2QyNDQ4ODRkMDIxMjA1YjM2YjVkYjAyNGQ0YzFkOGRmODE0MjkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFmMGNkYjk3MmE3YmZiN2VkMjQ2ZjlmZjY3MjM4NWU1NWY0OTY4ZmMxMTA0M2RjNWI2ODRkNTFkZmEzMWRiY2IiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImY4Y2RhOGFkYjQ0YTBhOTZmYjVlMzdmOTg4ZWUzMWRhM2U2ODlhYjJhY2IyNzA3MzFjOTA2ZDMxYzgyMTIyOTYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjAxYmY1NmJkYjk4NGMxNzI0MTMzOGM3NTMyNjBiMjM5MDc3NWM2ZWM5M2E4ZDM5NzJiODMxZDU1NzY5NjZiMmIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_f1aba8e689294fc398e0c24937349b08",
+      "statement": "Interactive actions route restore to push in a workspace or pull with --from in a source, and extraction to pull in a workspace or push in a source, through the same sync command used by the CLI.",
+      "evidence": [
+        {
+          "resource": "repo://src/commands/interactive.ts#L64-L127",
+          "version": "repo-lines-v1:sha256:bb6dcfb1ece67bf37f5fa83cd83ab03810ef66386b980ff2a5e691d25409be60:eyJzZWxlY3RlZExpbmVDb3VudCI6NjQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRmYTU2ZTM1NjliMWJhZDBjOGM3NzdhMmYxOTg1ZTllNTk0NTk0MzUyZjRkZmEyMmUyM2E1ZWQ4YWNmODFlZDMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjVmMWVhZTlmMTEyNjRiZmU1MjUxZWYxMTZlOTY2NjZhMTdlN2JkZDA3N2M5MGRjZDFmM2YzYTFlZmI5NTY2OTEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_c905a159b75142468ad01d5ee1ab2932",
+      "statement": "The profile prompt validates the combined selection live with mergeProfiles and offers creating a profile, which is preselected after creation.",
+      "evidence": [
+        {
+          "resource": "repo://src/adapters/interactive.ts#L108-L138",
+          "version": "repo-lines-v1:sha256:404e09efa50d1f339a252bdfe0cdf0e871d36d37e4a4e1bf8ba1f141fada833b:eyJzZWxlY3RlZExpbmVDb3VudCI6MzEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBkZjhlYmZkZTlmZmRjM2U1N2JlMzA1ZTcxOTQ0NDg1Yjc0YjM4ZGI5YmJmYTM3ZjQ0YzA0Mzk3NTNkNjM1YTkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFmMGNkYjk3MmE3YmZiN2VkMjQ2ZjlmZjY3MjM4NWU1NWY0OTY4ZmMxMTA0M2RjNWI2ODRkNTFkZmEzMWRiY2IiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE2YTk4NTI0MjFmNTE4ZmNiYWQyNzY2YzJlNTU4NjllNGYyOWQ3MTg2M2Y3OTE2MzhhYjIyYTIzOTcwMTJkYWYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjUwNWM1NGZiNzU3ZGJkM2M0MzAzZTU4NWQwZjNlYmEzMmM1MTljZWEzYWZkMWMyNTRlM2M4MjQwMjc5NDg3ZDMifQ"
+        },
+        {
+          "resource": "repo://src/commands/interactive.ts#L95-L112",
+          "version": "repo-lines-v1:sha256:02cb97df01c52341336946c6bcc381cf000442f80fd957aaf333668290250ec7:eyJzZWxlY3RlZExpbmVDb3VudCI6MTgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk5MTFlMGZlNzZhNTI4NTAxZTUwN2RjYjc4NDg4OWZhNTU3M2E5Y2YyZThjMWM5YjY2Y2MzZDQ2NzM4MGQyNDIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI3ZTU3ODhkNWQ5ZDczZDI0YTgxZGJjMGE1YTc0YmZhODJjOWMzYjNhZjk5ZTUyYWY3OTZlOTBiNDY4YThhM2QiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjdjMDQwY2ExODY1OGQ1YTJiMTljMWUyNGJhNDk4ZTZhYWJkM2JjNDA2NjQzYmM2MGE5ODgxNjdkZDFhMDcyODIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQyNTRkZmE2YjNkNmRiZjgwM2Y1MDhiNWFmZmUwYTNiMDE0Yjk4YzNmZjI0ODJkMGVjYmY5ZGQ4OTA5OTQyZWUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_46e661f2d4364c90a10a79e92f9fe8e8",
+      "statement": "Creating a profile asks for a name and scope and opens a validated editor prefilled with empty rules, exclude and include lists.",
+      "evidence": [
+        {
+          "resource": "repo://src/adapters/interactive.ts#L139-L164",
+          "version": "repo-lines-v1:sha256:13bdad24efd47c6448f31880ca142cf3f1c3284532d2173f59c89bce7b7c105b:eyJzZWxlY3RlZExpbmVDb3VudCI6MjYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjVhNWQwOWJlNzAxYWViMTU4ZGQwZDE0ZGMwMTM2MzIyNWRhZDg4NDRkOWFkMzRiNDk0M2NiZTczODQ3OWM1NjMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFmMGNkYjk3MmE3YmZiN2VkMjQ2ZjlmZjY3MjM4NWU1NWY0OTY4ZmMxMTA0M2RjNWI2ODRkNTFkZmEzMWRiY2IiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImFkNmI3YzkzMzhhOGM3ZDgxMmRjZTQ1ZTA5YWRkODRmNGFlYjA4OWRiODhkN2JmY2FiZTk0OGM0M2VkYzg0MTIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImM5OGQwMDI1MjRlMTRhMzlhOTE5ZTUxOTAyMWExNTA0NmEwNWZkNjQ1NzgyYTM0NDRkMzljY2M4NzdhYmE1NzQifQ"
+        },
+        {
+          "resource": "repo://src/adapters/prompts.ts#L7-L23",
+          "version": "repo-lines-v1:sha256:9e900fbec2a22656b1dd168989384265fc6b2ce17e9321d4d90be5e29b8aa028:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFlMWEwNTllYWU0OWZkNGJiNmU3YThiZjg0MDk3MzJjOTQ3ZWM3ZDIwYjlhNTA3NWQ4MmZiZjAyNTYzMzc5N2YiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImU0ODU3NDM5NzEzZDNiZmQxYjQyYTlkZGQ4MTEwNTMyNWNkYjg0OTY5YzRiYWNiOGY2MDRlZGNjYWVlZWE4OTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjFiNDg1YzI5YzdjNmUwOWM1Y2RlNzQzNzk1ZDBlMDg0YjNkNjRiMWQ3MmM5NWNjZDJhOTBlMzI3ZWJiNzVmNTAifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_dc117f81cd21422ea84a7bce8e0d096a",
+      "statement": "The selection prompt offers tracked files, the repository tree, recent commits, typed commit IDs or refs, working changes and extra paths; typed refs are validated against the repository, at least one is required, and they are stored as deduplicated full commit IDs.",
+      "evidence": [
+        {
+          "resource": "repo://src/adapters/interactive.ts#L165-L262",
+          "version": "repo-lines-v1:sha256:bcf1d08dd5186f4ef72e4134eb8d7089027192fed8438f83a19462770338a827:eyJzZWxlY3RlZExpbmVDb3VudCI6OTgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI5ZjczODhhNDNmNDdhYzVjYTM1ZGI3ZTZmZGFhYTAyOTA0NGUwY2JhMjI0ODJhNzlkODVlNmE1Y2YwYWUyODYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFmMGNkYjk3MmE3YmZiN2VkMjQ2ZjlmZjY3MjM4NWU1NWY0OTY4ZmMxMTA0M2RjNWI2ODRkNTFkZmEzMWRiY2IiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjJmMTc2ZDMyNmEwMWFlNjhmODM4OWMwMDBiYjFhMGZjZWI3OGE5YTU1ZTJjZDBmYzUzY2M2MjFlZjVkNWZlZWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijg0ZGIxYTFkZmY2MWIyN2MxY2JlNDQzNDdhYjk4OGY0NTkyNGYwZDkxYWNlYTZkZWYwMTU5ZTI2ZDY0Nzg5MzAifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_e597ec6340e743fda8e6682b2a631813",
+      "statement": "recentCommits returns the last 20 commits with their subjects, or none in an empty repository.",
+      "evidence": [
+        {
+          "resource": "repo://src/adapters/git.ts#L130-L140",
+          "version": "repo-lines-v1:sha256:f78773c03749c58ea7bbba1f532627877ad69f2f6067ba9d455180ecd858eb05:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUyM2YyMjY4YjE2ODcyODAzYzRjMGUyNTI4NzI0YTU1OWZmNDU1Y2VkNWZiZGJmOWI3YTU3NjlmZGUxODM5ZTkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjlkNTVhMTRhOGVjNThhMDA4OWU0ZDU3MzEzMzY3YjIzNzI0YjFlOGJhMDViN2ViYmFhYWU0ZTMxNGQxZDBlYzIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_71ea00e3a79f4b8da3293efa70f71b3a",
+      "statement": "The workspaces root prompt is prefilled as editable text with the start directory, or the folder containing its repository, and resolves relative answers from the start directory.",
+      "evidence": [
+        {
+          "resource": "repo://src/adapters/sync-services.ts#L54-L65",
+          "version": "repo-lines-v1:sha256:21ad55b33b358c2e2e9e20b03d1b520930701b4256c4fce51d4670713d258ee3:eyJzZWxlY3RlZExpbmVDb3VudCI6MTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM2OGQxMzYyNjcxYjhkYTYyMmJkNDk3NWJmYjdlZjk4Y2ExZDE2MDIwZDhmNDQxMjU0YTBkYWZkMGMyNTJmZWMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFmMGNkYjk3MmE3YmZiN2VkMjQ2ZjlmZjY3MjM4NWU1NWY0OTY4ZmMxMTA0M2RjNWI2ODRkNTFkZmEzMWRiY2IiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjdjMGFiNmNhNmZjYzQxNWNiYmU1NDM4OGJiNmY0YzVkMGRiZDU0NWI0ZjEyZDQxNjUxOGQxMTZiOWM4YjBmMGEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQ0N2U2ODg2MDMwMmNkMWNhZjQzYmIyZTJkM2YyNjIxOTQ2NGU1MmQ4YTkyZWIxYmQ2MDEzOWE1NTk3ODg4YzYifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.2",
+    "at": "2026-10-20T12:02:39.628Z"
+  }
+}

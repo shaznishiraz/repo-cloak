@@ -1,0 +1,130 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:828dbc4022338af24b0fe7604a2725a4430ffb1c8ebda598cacd76548816cbba",
+  "claims": [
+    {
+      "id": "claim_37baa79fa768452bba7309bf08538614",
+      "statement": "The machine store defaults to ~/.repo-cloak and rejects any relative store path whose segments are not portable names.",
+      "evidence": [
+        {
+          "resource": "repo://src/adapters/store.ts#L10-L19",
+          "version": "repo-lines-v1:sha256:cc04d50f02f348ee794b53410a06f8a3990ae2cf2e330a9d48355a10baf5ce53:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUwNzQyZjYxNDhmMmI0YTJjNDM1OTYzZTQxZDhlOWY3NDBlZDMzZTkxN2ZiMjVkMGJkOWMzOGFiNTYzY2I4Y2EiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI3ZTU3ODhkNWQ5ZDczZDI0YTgxZGJjMGE1YTc0YmZhODJjOWMzYjNhZjk5ZTUyYWY3OTZlOTBiNDY4YThhM2QiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImMxY2QyZjljNTk2YTZmNGVhZWYxMTMzY2NmZDc1Y2YyYTM1MjVjOGU3ZmI5ZjY0YzAxZTgwMDFiMGNjOGI2OGIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijk3MDQ2ZDk3MzI3ZWExNmViZjYxMTQ4YjgxYTdiOTM4MjJiYmVhNDA4NWEzYmQ1MWJkNWY2ZDJiMzg2YzE0NTQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_0cb1c913db024e949dbfb2012252c123",
+      "statement": "Only config documents may be written in plain text; profile and repo documents are written as an envelope of kind, schemaVersion and id plus a sealed blob, and are opened with that plain envelope as authenticated data.",
+      "evidence": [
+        {
+          "resource": "repo://src/adapters/store.ts#L63-L95",
+          "version": "repo-lines-v1:sha256:083d7311cfb52911fa98fc16188bc9ff9362d392bd2032d45bc4736aeec8cd92:eyJzZWxlY3RlZExpbmVDb3VudCI6MzMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZkZjZkYjJmNjAwYWViNTNhZDgxOTAwZjgwYzhiZTgyMTA0NjE2NDQ5NmQ4ZjExNmFhNTkwNTA2ZWJhYmM1OTIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFmMGNkYjk3MmE3YmZiN2VkMjQ2ZjlmZjY3MjM4NWU1NWY0OTY4ZmMxMTA0M2RjNWI2ODRkNTFkZmEzMWRiY2IiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijk3NDNjYWYwMzIxN2YyNjQxZTRkZGY4MGMzODA2NDM2YzU4MDljYTQxNzU1MzY2NGE0NGI2MWZmNTZhZTZjYTYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoyLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImRiNDQ2MmQwNzIyZmRmYzA2YmE3YmZlNWMyMTA5ZThhM2RlZDY0N2U3MGNjYTY4MTU1NzBhOWU4MzE1ZDBkM2IifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_c644590517d94c3294716112bf845247",
+      "statement": "seal encrypts JSON with AES-256-GCM using a random 12-byte nonce, binds canonical sorted-key JSON of the plain metadata as AAD, and records alg A256GCM plus a keyId derived from the SHA-256 of the key.",
+      "evidence": [
+        {
+          "resource": "repo://src/adapters/crypto.ts#L12-L14",
+          "version": "repo-lines-v1:sha256:f13b3e6840d6abf9363e0cafd30788c39073f9e11f5fc4df7547a90b99a335fa:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYTYwZmNmZDRmYzk1YWQ4NWI0Y2NlOTcyYzM4MDgyODdkZGNjYjgzNjY1ZDdiZTE0NTMzNzY5ZjMyODg2NzQ0MiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDEyY2EzNDVjY2Y3NWJmOWMwODA2YmNlNjk1YmU4ZGU4MDhiNzk5ODQyNTFhN2E1NGQyMDJjZjYxMDFkZDQ1MSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNWQ4NWNhNmU4ZDUxYjZjMTY5ODliYTQ1NTk4YjU2Y2U1YWEwYWVmNjA1ZjZlYTExMTg0NDgyZjg4M2QzMTVlZiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNDQyZGQ3NTU2MzlkN2M1MGI4NDcxMzkzYTg5Y2ViNWUwNzE3MGJiZDJhNDdiOTU1ODBjODI4NTY0MTUxNzVlZiJ9"
+        },
+        {
+          "resource": "repo://src/adapters/crypto.ts#L51-L78",
+          "version": "repo-lines-v1:sha256:b46541673be3a6aaa4e27ede6e1bd2977d83cafaf6d512b969647ed11bd07290:eyJzZWxlY3RlZExpbmVDb3VudCI6MjgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImRkNTVjZjNiNmU2OGU1MjhjNjQzY2U4MTI3YjE0MTg5YzlhNzI3YmRjOWRiNjNjNzI5NGUzMzM2MzI2Yjc5NWMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImZiNTgwZTk2NGY4M2E0NzNmNDNkNDQzODQ2Mjk0OWQ2OGI1NjAwZmRhNzg3ZjE2Mzc0NWQwMGRlODljYmYzNmEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjJlYzFhODhlMWI5YzZmYjM3OTI3NzFkZWNmMzNkOTgwMGJjNDJjNGJlYmQyNjM5N2JlNjNhYTM3MDkzNGQzNDAifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_b5d32c158a054a89b68541c0863fddba",
+      "statement": "open refuses a blob sealed with a different keyId and reports altered data or plain metadata when authentication fails.",
+      "evidence": [
+        {
+          "resource": "repo://src/adapters/crypto.ts#L79-L107",
+          "version": "repo-lines-v1:sha256:f46162d40f0673052146819dd7cd25e72329ab78b1261b9b1d5392e0cd3ca775:eyJzZWxlY3RlZExpbmVDb3VudCI6MjksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImIwMzgyNzQ0ZTRhOTczMmFlMTM3YjU3ZWUxOWJiMmNlZWZlZTFkYWNhYmI4Yzc3OGQyNmQ1M2QxMGZlMjQwY2YiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImI5MGRhMzBiN2E2MWNjZGY2MTZlYmFjNmM3YjUzNmQ4ZGJjMmRmMjI0NjU2ZDMzZGNmMmUxM2Y3ZmNiNDU3NzIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_5da7e158edf245a4918b66e70dc6b6a3",
+      "statement": "The 32-byte key is created once through an exclusive temporary file published with a hard link so concurrent creators share one complete key, and is kept at mode 0600 on non-Windows systems.",
+      "evidence": [
+        {
+          "resource": "repo://src/adapters/crypto.ts#L19-L49",
+          "version": "repo-lines-v1:sha256:ea0fc2e81f4cfc650b975d8857b069669f4601776c84ac9082c37808a3839c09:eyJzZWxlY3RlZExpbmVDb3VudCI6MzEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ2ZWY0OWU3OTMzYzVmZTgxY2JkYzIzYmU0NDIwNWRkOTllMmIyYjhlYjUzMjVjZmI0NjMwZTA1NGE2MmRjNzYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjliOWQzOGQwN2U3MjM5MzdkNjQyMGU1NzY1NTljMzZkMzU5MjEyYjBkYjMxMmY1NGUwMTMxMmU1ZGIyMzE5MTciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjA0NDM1MmMxZDZhYmMwNjRlMDU4N2ZiMTQ1OWMyNTU2MmIzNGVhZjFlNDc1NDE1OTk1ZTk3Y2I2YjZlZDQ1ZTMifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_f71aca3a091742bdb7f9da801615b901",
+      "statement": "Document versions are profile 1, repo 1, manifest 2 and config 1; checkVersion rejects newer versions before decryption and parseDocument applies migrations that must advance the version.",
+      "evidence": [
+        {
+          "resource": "repo://src/core/schemas.ts#L149-L187",
+          "version": "repo-lines-v1:sha256:ba6197642a57492c0c9ae53176759fa96122dbf2fe86bb4a5592fd0c8f901f9f:eyJzZWxlY3RlZExpbmVDb3VudCI6MzksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjViNTA5OWRiNDdlYzUxNDViOTQ0NTAxMjIxYjQ5Y2YxMWRjNWZmYmE5M2ZmODMzOGM4NjA0NjFiNGY4ZWE4NzYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImQzNjFhNzEzZWViYzFmYTI0NDQ0MzNlOWUxM2U2NTBlYmIxMzAyMDIzYzViNjY1MDRkMmY0OWYyMWZmOWU1MDAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjY3Njg4OTgwY2Q3MzAzZWY3YjIyNjMwMDViOWRhZmI5NmRlMmQ0ZjY4MzQxZTJjYTY3MjgzMWZlNWU4ODczZmUifQ"
+        },
+        {
+          "resource": "repo://src/core/schemas.ts#L3-L3",
+          "version": "repo-lines-v1:sha256:1a81a1688e99e84f8bf599a79c016c34d41504268560070d1236c800e5f895f8:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMWE4MWExNjg4ZTk5ZTg0ZjhiZjU5OWE3OWMwMTZjMzRkNDE1MDQyNjg1NjAwNzBkMTIzNmM4MDBlNWY4OTVmOCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMWE4MWExNjg4ZTk5ZTg0ZjhiZjU5OWE3OWMwMTZjMzRkNDE1MDQyNjg1NjAwNzBkMTIzNmM4MDBlNWY4OTVmOCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjIsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTAwZmRmNGJmNjE2YzA1N2ZiZDkyOGRkMmZjNzM0NTE2NTRhNzA1ODUwMzMzMWZlY2ZlNmYyMGYzOTUwMGE1YyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNjJiODk4NjQzMWYzNTgxY2QwMjRjMTZjNDczY2YyY2ExNjY4NWQwZGI3NzZmMTY5MzI5NWEzMzZmMmM3MWE0OSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_55a535b79a3a409390fc44bb29aeffcf",
+      "statement": "A repository id is the first 16 hex characters of the SHA-256 of the canonical git common directory, which is shared by all worktrees of the repository.",
+      "evidence": [
+        {
+          "resource": "repo://src/adapters/git.ts#L8-L27",
+          "version": "repo-lines-v1:sha256:231e15b7ff20cb3367a8e0544a265687440cedf4834a710345aeb6d1426f204e:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI1MmE4ZjhhNWQ1MGI1ODViM2VlOGY1NWRiNmYxMjUzYTJjMmIwMWM5ZTdmNmIyZDhlNzAwYmM5Nzk0NDY3MDciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI3ZTU3ODhkNWQ5ZDczZDI0YTgxZGJjMGE1YTc0YmZhODJjOWMzYjNhZjk5ZTUyYWY3OTZlOTBiNDY4YThhM2QiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjU2NTAyNzFkODI4ZDY0OTdlODNhZGU1MTM5MGM0ZDQ1MzQ3YTg0NDNmZWMzYzQ1ZjE0ZGU2YjhhNGY2ZjExYTEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImMzNGJiZjRmYWE5NzViZGQxMGQyZGYzNWU3MmYxNTQzOTBjOWMxMGIxMWY1ZDZhMWIxMTYzNGMzODNjNDQ1MjgifQ"
+        },
+        {
+          "resource": "repo://src/core/identity.ts#L3-L6",
+          "version": "repo-lines-v1:sha256:69a40c83770dbfb16a146510a9a9b5677dcbe30d373bfc69199d94ebffabf602:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiY2IwMjg1MGMzZWEyYjAyMGU4NWY0ZDNhNTE0NjAzYTQ2ZTNmYWFlMjgxMjBlODIwYjcxOGFhNGExYjIzZDhiMyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDEyY2EzNDVjY2Y3NWJmOWMwODA2YmNlNjk1YmU4ZGU4MDhiNzk5ODQyNTFhN2E1NGQyMDJjZjYxMDFkZDQ1MSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjIsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiOThiOGUzYWVhOGM5MmIzOWQ5MmFhN2M1OGZlODBlMjAwZjM4MGUxZjE5NzQ4Zjk1MGZiYmM2Nzc2NDk2NDBjMSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjAsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_d28fa2c8a7ec40eb91ff626b4759e8ab",
+      "statement": "After a successful sync, record updates the sealed repo record under a directory lock with the workspace path, timestamps, use count, last profiles, origin and target branch, and stores a copy of the manifest under repos/<repoId>/manifests.",
+      "evidence": [
+        {
+          "resource": "repo://src/adapters/sync-store.ts#L91-L134",
+          "version": "repo-lines-v1:sha256:fbe709fb96993cce629e20c9a812e76213033c03bf791ff18402de4aa3ebf3eb:eyJzZWxlY3RlZExpbmVDb3VudCI6NDQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU3NjQ5OTQzZDI2ZGVkZmUyZjAzYjcxMGIyZjg2MTExMWRlZGJiNWQxZDc2MTUzODk1MDFhOGU1NDMxZWZlNWQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFmMGNkYjk3MmE3YmZiN2VkMjQ2ZjlmZjY3MjM4NWU1NWY0OTY4ZmMxMTA0M2RjNWI2ODRkNTFkZmEzMWRiY2IiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImFjOWZmOTlmOTYzODQ0ZDMwNWFjZjU4YTVkOGJhODFmOGJlOGFhYWU3MWE5NGY0ZmUyYmRhNDAyYmUzYTFkMmUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjA2Y2RhYjIzZDVmM2EyODIwOTlhMzBjZWM0OWFkNDg1NWMzYWY2NGZhMTE5ZGZkYWRjNzgyNmM5MDk1N2I1MTYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_2a203690c7754e12b974fce2170a3314",
+      "statement": "findWorkspace walks up from a directory to the nearest .repo-cloak/manifest.json, and readSnapshot opens the sealed manifest data with the plain part as AAD and validates both file maps.",
+      "evidence": [
+        {
+          "resource": "repo://src/adapters/sync-store.ts#L26-L42",
+          "version": "repo-lines-v1:sha256:f58aada8a595b5ebdd85394c130df3df69a69b7a66e2c4b38567ba635186f5e5:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImVkNDEzOWU0NGYzMjQ4ZjgzMWZlYTIzYWFjYjU5MDc2YjQ0NjcxNTRmM2I4NTc2M2ZjNTI2YjA5MTZiM2MxYTAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI3ZTU3ODhkNWQ5ZDczZDI0YTgxZGJjMGE1YTc0YmZhODJjOWMzYjNhZjk5ZTUyYWY3OTZlOTBiNDY4YThhM2QiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjVhNTk2OWY0NjQ5NzlmMGM1MDFiOGZjMjJhM2UxZjYzODZlMWVmYmVmZjI4ODZkMTI0Y2RhZWFmNWY1NDE4NzMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjFkMzQ2Njc1NzEzZjk5ODJmOGZhYzUwMTFlNDNjMzE3N2U0ZjFhMmM5Y2QzNGUxMzRiODEyZDAzNWExMzg4ZjAifQ"
+        },
+        {
+          "resource": "repo://src/adapters/sync-store.ts#L76-L81",
+          "version": "repo-lines-v1:sha256:d7de11984453b282ee4362e02cd465f9d1047c6ff8d3a408aa5b16fe8b28e187:eyJzZWxlY3RlZExpbmVDb3VudCI6NiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYWQ3MTEyMGNmMzU2ZDgzOTJhMTgwYTI0MjAzOTY2MDNhY2Y1YjA2ODRjMGNiMDk1ZTg0YjBmOGYzNGVjMDIyOSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMWYwY2RiOTcyYTdiZmI3ZWQyNDZmOWZmNjcyMzg1ZTU1ZjQ5NjhmYzExMDQzZGM1YjY4NGQ1MWRmYTMxZGJjYiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMGU2MzE4ZDgzN2E5Y2JmYmYyNjQyMGE5NjZlNjZhYTdiM2NjMWY1YWM2ZWQ1MTk4NGM0NDY5ZjFkNTc1ZTE0YSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNjc3YmNhOWU0M2EwNWQwNDI5M2NjNzY3ZWFmODA2M2E1ZTE4NDJjMmZiMTg5OGFkODU3MTcyMWFhMmEzZTc4ZCJ9"
+        },
+        {
+          "resource": "repo://src/core/manifest.ts#L72-L87",
+          "version": "repo-lines-v1:sha256:fe496cc120984fa34a18377af67dda7c3c3f7b8301fdd8e47d4bced5cf68900a:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjkwZTU0MTg4YzQ1NTRhOGE2ZjJkYzczNTUyZTdiMTFlNWM0MjRjYzhkMDNjOGViYTRiNjRkZGVjNDgzZTFkMTUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImRhMWM4OGZlZTdhZTE4MDhhZTY0NmRiOWVlNTQ1ZWYzYWQ1MmNhZTk5NGY1OTIxNGM2YzAxNTZkZDZhNTg2MzkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_b538145968cf4a1aad74effa0e7375f4",
+      "statement": "writeAtomic writes a flushed 0600 temporary file and renames it over the target, retrying briefly on Windows for EPERM, EACCES or EBUSY.",
+      "evidence": [
+        {
+          "resource": "repo://src/adapters/atomic.ts#L10-L42",
+          "version": "repo-lines-v1:sha256:9344a50588f32d3ad2d53f570851f875ef72d88f163f2eb2b9aca26f5fa0fe67:eyJzZWxlY3RlZExpbmVDb3VudCI6MzMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI3ODUyNGNlYWYyYmQ4NGFjYmZkMGU0MGUwMmIxOTk0OTViNDYyYjI0NDVjMGM5MDJhNzFhNDM2MzI4YzEyODUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImM1OWU1YTA5NzZlZWM2NjViZjIwNzkyNzJjZDk0NmRiOWYwNGNhYzhmNzdkNzUyMjAwMjEwNzVhMDYwZDNkZTkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.2",
+    "at": "2026-10-20T12:02:39.628Z"
+  }
+}

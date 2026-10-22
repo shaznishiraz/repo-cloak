@@ -1,24 +1,24 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:ef4a17a354e5192f3afacce1d9867568633fb7162e10ecb2e95da9cac2b1b255",
+  "pageVersion": "sha256:f30a1927d3729ed4f6be72370ebf6ceaa26f5148d55eac625ef4f610a7f38461",
   "claims": [
     {
       "id": "claim_ab7f2c2cbaf84136ba4a9824e06e12d6",
-      "statement": "src/cli.ts is the CLI entrypoint: it builds the program via createProgram() and parses process.argv with top-level await on parseAsync.",
+      "statement": "src/cli.ts is the CLI entrypoint: it parses process.argv through createProgram(), maps a cancelled prompt to exit code 130, a ConflictError to its exit code, and any other error to an 'error: <message>' line with exit code 1.",
       "evidence": [
         {
-          "resource": "repo://src/cli.ts#L1-L3",
-          "version": "repo-lines-v1:sha256:151b47fc49ffee94dabf661a846ac1934871d6f96b10266c8a79ee3de94738fa:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMGFhYzE1ZTBmZjBkYjVjMDkzZmVhMTlhNzExZjdlYzJkYWJmZGJiZGE0MTJmZGM3YmI4YWQ0YTAxODQ5ZTA4MSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiOWViZTJjNWZmMTQ5ZThiNmNlNjM3ZDUyZjY3MTAwODFkYzRmZDZkMzEwNTBhNjMxNjVhODJkZTlhMjU2ZDk0NCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjAsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjAsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSJ9"
+          "resource": "repo://src/cli.ts#L1-L14",
+          "version": "repo-lines-v1:sha256:e1e82e46913d6d8cb8adc1d75491bd4307b452fb7c954b04b024b6700b345833:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImIyNjk3YWI5NWYzMmU4OGRmNTQyZjFhM2ViZmY0MzBlNmIzZGI5ZThhZTMyNGQzNjc4NmM5YmQ3Nzc1YTg4MTUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
         }
       ]
     },
     {
       "id": "claim_b2ec92b3d72645d4a41254d4f4e8f69f",
-      "statement": "createProgram() returns a new commander Command named repo-cloak whose description and version come from package.json, with the version flag registered as -v, --version.",
+      "statement": "createProgram() builds a commander Command named repo-cloak with -v/--version and global --json and -y/--yes options, and registers the schema, profile, push/pull, workspaces, status and ui commands.",
       "evidence": [
         {
-          "resource": "repo://src/program.ts#L10-L15",
-          "version": "repo-lines-v1:sha256:21c4d9c3adced18341300783160fd38f25cded97cef08e04a53ced3be0c576ba:eyJzZWxlY3RlZExpbmVDb3VudCI6NiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiODQzMmMyYTg0MTc4Yjc1Y2NhYmFmNjlmZDQ5YzlhODFmNGJlNWYyZmE4ZDhlNDEzMTVmNDQ4MmZkZTk4OWZkYSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDEyY2EzNDVjY2Y3NWJmOWMwODA2YmNlNjk1YmU4ZGU4MDhiNzk5ODQyNTFhN2E1NGQyMDJjZjYxMDFkZDQ1MSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNzA0YTVjOGIwMzFhODQzZmViNmIxMDRmNDFhY2RjNjllNGIwMTE1NjI3ZGEwOTYxYjk2NmVlNTNiOTVkNDJlNyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjAsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSJ9"
+          "resource": "repo://src/program.ts#L25-L49",
+          "version": "repo-lines-v1:sha256:4b1e4a0d4dfee77d7daca02a8c55afd721bac05a1a66ce7d3a923f76d952cda8:eyJzZWxlY3RlZExpbmVDb3VudCI6MjUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImJmM2I0ZjllMzg5Mzk0OTNiOWZmZTUwN2NmMzMzYTZhNjk0MzIzMmY4MzFlYWFhZGZjZWI5ZGI5NWMwZDBjYjUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ0ZDk1NWY0ZTE0ODUwMTlmZjkwNWZiMjkxMGI1ZjcyZWU1ODhkYmJhZGQ4ZjEzNGNkZjg5OTUzNzhmMWM3ZjAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjcwNGE1YzhiMDMxYTg0M2ZlYjZiMTA0ZjQxYWNkYzY5ZTRiMDExNTYyN2RhMDk2MWI5NjZlZTUzYjk1ZDQyZTciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjA0OTBjNjlkMzZmZTBiMWQ0MzRjNDQ2MzgxYWYwYzg1NWZlMmU2NTQwZmJmZGMyZmQxMGU3NGQxMWYwOTQ0NDkifQ"
         }
       ]
     },
@@ -27,8 +27,8 @@
       "statement": "program.ts loads ../package.json at runtime through createRequire(import.meta.url) to obtain version and description, rather than hard-coding them.",
       "evidence": [
         {
-          "resource": "repo://src/program.ts#L1-L8",
-          "version": "repo-lines-v1:sha256:0c089334fc25ece6c6fafed21a8fcb1d558149314661b4c28c35284b49df3cd5:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZmQ3NmFlM2MxZjZkMzY3YzNmNzVkZGI2NjM1NDQyYzA2ODE1ZDJlZTdkYmM2YjUzMjQ2ZGU0Y2FiYjFjNjI3MiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYWExZDFhNjMzOTAyMjljNzk4MzQ3ZTgzYTA0MDU0NDFjOTQwMDAzNTI4NGFkMTY4YzFiZjZjZGYxZDcwYTM3MCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjAsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMjE1OWQ4M2JhNDA2NzI2ZWM0ZDVkZjVlY2Q3MmQ5MDkzYTJkNmRhZjk0ZDNlNWIzNTQ3Zjk3NzgyZTQ5NWU0YiJ9"
+          "resource": "repo://src/program.ts#L19-L23",
+          "version": "repo-lines-v1:sha256:38e11403ac34beecdbbe6e7ad29bd3ba8cbe882d078374555cb21945034db288:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMjFlYzhhZjNiNTNmZDkxOWRhZTk1MzIyZjYyOTE0MjM0MmU1MzNkNzRmOTYxODU5OTZkMmFiODBhZGEyOWNhNyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYWExZDFhNjMzOTAyMjljNzk4MzQ3ZTgzYTA0MDU0NDFjOTQwMDAzNTI4NGFkMTY4YzFiZjZjZGYxZDcwYTM3MCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZWVhY2JlYWM0NTVjZDI3NWM1MGY5MWU3NjQwMjJhMjI4MzMzMGYzYjVjMTFlMTVjNzYxYjZjMmVjZjFjNDliOCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZDhmYzk3OWZhMGU0MWM4Y2E2M2YyZWUyZGIyMWQwZmJkZmZhMzVmYzFmYTJlMGI3ZDExMGE4Y2Y5ZmNiZGZlYyJ9"
         }
       ]
     },
@@ -51,10 +51,74 @@
           "version": "repo-lines-v1:sha256:a66454470af9d5080ca45cb42b6d26eeb9abb94221e9e03fd3c4365d52ca1345:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNGNiMjBjZjA1ODljODg5Y2UwYzQ2ZGRkZWU2YzI4MTU3YzE1NTY4OGYyNGYyOTZjZDA4MjE5NzhkNDYzMDBhMSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMTk0OWUwZGZmOTRkZGQ2Yjk2YmZhZGI4MWFlNjJhMmE0NGI4NzI4ZjVlMjk3ODI3OWI1OGE2YzY2OWIxOGZjOCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMmE4ZWVlY2Y1YWE0ZDEzZTY3MzA1YjFiZTg2MDRlNzYyY2ViZjM5Mjc4MzU3MmM4Y2Y0ODhlZmRlNjc5ZDUyNyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYTc1ZmYzNGVmYzVhNDYzMjg5OGY0MWE3MzFiNjM3MjVhNmQ0YzVlMDQ3MzQ2NDZiNmRjODI2ZDliYzlhNDA5OSJ9"
         }
       ]
+    },
+    {
+      "id": "claim_1ea0384742384d9fa10b39b11059f1ad",
+      "statement": "Running repo-cloak with no command starts interactive mode, but it rejects --json and --yes and prints help instead when stdin or stdout is not a TTY.",
+      "evidence": [
+        {
+          "resource": "repo://src/program.ts#L50-L66",
+          "version": "repo-lines-v1:sha256:e7c9a8c45b84ebb0ebdaacee619c1c94b997fc171c76c33850eca005c6098218:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjUyZTY5OGJjNzg4Nzg2OTFkYWI3ODgxZWMxMTI4ZTZkNTBmMTlmY2Y1NDNjMDQ3MmM3OTYwNWMzNjI3OWUyMmEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjNhM2U0NmY5NDI3NmI2ZjZmNGVkMWYwMmFmNzhiZWY2YTJlZTFjNDM5ZGQ1NTg0Yjk3Mzk0ODMxMzIxNGQyYjciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImE0NjU4ZjBhMzM4NDgyNWQ1ZTJjNWU0ODcxMThjN2MxZmQxMzRmN2VmN2RiZjQ5ZWRlYWM5YzJmMjU3MjNhYjkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoyLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjBjYjI3ZDQ3OWQ0YTJjYWNmZDFmMGU1Mjg0MTRiMjIyY2RmYjRhNmNhNjk2NWYwZTVjZDJiMjFjZGMzMGRlYjYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_59aa946fc39c4cc39e0f053ea09a8324",
+      "statement": "ConflictError carries exit code 2.",
+      "evidence": [
+        {
+          "resource": "repo://src/core/errors.ts#L1-L3",
+          "version": "repo-lines-v1:sha256:9f96a519acb3c87b67666e96b212c7131ceb84c9131ae59f339a1216ed181c70:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiOWUzYjZkZGEzYWI2Y2E1ZWZhYTg2Y2M1YjliMjhmY2E1YTU1ODg2ZjRkNDUyMWRhOTAzYzg0ZTE5MjNkZDUyNiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDEyY2EzNDVjY2Y3NWJmOWMwODA2YmNlNjk1YmU4ZGU4MDhiNzk5ODQyNTFhN2E1NGQyMDJjZjYxMDFkZDQ1MSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjAsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjAsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_5bc5bfb66dfe4707b51236fa69c20808",
+      "statement": "createSyncCommand routes push inside a cloak workspace and pull outside one to restore (runPush), and the other two combinations to extraction (preparePull/runPull), rejecting restore-only flags on the extraction path.",
+      "evidence": [
+        {
+          "resource": "repo://src/commands/sync.ts#L9-L25",
+          "version": "repo-lines-v1:sha256:f0a8681450b8567ca17d0cd7ed6c336601f5fe27c824dd7ce2f981e1daed994c:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjUwMzRlMTg2NTkxOWViNjFhOTBhNTcyMjI2OGIwZDA0YmRiZDQxMGU2ZWU2OTlhMTcxYzVjZTE0NWU4MGJkODMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQxMjliNWRjZDYxYWFlZDNhMWY4NWRiNWQ4OGViY2QxNzFiMDIyNDg3NmEwOTFlYzM1OGM0MmRlNDI3ODZiYjEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjJhNmM1YzkwZjk1YTg4NWFkODYzNmQxYmQ1Y2QxNDdmZTkwMGJjYTQ1MmZiZDk0YWY2ZmY5MWVjOTNiMDg1Y2YiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImYzOTgxYjU1NTMzZmY5ZjdlNjZmNzVmYWU5NjkxZDdmOGQxYTM3MGE5N2MzNTIxNTE0ZmE3NDU4NWY4OGMwYjkifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_eb05b97e8d4c4f78ba21fb892d920a21",
+      "statement": "Extraction refuses to write without --yes or --dry-run when no interactive terminal is available.",
+      "evidence": [
+        {
+          "resource": "repo://src/commands/sync.ts#L26-L29",
+          "version": "repo-lines-v1:sha256:7fcaebb11396a66a0e113efcc65d63c16fced7eef987ff8cc9fb20ecee772eb3:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiOTRkN2JjOWYxYzFkNzkzMDgxM2Q5OTVkYzkxYWE1ZTdlZjg4N2FmNDQ3NTQwZDRkYzA2NzAyNWNmZWM1ZTU3ZiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZmVmNjkwMDdhN2U3NWNjZGIyYzE5ZWZhOWQ5NWM0M2JmNzg3ZjMzYTJiOWM4MjY1YzRhNWNlNjQyZmU2ZGJlYSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYmJmYzVlYTVjYzlkY2FjZDAxZDdmNGM0ZjhhZGNkOTUyOGIyMGNkNDA1MTVjNGMxMWJiOTg0NjkxNjI2YzQ2NyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMGE3YWQ4NGIxMzY2MWQzMDdjOTQ4YThlZGViODg4NWYzMGVmZTk2NzNmNjBhNjYyM2VmZDRmN2UwNDZiNDA2MCJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_1be3cf7b158b4097a418d82b7ea45ef3",
+      "statement": "push and pull register the same option set, convert flags into PullOptions, and print either the full result as JSON or a status line with write/remove counts, the workspace path and warnings.",
+      "evidence": [
+        {
+          "resource": "repo://src/sync-program.ts#L10-L85",
+          "version": "repo-lines-v1:sha256:59d6cb72c606c121a47c0f73a4a73ba77b6c5e17e5630a30833a408c15683311:eyJzZWxlY3RlZExpbmVDb3VudCI6NzYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFhMWYyYjc5MTNkYjY0NTFiZWFjMGMyZGJkZDdmOGM1NmE2OWJlMGU3N2YzMDNhOGE3ODZhNGZkZDY2M2YxYmQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjIyZDExY2FmNDNlOTdlZjM2OWU2YmVlZDFhMjY4YmQwNTgzOGYyOWI5ZGQyNTRiZjY5YmE2NDg4NDE0NzIzNGEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjY5NTU0OGY2Y2YzMzQ0NWM4M2JhYzI0ZTk0ZTM4MDY3ZDE0NmM3YjA3Y2EzNWY3MWM1MmEyYzBlNWZhZGEwY2EiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjVjNTVhZWZiZWE5NzIyOWRjMzczZGNlMzIxZTVmMmVmYzYzZDc5ZjRiZGFmNTc4NzRkMzQ2ZDNkMDlmYzEwOTEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_9d20480c32574e1eb0c607ac308e2078",
+      "statement": "createProgram accepts optional loader factories for profiles, sync, status and interactive IO so tests can replace real adapters.",
+      "evidence": [
+        {
+          "resource": "repo://src/program.ts#L25-L30",
+          "version": "repo-lines-v1:sha256:e48b32a7de0eb043ac210ce9374a3997d654a5c0381c5f29efe406de21b02369:eyJzZWxlY3RlZExpbmVDb3VudCI6NiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYmYzYjRmOWUzODkzOTQ5M2I5ZmZlNTA3Y2YzMzNhNmE2OTQzMjMyZjgzMWVhYWFkZmNlYjlkYjk1YzBkMGNiNSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDE5Y2IyMTA1NjU1MjM5MzFlNmVjM2Q1ZDgwMGY3MDIzZGIzMjU4ZjkzY2M2MzljYmY1NjIyZjBkN2FjZmE0OCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNzA0YTVjOGIwMzFhODQzZmViNmIxMDRmNDFhY2RjNjllNGIwMTE1NjI3ZGEwOTYxYjk2NmVlNTNiOTVkNDJlNyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYzE0M2Q0YTgwYTc1NzRjNWI0YTQ3MmMzN2NmNTJlM2QzNWI0YjM1ZTNkYzQ5NzAyN2Y0ZmRmODRlZTc4NWU2OSJ9"
+        },
+        {
+          "resource": "repo://src/sync-program.ts#L72-L72",
+          "version": "repo-lines-v1:sha256:239ebb9d57552c84aa0ca6d341957660e390cc9b4b47f32cfa1a6cb361f7e83d:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMjM5ZWJiOWQ1NzU1MmM4NGFhMGNhNmQzNDE5NTc2NjBlMzkwY2M5YjRiNDdmMzJjZmExYTZjYjM2MWY3ZTgzZCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMjM5ZWJiOWQ1NzU1MmM4NGFhMGNhNmQzNDE5NTc2NjBlMzkwY2M5YjRiNDdmMzJjZmExYTZjYjM2MWY3ZTgzZCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZGQ5MjRkYjk5NDM5MDM2NGZkNmZiY2ZiYjJkNzNlYzg1ZTY4NzlkZGE1YmJlNTdlOTc3YjVhYzEyZDU0MTMzNiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMjQ3MjA1ZDRjN2ExODljNDZkOTg1ZWI4OWI3ZWQ3NDI1ZTk2ZTU1ZDgwMTU3ZGI3ZGEwY2JiMjU5YzRkNWUyYiJ9"
+        }
+      ]
     }
   ],
   "verification": {
     "by": "openwiki/0.7.2",
-    "at": "2026-10-16T13:36:07.841Z"
+    "at": "2026-10-20T12:02:39.628Z"
   }
 }

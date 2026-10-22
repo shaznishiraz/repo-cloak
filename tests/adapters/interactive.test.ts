@@ -1,3 +1,6 @@
+import { mkdtemp, rm } from 'node:fs/promises';
+import { homedir, tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { expect, it, vi } from 'vitest';
 import { createInteractiveIO } from '../../src/adapters/interactive.js';
 import { validateProfile } from '../../src/core/rules.js';
@@ -85,6 +88,45 @@ it('combines file, commit, working and extra selections and preserves tracked-fi
   });
 });
 
+it('accepts typed commit IDs, rejects unknown ones and removes duplicates', async () => {
+  const io = createInteractiveIO(
+    () => {},
+    async () => {},
+  );
+  const first = 'a'.repeat(40);
+  const second = 'b'.repeat(40);
+  const known: Record<string, string> = { abc1234: first, main: first, 'v1.0': second };
+  io.services.git = {
+    ...io.services.git,
+    recentCommits: async () => [{ id: first, subject: 'change' }],
+    resolveCommit: async (_root, ref) => {
+      const sha = known[ref];
+      if (!sha) throw new Error('unknown revision');
+      return sha;
+    },
+  };
+  prompts.checkbox.mockResolvedValueOnce(['commits', 'commit-ids']).mockResolvedValueOnce([first]);
+  const checks: (string | boolean)[] = [];
+  for (const answer of ['abc1234', 'main', 'v1.0', '']) {
+    prompts.input.mockImplementationOnce(
+      async (config: { validate(value: string): Promise<string | boolean> }) => {
+        checks.push(await config.validate('nope'), await config.validate(''));
+        return answer;
+      },
+    );
+  }
+  expect(
+    await io.selection(
+      { repoId: '0123456789abcdef', path: '/source', branch: 'main', commit: first },
+      [],
+      [],
+    ),
+  ).toEqual({ commits: [first, second] });
+  expect(checks[0]).toBe('Not a commit in this repository: nope');
+  expect(checks[1]).toBe('Enter at least one commit');
+  expect(checks.at(-1)).toBe(true);
+});
+
 it('offers the dashboard in the workspace menu', async () => {
   prompts.select.mockImplementationOnce(
     async (config: { choices: { name: string; value: string; disabled?: string }[] }) => {
@@ -107,4 +149,90 @@ it('offers the dashboard in the workspace menu', async () => {
       async () => {},
     ).action('workspace', false),
   ).toBe('exit');
+});
+
+it('offers the current and known repositories, and validates a typed path', async () => {
+  const io = createInteractiveIO(
+    () => {},
+    async () => {},
+  );
+  io.services.cwd = '/work';
+  io.services.git = {
+    ...io.services.git,
+    findRepo: async (path) =>
+      path === '/work/other' || path === join(homedir(), 'repo')
+        ? { topLevel: path, commonDir: `${path}/.git`, repoId: '0123456789abcdef' }
+        : undefined,
+  };
+  const current = { repoId: '0123456789abcdef', path: '/work/here', branch: 'main', commit: null };
+  prompts.select.mockImplementationOnce(
+    async (config: { default: unknown; choices: { value: unknown }[] }) => {
+      expect(config.default).toBe('/work/here');
+      expect(config.choices.map((choice) => choice.value)).toEqual([
+        '/work/here',
+        '/work/known',
+        null,
+      ]);
+      return '/work/known';
+    },
+  );
+  expect(await io.source(current, ['/work/here', '/work/known'])).toBe('/work/known');
+
+  const checks: (string | boolean)[] = [];
+  prompts.select.mockResolvedValueOnce(null);
+  prompts.input.mockImplementationOnce(
+    async (config: { validate(value: string): Promise<string | boolean> }) => {
+      checks.push(
+        await config.validate(' '),
+        await config.validate('missing'),
+        await config.validate('other'),
+      );
+      return 'other';
+    },
+  );
+  expect(await io.source(current, [])).toBe('/work/other');
+  expect(checks).toEqual(['Enter a path', 'Not a Git repository: /work/missing', true]);
+
+  // Nothing to pick from: go straight to typing, with ~ meaning the home folder.
+  prompts.select.mockClear();
+  prompts.input.mockResolvedValueOnce('~/repo');
+  expect(await io.source(undefined, [])).toBe(join(homedir(), 'repo'));
+  expect(prompts.select).not.toHaveBeenCalled();
+});
+
+it('lists worktrees that exist, marks the main one and defaults to the current one', async () => {
+  const io = createInteractiveIO(
+    () => {},
+    async () => {},
+  );
+  const main = await mkdtemp(join(tmpdir(), 'cloak main '));
+  const feature = await mkdtemp(join(tmpdir(), 'cloak feature '));
+  try {
+    const mainTree = { path: main, branch: 'main' };
+    const removed = { path: join(main, 'removed'), branch: 'gone' };
+    const trees = [mainTree, { path: feature, branch: 'feature' }, removed];
+    prompts.select.mockImplementationOnce(
+      async (config: { default: unknown; choices: { name: string; value: unknown }[] }) => {
+        expect(config.default).toBe(feature);
+        expect(config.choices.map((choice) => choice.value)).toEqual([main, feature]);
+        expect(config.choices[0]?.name).toContain('(main worktree)');
+        return feature;
+      },
+    );
+    expect(await io.worktree(trees, feature)).toBe(feature);
+    prompts.select.mockImplementationOnce(async (config: { default: unknown }) => {
+      expect(config.default).toBe(main);
+      return main;
+    });
+    expect(await io.worktree(trees, undefined)).toBe(main);
+    prompts.select.mockClear();
+    expect(await io.worktree([mainTree, removed], undefined)).toBe(main);
+    expect(prompts.select).not.toHaveBeenCalled();
+  } finally {
+    await Promise.all(
+      [main, feature].map((path) =>
+        rm(path, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
+      ),
+    );
+  }
 });

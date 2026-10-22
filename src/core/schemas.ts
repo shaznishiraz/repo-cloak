@@ -84,8 +84,18 @@ export const documentSchema = {
     name: text,
     description: z.string().optional(),
     rules: z.array(ruleSchema),
-    include: z.array(text).optional(),
-    exclude: z.array(text).optional(),
+    include: z
+      .array(text)
+      .optional()
+      .describe(
+        'Bring back files that are skipped by default (lockfiles, dist/, build/, node_modules/ ...). Same pattern rules as exclude.',
+      ),
+    exclude: z
+      .array(text)
+      .optional()
+      .describe(
+        'Files never copied into a workspace, as .gitignore-style patterns relative to the repository root: "*.schema.json" matches in every folder, "generated/" is a folder and its contents, "/schema.sql" matches only at the root, "src/**/*.gen.ts" matches from the root. Exclude always wins over include.',
+      ),
   }),
   repo: z.looseObject({
     ...base,

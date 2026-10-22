@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:5db5e59b3f8dca0fc6ff3ad092abdc6bf5e9654d65b2b6526b82f06a8c6c1a03",
+  "claims": [
+    {
+      "id": "claim_406e0249b1014c87874c901e6e575583",
+      "statement": "repo-cloak ui resolves the current context, starts or reuses a session, opens the browser at a 127.0.0.1 URL whose fragment carries the token and context, and closes the session on SIGINT or SIGTERM.",
+      "evidence": [
+        {
+          "resource": "repo://src/ui-program.ts#L7-L49",
+          "version": "repo-lines-v1:sha256:2a67cb7fabe612a50ad069ee5f3566bf899edfd0d780c2e747e807b85c614606:eyJzZWxlY3RlZExpbmVDb3VudCI6NDMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY4YzdhODhkOWUwZDAwYzMwMDg3ZTY3ZTMxMmUxNTkyOTY4NWYwYTA4YzkzYzFkZWU0YjliMWNhMzZhODUxMzQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjNjMDkwZjEwOTU5ZDEzYjFlZDhhNWFiMDRkNDFhYTBkMjcyNDEzNWMzNmRlMDQ3NzAxZGNhNmQwMzY5YTVhMGUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImM0NTM1YTAwZDEyMmU5ZGNkYjdiZTFkN2ZlMGQ0MjBhMGIwOGMyNWQ0NGI0OTIzMDc2YjVmMzE3MzNjZDc0ODIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_be3f4f44774c484286ee3395c96c1b36",
+      "statement": "The dashboard context registers the current repository, or reports the repository and workspace ids when run inside a cloak workspace.",
+      "evidence": [
+        {
+          "resource": "repo://src/commands/dashboard.ts#L41-L50",
+          "version": "repo-lines-v1:sha256:d40c5f4287b31a8975c3ca74c1b11de15c13969e9b382937566bba916c76dcbd:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg3YmU4MGFiMGVjMjkxN2VkY2ExM2RjNDVkNzEzMDY2ZWYzYjdmOTJjNjQyYWY5NzU0ODU1ODU3ZTU5ZjFkY2MiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFmMGNkYjk3MmE3YmZiN2VkMjQ2ZjlmZjY3MjM4NWU1NWY0OTY4ZmMxMTA0M2RjNWI2ODRkNTFkZmEzMWRiY2IiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijk4Yzg3NWMzNzAzOTA4ZDY4NDBmMGNmNzU5NjY2NmYwMTlhODhlMmExMjI1MGQ2ODI4ZThhNjY0MDlmZThlMjciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUwNjc1MGU3MzJiZmQ0NzcxMDgyODY1YjNmNTE5NDFmZWE1NDE4OWI3YTFmNGI1NDMyZjdlMzIyNGNjMDM3ZDgifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_5051bb56a4534a05954d3f0b96f33040",
+      "statement": "startUiSession uses a ui.guard lock that goes stale after five seconds, reuses a running server only after authenticating it through /api/session with matching app, protocol and pid, and otherwise creates a random 32-byte token, binds 127.0.0.1 and writes ui.lock atomically.",
+      "evidence": [
+        {
+          "resource": "repo://src/adapters/ui-session.ts#L18-L99",
+          "version": "repo-lines-v1:sha256:5988026e0c5ce7f1e964f4801d0dd7107b71b2c0b66a93bc5d3153f4d43ffa6a:eyJzZWxlY3RlZExpbmVDb3VudCI6ODIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjEwNGY5NDczZjhmMDgzNWE4NzVjOGM4NmFiNWNmMWQwN2EyMTgwY2U2ZDUyMzRjY2FjYWJmOGM1MDA4Yjc1ZmQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjI5Y2E2OWY0MzczMjZlNDhmNTkwNjNiNmZkMjBjYjMwM2MzNjViYzFlYWYzZDI2Njc0YzdlZDIwZDRlNzU2NTYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_9f277576fed64a029b0846fca9e24b96",
+      "statement": "The server requires a Bearer token compared with timingSafeEqual for every /api/ request, refuses foreign Host or Origin headers, sets no-store, nosniff, no-referrer and a self-only content security policy, and serves only three named static assets.",
+      "evidence": [
+        {
+          "resource": "repo://src/adapters/server.ts#L10-L97",
+          "version": "repo-lines-v1:sha256:5e14fdce4fea1e7ddfa5ff96098059d77f148d749ae4929f21be043551c52c58:eyJzZWxlY3RlZExpbmVDb3VudCI6ODgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFhZDAwNGE4NDRmOTZkMGM5YThkYzkwYWRmMzVlZGRhNDJiYzkyNjQxMmQ2YzdmODc0MzFhMjg3ZTliYzQ2MmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdmY2UyODJiNzI3ZmEzMmE0YzEwMTg0YWM5OWJkZWZmYTlkMjdkYTRmNjcwMGQzNWFhNGRjNDM0OTk4NjZiMTciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImZhYmJlZjE4ZWMzOWE5MmMwMmM4MDEzMmZmODU3NjBlZTUzMTcxYTdiNDU2ZmJiYmU2MTZmYWVhYTA1N2JkMDQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImNmNmE0MjdjY2JiYzc2MGRlYTYzNTE5YTM4Yjk5YzZiZWVkZDFlZGM4NDc1MWE0NzU1YTBhYWVlNDFkN2EyNDYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_eb9c64ef2cde44c08da845065d400c67",
+      "statement": "JSON request bodies must be application/json and at most 1 MB.",
+      "evidence": [
+        {
+          "resource": "repo://src/adapters/server.ts#L24-L40",
+          "version": "repo-lines-v1:sha256:dcf7ba4031c23e69e9100f1bea481bdc758156564be099f16b6b76ac6ccd72ba:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY1MWZlYjJjMTg4Y2I4ZDdhYzQzMjNkNWNlNjg3NWFhMzJhM2QxMzM5ZmJjMTVkYWExNmI4NTVkMmUyZmY1ODkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImY1ZGNiZmRkZDJkOGNjNzQyOGIwNjhjYzVlOTU1MjgxMmZjNDQyODY3ZjgyZmY5NjRkNzZjZDRiZTA5MGNkM2EiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImExZWJkOTFlZjQxMjI1NzQyYTRkMTI3NmRmMGQxZTZkMjkxOTY0ZjBhNjdkM2RjMzQzYmY4MzgzNDFjNTg3NmYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_3e83cab7360548a28925d34b9eab4195",
+      "statement": "The API exposes session, repos, workspace detail, profile list/save/delete/check and schema routes.",
+      "evidence": [
+        {
+          "resource": "repo://src/adapters/server.ts#L98-L121",
+          "version": "repo-lines-v1:sha256:4210fe70642a43c6a91cba762aa8fceb01afa0bbbb4aa1206cc60a28f03e17e0:eyJzZWxlY3RlZExpbmVDb3VudCI6MjQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRjZTFiZmZmZTk1ZTAxNzcxNDUzZWU2Y2E4N2Q1OWU1OTkyM2Q3YmFiZDg3MGM4ZDQzNzY5OTEwNjhhNWZhMGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjNlZTEyNzUyMzNlZDQwNmQ2NzQ1NzViNzQzZDA1NmMxMmJjMjkxNzg3YmRlYTZiYjg1ZTNmY2Y5NmY0NWE1YjMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjBlNDBjMThkZjRkNGQwODMyMDFhMzQ1Y2EzNWFlNDFmOGM3ZjhkYzVjZmY5NzA2M2MyZWFhNmZjNmNjMTYwYWIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImExOTc5NzYxZDlhZjZhNDc3NmJiYzdjZGQ1NzIyZjU5NTU2OWRiYjM1NDI3YmExNDUxN2NmYWQyNWEzODI5MDMifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_7ef86a2f0b26417081e17326d4722087",
+      "statement": "Dashboard handlers refuse repo-scoped requests for unregistered repositories, only show a workspace whose manifest matches the requested ids, and use the shared profile store, validation and merge logic.",
+      "evidence": [
+        {
+          "resource": "repo://src/commands/dashboard.ts#L26-L119",
+          "version": "repo-lines-v1:sha256:b2bf34fe5505ab6cd7abd22495c585c59c36c9f66677239c4c90bbd9fd3e3424:eyJzZWxlY3RlZExpbmVDb3VudCI6OTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImYyNWE1ZmQyZGUwNGZiOTQyY2JhNDRlZjlkNjU1NDllMjkzMTRkOTlkYTAzODcwM2Y0MWY2MDg4ZDQ1NWYzMjYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNmZGNlOGU2YWM4N2IyYjM1YTg2YjE1ZWNmMTkzMjM0YWZhNmJiNTQ4NWVkZmQ2OWQwMTczMDJkNTdhYmFjOTUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImJiYmIwNzIxYzA1M2YwMDY1ODAyNmQ3MThlNzM3MmQyMGY5YmY2MmU1YjI3YTZlYmYyNjI2NmMyNWNjNmJmMTEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_04e6895cc2c94f9fb313001ca854cbd3",
+      "statement": "The page moves the token from the URL fragment into sessionStorage, removes it from the address bar, and sends it as an Authorization header.",
+      "evidence": [
+        {
+          "resource": "repo://src/ui/app.js#L1-L8",
+          "version": "repo-lines-v1:sha256:f6f2859a2bc36630497f316f6bbe222d4319b7606a048922ea71c676d502c890:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiODBkMjU4YjQ3OWIzOTlhZDc4YzM2ZGU3ZTk2MGVlYTgwYmE5MTAzYjk3OGEwYzY2ZTY4ZWI2ODNhZWYwOGZlOCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMzg3ZjEzNTM0YTAwMDJmYjBkNDBlZWUzNzcxMDEyNjBmY2QwMWZmOWEzZjgwNmUzMTRmZmVlODA4Njg3OWE5ZSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjAsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNDk5ZDAxNGIxM2M1ZjI3MzJmNjY2N2VmNDFkODEzMWNmZDZiZGUyYmUyN2I1NThiMDdhMTgzOGY2ZWIyZTE5ZiJ9"
+        },
+        {
+          "resource": "repo://src/ui/app.js#L43-L43",
+          "version": "repo-lines-v1:sha256:caf0689cb9b20596d53faca9cbadf0f51aa8281f54419af7afb15267f57f8631:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiY2FmMDY4OWNiOWIyMDU5NmQ1M2ZhY2E5Y2JhZGYwZjUxYWE4MjgxZjU0NDE5YWY3YWZiMTUyNjdmNTdmODYzMSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiY2FmMDY4OWNiOWIyMDU5NmQ1M2ZhY2E5Y2JhZGYwZjUxYWE4MjgxZjU0NDE5YWY3YWZiMTUyNjdmNTdmODYzMSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZmZlZDMxZGRkZmFhMWU5YjQ1NTFlODJjMjY2YjhmYTcwYjAxNDMxODlkZmIzMGJlNmJiNjIyMmQyYTY3ZThkMiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiOTgwZmRjZGJjNWU3OTA5ODMxYTI1ODMxMGRlNzVlZTQ3OWRjMDk2NGU0ZWUwOTg4OTRmODgzZGNlYWNjYWZkYyJ9"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.2",
+    "at": "2026-10-20T12:02:39.628Z"
+  }
+}

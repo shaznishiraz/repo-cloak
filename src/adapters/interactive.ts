@@ -1,3 +1,6 @@
+import { access } from 'node:fs/promises';
+import { homedir } from 'node:os';
+import { resolve } from 'node:path';
 import { checkbox, input, select } from '@inquirer/prompts';
 import type { InteractiveAction, InteractiveIO } from '../commands/interactive.js';
 import type { PullOptions } from '../commands/pull-setup.js';
@@ -9,6 +12,22 @@ import { createStatusIO } from './status.js';
 import { editProfile } from './prompts.js';
 import { createSyncServices } from './sync-services.js';
 
+/** Resolve a typed path: relative to the current directory, with a leading ~ for home. */
+function typedPath(cwd: string, value: string): string {
+  const trimmed = value.trim();
+  if (trimmed === '~' || trimmed.startsWith('~/') || trimmed.startsWith('~\\'))
+    return resolve(homedir(), trimmed.slice(2));
+  return resolve(cwd, trimmed);
+}
+async function present(path: string): Promise<boolean> {
+  try {
+    await access(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function createInteractiveIO(
   write: (text: string) => void,
   ui: () => Promise<void>,
@@ -18,6 +37,49 @@ export function createInteractiveIO(
     services,
     write,
     ui,
+    async source(current, known) {
+      const others = known.filter((path) => path !== current?.path);
+      let path: string | null = null;
+      if (current || others.length)
+        path = await select<string | null>({
+          message: 'Source repository',
+          default: current?.path ?? null,
+          choices: [
+            ...(current
+              ? [{ name: `${current.path} (current directory)`, value: current.path }]
+              : []),
+            ...others.map((path) => ({ name: path, value: path })),
+            { name: 'Enter a path...', value: null },
+          ],
+        });
+      if (path) return path;
+      const typed = await input({
+        message: 'Path to the source repository',
+        async validate(value) {
+          if (!value.trim()) return 'Enter a path';
+          const resolved = typedPath(services.cwd, value);
+          return (await services.git.findRepo(resolved).catch(() => undefined))
+            ? true
+            : `Not a Git repository: ${resolved}`;
+        },
+      });
+      return typedPath(services.cwd, typed);
+    },
+    async worktree(worktrees, current) {
+      const available: typeof worktrees = [];
+      for (const tree of worktrees) if (await present(tree.path)) available.push(tree);
+      const main = available[0]?.path;
+      if (!main) throw new Error('No worktree of this repository exists on disk');
+      if (available.length === 1) return main;
+      return select({
+        message: 'Worktree',
+        default: current && available.some((tree) => tree.path === current) ? current : main,
+        choices: available.map((tree) => ({
+          name: `${tree.branch ?? '(detached HEAD)'}  ${tree.path}${tree.path === main ? '  (main worktree)' : ''}`,
+          value: tree.path,
+        })),
+      });
+    },
     async action(side, hasWorkspaces) {
       return select<InteractiveAction>({
         message:
@@ -84,7 +146,16 @@ export function createInteractiveIO(
         ],
       });
       const profile = validateProfile(
-        await editProfile(validateProfile({ kind: 'profile', schemaVersion: 1, name, rules: [] })),
+        await editProfile(
+          validateProfile({
+            kind: 'profile',
+            schemaVersion: 1,
+            name,
+            rules: [],
+            exclude: [],
+            include: [],
+          }),
+        ),
       );
       return services.profiles.save(
         scope === 'repo' ? { kind: 'repo', repoId } : { kind: 'global' },
@@ -101,6 +172,7 @@ export function createInteractiveIO(
             : []),
           { name: 'Files from the repository tree', value: 'files' },
           { name: 'Files changed in recent commits', value: 'commits' },
+          { name: 'Files changed in specific commits (type IDs or refs)', value: 'commit-ids' },
           { name: 'Working changes (staged, unstaged, and untracked)', value: 'working' },
           { name: 'Extra repository-relative paths', value: 'extra' },
         ],
@@ -140,6 +212,32 @@ export function createInteractiveIO(
             value: commit.id,
           })),
         });
+      }
+      if (kinds.includes('commit-ids')) {
+        const ids = [...(options.commits ?? [])];
+        const typed = new Set<string>();
+        for (;;) {
+          const ref = (
+            await input({
+              message: 'Commit ID, branch or tag (empty to finish)',
+              async validate(value) {
+                const trimmed = value.trim();
+                if (!trimmed) return typed.size ? true : 'Enter at least one commit';
+                try {
+                  await services.git.resolveCommit(repo.path, trimmed);
+                  return true;
+                } catch {
+                  return `Not a commit in this repository: ${trimmed}`;
+                }
+              },
+            })
+          ).trim();
+          if (!ref) break;
+          const sha = await services.git.resolveCommit(repo.path, ref);
+          typed.add(sha);
+          if (!ids.includes(sha)) ids.push(sha);
+        }
+        options.commits = ids;
       }
       if (kinds.includes('working')) options.working = true;
       if (kinds.includes('extra')) {
