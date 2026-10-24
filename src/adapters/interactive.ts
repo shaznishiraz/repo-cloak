@@ -1,7 +1,6 @@
 import { access } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { resolve } from 'node:path';
-import { checkbox, input, select } from '@inquirer/prompts';
 import type { InteractiveAction, InteractiveIO } from '../commands/interactive.js';
 import type { PullOptions } from '../commands/pull-setup.js';
 import { mergeProfiles } from '../core/merge.js';
@@ -11,6 +10,8 @@ import { runStatus } from '../commands/status.js';
 import { createStatusIO } from './status.js';
 import { editProfile } from './prompts.js';
 import { createSyncServices } from './sync-services.js';
+
+const loadPrompts = () => import('@inquirer/prompts');
 
 /** Resolve a typed path: relative to the current directory, with a leading ~ for home. */
 function typedPath(cwd: string, value: string): string {
@@ -30,7 +31,7 @@ async function present(path: string): Promise<boolean> {
 
 export function createInteractiveIO(
   write: (text: string) => void,
-  ui: () => Promise<void>,
+  ui: (cwd: string) => Promise<void>,
 ): InteractiveIO {
   const services = createSyncServices();
   return {
@@ -38,6 +39,7 @@ export function createInteractiveIO(
     write,
     ui,
     async source(current, known) {
+      const { select, input } = await loadPrompts();
       const others = known.filter((path) => path !== current?.path);
       let path: string | null = null;
       if (current || others.length)
@@ -66,6 +68,7 @@ export function createInteractiveIO(
       return typedPath(services.cwd, typed);
     },
     async worktree(worktrees, current) {
+      const { select } = await loadPrompts();
       const available: typeof worktrees = [];
       for (const tree of worktrees) if (await present(tree.path)) available.push(tree);
       const main = available[0]?.path;
@@ -81,6 +84,7 @@ export function createInteractiveIO(
       });
     },
     async action(side, hasWorkspaces) {
+      const { select } = await loadPrompts();
       return select<InteractiveAction>({
         message:
           side === 'workspace'
@@ -95,7 +99,7 @@ export function createInteractiveIO(
               ]
             : []),
           ...(side === 'source'
-            ? [{ name: 'Create a new cloak workspace', value: 'new' as const }]
+            ? [{ name: 'Create a cloak workspace in the CLI', value: 'new' as const }]
             : []),
           {
             name: 'Open web dashboard',
@@ -106,6 +110,7 @@ export function createInteractiveIO(
       });
     },
     async profiles(available, suggested) {
+      const { checkbox } = await loadPrompts();
       const profiles = [...available].sort(
         (a, b) => Number(suggested.includes(b.id)) - Number(suggested.includes(a.id)),
       );
@@ -137,6 +142,7 @@ export function createInteractiveIO(
       };
     },
     async createProfile(repoId) {
+      const { input, select } = await loadPrompts();
       const name = await input({ message: 'Profile name', required: true });
       const scope = await select({
         message: 'Save profile for',
@@ -163,6 +169,7 @@ export function createInteractiveIO(
       );
     },
     async selection(repo, profiles, tracked) {
+      const { checkbox, input } = await loadPrompts();
       const kinds = await checkbox({
         message: 'What should be included?',
         required: true,

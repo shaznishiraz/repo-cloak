@@ -1,3 +1,5 @@
+import { createDashboardSettings } from './dashboard-settings.js';
+import { createDashboardSync } from './dashboard-sync.js';
 import { basename } from 'node:path';
 import { z } from 'zod';
 import { createStore } from '../adapters/store.js';
@@ -37,16 +39,34 @@ export function createDashboard(store = createStore(), cwd = process.cwd()) {
     if (!saved) throw new Error('Profile no longer exists');
     return saved;
   }
+  const sync = createDashboardSync(store);
   return {
+    sync,
+    settings: createDashboardSettings(store),
+    async deleteWorkspace(repoId: string, id: string, value: unknown) {
+      const input = z
+        .object({ path: z.string().min(1), confirm: z.literal(true) })
+        .strict()
+        .parse(value);
+      return sync.deleteWorkspace(
+        repoIdSchema.parse(repoId),
+        z.string().min(1).parse(id),
+        input.path,
+      );
+    },
     async context() {
       const workspace = await syncStore.findWorkspace(cwd);
       if (workspace) {
         const snapshot = await syncStore.readSnapshot(workspace);
-        return { repoId: snapshot?.plain.source.repoId, workspaceId: snapshot?.plain.workspaceId };
+        return {
+          repoId: snapshot?.plain.source.repoId,
+          workspaceId: snapshot?.plain.workspaceId,
+          worktree: snapshot?.data.source.path,
+        };
       }
       const repo = await findRepo(cwd);
       if (repo) await syncStore.registerRepo(await repoState(repo.topLevel));
-      return { repoId: repo?.repoId };
+      return { repoId: repo?.repoId, worktree: repo?.topLevel };
     },
     async overview() {
       const repos = [];
@@ -87,7 +107,10 @@ export function createDashboard(store = createStore(), cwd = process.cwd()) {
         path: workspace.path,
         status: await runStatus(createStatusIO(workspace.path)),
         history: [...snapshot.plain.pulls].reverse(),
+        targetBranch: snapshot.data.target.branch,
+        profileRefs: snapshot.data.profiles.map(({ id, scope }) => ({ id, scope })),
         profiles: snapshot.data.profiles.map((profile) => profile.name),
+        trackedFiles: Object.keys(snapshot.data.files).length,
       };
     },
     async profiles(repoId?: string) {

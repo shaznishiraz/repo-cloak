@@ -20,6 +20,7 @@ Designs: [overview](design/overview.md) ·
 | 5    | Restore: workspace -> source 🏁       | ✅ Code   |
 | 6    | Interactive mode                      | ✅ Code   |
 | 7    | Web UI 🏁                             | ✅ Code   |
+| 7a   | Dashboard sync wizard 🏁              | ✅ Code   |
 | 8    | Release 2.0.0                         | ⏳ Checks |
 
 ---
@@ -177,7 +178,7 @@ reads commit data directly and leaves the source worktree unchanged.
 Design: [overview.md](design/overview.md) (interactive flow).
 
 - [x] Detect location: cloak workspace, known source repo, new repo
-- [x] Ask for the source repository (current, registered, or a typed path) and its worktree first
+- [x] Infer the source repository and exact launch worktree; ask for context only outside Git
 - [x] Profile multi-select with create-new, validated live
 - [x] Selection (tree, commits, working changes, extra paths), destination suggestions, preview
 - [x] Typed commit IDs, short IDs, branches and tags, checked against the repo as you type
@@ -188,7 +189,9 @@ Design: [overview.md](design/overview.md) (interactive flow).
 - **WHEN** it runs in a known source repo **THEN** the last-used profiles and workspaces are suggested first.
 - **WHEN** it runs in a new git repo **THEN** the repo is registered before continuing.
 - **WHEN** it runs outside any repository **THEN** it asks for the source repository path before anything else.
-- **WHEN** the repository has several worktrees **THEN** it asks which one, defaulting to the current one or else the main one, and links the workspace to that worktree's branch.
+- **WHEN** launched inside a source worktree or its subdirectories **THEN** it skips repository/worktree questions and links the workspace to that exact branch.
+- **WHEN** launched outside Git and the selected repository has several worktrees **THEN** it asks which worktree to use.
+- **WHEN** the dashboard is selected after choosing a source outside Git **THEN** it opens with that source/worktree context.
 - **WHEN** a typed commit ID is not in the repository **THEN** the prompt rejects it and asks again; duplicates of recent selections are ignored.
 
 The UI entry starts the machine-wide dashboard. Other actions route through
@@ -214,6 +217,93 @@ Design: [web-ui.md](design/web-ui.md).
 
 **Milestone documentation:** OpenWiki regeneration remains pending the
 credentials described under step 4. Generated pages were left untouched.
+
+## Step 7a. Dashboard sync wizard 🏁
+
+Design: [dashboard-sync.md](design/dashboard-sync.md), including the agreed
+context-first setup refinement. Acceptance tests cover each implementation slice.
+
+- [x] Extract shared prepare/apply stages while preserving CLI behavior
+- [x] Preserve exact launch worktree, including reuse of an existing dashboard
+- [x] Add validated worktree and bounded file/commit selection APIs
+- [x] Add in-memory preview lifecycle, stale checks, apply state and duplicate protection
+- [x] Add create-workspace wizard with profile editing, selection and destination
+- [x] Add update-workspace and restore-to-source flows, including new worktrees
+- [x] Add conflict choices, explicit acknowledgements and result/status refresh
+- [x] Extend isolated browser regression coverage and update README usage
+- [x] Run required checks, build/package smoke checks and UI asset budget check
+
+- [x] Start at folder selection using inferred launch context; keep worktree changes optional
+- [x] Browse source folders and local destination directories from the dashboard
+- [x] Save global workspace-root and post-create-command defaults
+- [x] Run setup commands once after creation; report failures without undoing the workspace
+- [x] Organize selection into files/folders, uncommitted changes, and a searchable commit dialog
+- [x] Search paths live across folders, preserve selections, and reject empty first-run selection
+- [x] Show directional Pull/Push actions and tracked-file/change stats after setup
+- [x] Expand nested file checklists in place with folder selection and partial-selection indicators
+- [x] Center dialogs, remember light/dark appearance, and remove raw selection fields
+- [x] Use one fresh Git-aware inventory request with a default-on ignore checkbox and explicit Refresh
+- [x] Build descendant lists once and render collapsed children only on expansion
+- [x] Load working changes/commits independently; verify local-only browser traffic
+- [x] Simplify the dashboard to a repository rail and workspace cards, with Pull/Push, inline pull history, and collapsible workspace details
+- [x] Delete entire cloak workspaces with confirmation, source/store protections, writer locks and registration/manifest cleanup
+
+**Acceptance**
+
+- **WHEN** the picker opens **THEN** one fresh inventory request loads eligible tracked and nonignored untracked paths; search/expansion make no further inventory requests.
+- **WHEN** ignore rules are disabled **THEN** ignored paths become selectable while repo-cloak exclusions remain enforced; reenabling removes newly hidden paths from selection.
+- **WHEN** Refresh is clicked or the picker reopens **THEN** current paths are read again without a persisted inventory.
+- **WHEN** a nested filename is searched **THEN** matches appear without a Load click, and changing the query retains selected paths.
+- **WHEN** commits are chosen **THEN** a searchable checkbox dialog confirms selections or discards cancelled changes.
+- **WHEN** first-run selection is empty **THEN** Continue stays on selection with an actionable message.
+- **WHEN** UI opens from a secondary worktree, including dashboard reuse **THEN**
+  that exact worktree is selected; other worktrees remain selectable.
+- **WHEN** a registered repo has no workspace **THEN** the wizard can select or
+  create scoped profiles, choose eligible files/working changes/commit refs and
+  an external destination, preview, then create a linked workspace.
+- **WHEN** commits are selected **THEN** changed paths use current worktree bytes,
+  matching the CLI; invalid refs or empty selections show actionable errors.
+- **WHEN** profiles share names across scopes **THEN** explicit references select
+  the intended profiles; existing conflict and exclusion validation still applies.
+- **WHEN** a preview is requested, edited, cancelled or expires **THEN** it writes
+  no sync files, key, configuration, locks, branches or worktrees; apply is unavailable
+  for invalid, expired or cancelled previews.
+- **WHEN** refresh applies **THEN** unchanged workspace files update, workspace-only
+  edits survive, both-side edits conflict, and changed profiles require acknowledgement.
+- **WHEN** restore applies **THEN** saved rules restore names and new/deleted paths,
+  source edits remain uncommitted, and status/history refresh appropriately.
+- **WHEN** restore targets an existing or new worktree **THEN** repo identity and
+  detached-HEAD rules match the CLI; new targets are created only after confirmation.
+- **WHEN** files, inventories, manifest, profiles, HEAD/branch or destination change
+  after preview **THEN** apply refuses without writes and requests another preview.
+- **WHEN** conflicts exist **THEN** default apply is blocked; skip/force choices
+  create a fresh preview, and forced overwrites require explicit acknowledgement.
+- **WHEN** deletes or profile changes are shown **THEN** apply requires the relevant
+  explicit acknowledgements for that operation.
+- **WHEN** apply is double-clicked, retried after a lost response or overlaps another
+  operation **THEN** it executes once or returns busy; status remains queryable.
+- **WHEN** a write or new-worktree restore fails **THEN** existing rollback guarantees
+  hold and the UI distinguishes failure from successful writes with record-save errors.
+- **WHEN** preview limits are exceeded or the server restarts **THEN** the UI reports
+  the condition clearly, releases expired buffers and requires a fresh preview.
+- **WHEN** new API routes receive invalid tokens, foreign origins, cross-repo IDs
+  or unsafe paths **THEN** they reject requests; secret contents never enter previews.
+- **WHEN** the browser wizard runs at desktop and 390-pixel widths **THEN** back,
+  profile-editor return, validation, confirmation and results remain usable.
+- **WHEN** validation runs **THEN** typecheck, lint, Vitest, browser regressions,
+  build/package checks and the existing 50 KB UI asset budget pass.
+
+- **WHEN** a first launch identifies the source worktree **THEN** setup starts with
+  folder selection and the optional Change control exposes other worktrees.
+- **WHEN** settings save a root and setup commands **THEN** future creations inherit
+  them; selecting or previewing never changes the defaults.
+- **WHEN** new workspace creation succeeds **THEN** setup commands run once in that
+  workspace; refresh/restore do not run them, and failure keeps the workspace.
+- **WHEN** the folder picker opens **THEN** source navigation stays within the repo,
+  while destination navigation can select external machine folders.
+
+**Milestone documentation:** generated wiki refresh remains pending the existing
+scheduled workflow after these changes are committed. Generated pages are untouched.
 
 ## Step 8. Release 2.0.0
 

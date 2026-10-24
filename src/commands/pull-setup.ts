@@ -9,6 +9,9 @@ import { createReplacer } from '../core/replacer.js';
 import { selectFiles } from '../core/selection.js';
 
 export type PullOptions = {
+  workspacesRoot?: string;
+  postCreateCommands?: string[];
+  saveDefaults?: boolean;
   profiles?: string[];
   files?: string[];
   commits?: string[];
@@ -41,7 +44,11 @@ export async function preparePull(
   if (currentWorkspace && options.to) throw new Error('--to is only valid in a source repository');
   if (!currentWorkspace && options.worktree)
     throw new Error('--worktree is only valid when pulling in a cloak workspace');
-  const config = await services.store.readConfig();
+  const config = {
+    ...(await services.store.readConfig()),
+    ...(options.workspacesRoot ? { workspacesRoot: options.workspacesRoot } : {}),
+    ...(options.postCreateCommands ? { postCreateCommands: options.postCreateCommands } : {}),
+  };
   let destination = currentWorkspace
     ? await services.files.canonicalPath(currentWorkspace)
     : undefined;
@@ -85,7 +92,7 @@ export async function preparePull(
     throw new Error('Destination workspace belongs to another source repository');
   const profiles = await selectPullProfiles(services, repo, options, previous);
   const workspaceId = previous?.plain.workspaceId ?? services.newId();
-  let saveConfig = false;
+  let saveConfig = Boolean(options.saveDefaults);
   if (!destination) {
     let root = config.workspacesRoot;
     if (!root) {

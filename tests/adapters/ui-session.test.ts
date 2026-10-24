@@ -1,6 +1,7 @@
 import { mkdtemp, readFile, readdir, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { buildUi } from '../../scripts/build-ui.js';
 import { expect, it } from 'vitest';
 import { createStore } from '../../src/adapters/store.js';
 import { createDashboard } from '../../src/commands/dashboard.js';
@@ -38,12 +39,16 @@ it('reuses one server for concurrent launches and removes session files on shutd
 });
 
 it('ships less than 50 KB of browser assets', async () => {
-  const sizes = await Promise.all(
-    ['index.html', 'app.js', 'app.css'].map(
-      async (name) => (await stat(join('src/ui', name))).size,
-    ),
-  );
-  expect(sizes.reduce((sum, size) => sum + size, 0)).toBeLessThan(50_000);
+  const root = await mkdtemp(join(tmpdir(), 'cloak UI build '));
+  try {
+    await buildUi(root);
+    const sizes = await Promise.all(
+      ['index.html', 'app.js', 'app.css'].map(async (name) => (await stat(join(root, name))).size),
+    );
+    expect(sizes.reduce((sum, size) => sum + size, 0)).toBeLessThan(50_000);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
 it('recovers a stale guard left by an exited process', async () => {

@@ -1,8 +1,9 @@
 import type { SyncServices } from '../adapters/sync-services.js';
+import type { RepoState } from '../core/pull.js';
 import { join } from 'node:path';
 
-export async function listWorkspaces(services: SyncServices) {
-  const repo = await services.git.repoState(services.cwd);
+export async function listWorkspaces(services: SyncServices, currentRepo?: RepoState) {
+  const repo = currentRepo ?? (await services.git.repoState(services.cwd));
   const record = await services.store.readRepo(repo.repoId);
   const workspaces = [];
   for (const [id, workspace] of Object.entries(record?.workspaces ?? {})) {

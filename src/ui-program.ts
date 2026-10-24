@@ -1,19 +1,19 @@
 import type { Command } from 'commander';
-import openBrowser from 'open';
 import { createDashboard } from './commands/dashboard.js';
 import { createStore } from './adapters/store.js';
 import { startUiSession } from './adapters/ui-session.js';
 
 export async function runUi(
   write: (text: string) => void,
-  options: { port?: number; open?: boolean; json?: boolean } = {},
+  options: { port?: number; open?: boolean; json?: boolean; cwd?: string } = {},
 ) {
   const store = createStore();
-  const dashboard = createDashboard(store);
+  const dashboard = createDashboard(store, options.cwd);
   const context = await dashboard.context();
   const session = await startUiSession(store.root, dashboard, options.port);
   const fragment = new URLSearchParams({ token: session.token });
   if (context.repoId) fragment.set('repo', context.repoId);
+  if (context.worktree) fragment.set('worktree', context.worktree);
   if (context.workspaceId) fragment.set('workspace', context.workspaceId);
   const url = `http://127.0.0.1:${session.port}/#${fragment}`;
   if (!session.reused) {
@@ -41,6 +41,7 @@ export async function runUi(
   }
   if (options.open !== false) {
     try {
+      const { default: openBrowser } = await import('open');
       await openBrowser(url, { wait: false });
     } catch {
       process.stderr.write('Could not open a browser automatically. Open the address above.\n');

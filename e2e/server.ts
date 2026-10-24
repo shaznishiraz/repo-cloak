@@ -50,9 +50,20 @@ try {
     'Initial fixture',
   ]);
   await writeFile(join(source, 'Acme.txt'), 'Hello Acme\n');
+  await writeFile(join(source, '.gitignore'), '.env\n');
+  await writeFile(join(source, '.env'), 'synthetic ignored data');
+  await mkdir(join(source, 'src'));
+  await writeFile(join(source, 'src', 'Acme.ts'), 'class Acme {}');
+  await mkdir(join(source, 'src', 'nested'));
+  await writeFile(join(source, 'src', 'nested', 'extra.ts'), 'export const extra = true;');
   const services = createSyncServices(source, store);
   services.interactive = false;
-  await services.store.saveConfig({ kind: 'config', schemaVersion: 1, initGit: false });
+  await services.store.saveConfig({
+    kind: 'config',
+    schemaVersion: 1,
+    initGit: false,
+    workspacesRoot: join(root, 'cloaks'),
+  });
   await services.profiles.save(
     { kind: 'global' },
     {
@@ -69,6 +80,12 @@ try {
     yes: true,
   });
   await writeFile(join(workspace, 'Northwind.txt'), 'Edited Northwind\n');
+  await runGit(source, ['worktree', 'add', '-b', 'secondary', join(root, 'secondary')]);
+  const fresh = join(root, 'z-new-source');
+  await mkdir(fresh);
+  await runGit(fresh, ['init', '-b', 'main']);
+  await writeFile(join(fresh, 'hello.txt'), 'Hello');
+  await createDashboard(store, fresh).context();
   await new Promise<void>((done, reject) => {
     server.once('error', reject);
     server.listen(Number(process.argv[2]), '127.0.0.1', done);

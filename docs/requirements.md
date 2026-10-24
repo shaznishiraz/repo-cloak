@@ -102,8 +102,15 @@ worktree.
 
 ## R7. Web UI
 
-- `repo-cloak` can start a local web server (from a cloak workspace) to manage
-  ongoing workspaces, profiles, and rules in a browser.
+- `repo-cloak ui` opens one machine-wide local dashboard, using the launch repo,
+  worktree or cloak workspace as context without asking for the same location again.
+- First-run setup starts at a source folder/file picker. Users can browse local
+  destination folders and save a global cloak-workspaces root.
+- Create, refresh and restore use the same sync commands as the CLI, with previews,
+  explicit confirmation, conflict handling and existing/new worktree targets.
+- Optional globally configured post-create commands run once in the new workspace;
+  a failed command stops the sequence and leaves the workspace available.
+- Manage workspace status/history, profiles, rules and workspace defaults in the browser.
 - Local only: bound to `127.0.0.1`, protected by a per-session token.
 - As light as possible, since it ships inside the npm package: no front-end
   framework, no extra runtime dependencies, fast to load.

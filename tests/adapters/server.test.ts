@@ -1,8 +1,9 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { request } from 'node:http';
 import { afterEach, expect, it } from 'vitest';
+import { runGit } from '../../src/adapters/git.js';
 import { createStore } from '../../src/adapters/store.js';
 import { createDashboard } from '../../src/commands/dashboard.js';
 import { createDashboardServer } from '../../src/adapters/server.js';
@@ -46,8 +47,17 @@ it('requires a token on every API route and rejects foreign origins', async () =
     '/api/repos',
     '/api/profiles',
     '/api/session',
+    '/api/settings',
+    '/api/folders',
     '/api/schema/profile',
     '/api/workspaces/a/b',
+    '/api/repos/a/worktrees',
+    '/api/repos/a/selection',
+    '/api/repos/a/inventory',
+    '/api/repos/a/selection-context',
+    '/api/sync/preview',
+    '/api/sync/example',
+    '/api/sync/example/apply',
   ]) {
     expect((await fetch(`${base}${path}`)).status).toBe(401);
     expect(
@@ -90,6 +100,7 @@ it('binds loopback only, blocks a foreign Host, and serves only known assets', a
   const page = await fetch(base);
   expect(page.status).toBe(200);
   expect(page.headers.get('content-security-policy')).toContain("frame-ancestors 'none'");
+  expect(page.headers.get('content-security-policy')).toContain("connect-src 'self'");
   expect(page.headers.get('cache-control')).toBe('no-store');
   expect(await page.text()).toContain('Local dashboard');
   expect((await fetch(`${base}/key`)).status).toBe(404);
@@ -219,4 +230,166 @@ it('rejects unauthorized write requests before changing any saved profile', asyn
   expect(await (await call('/api/profiles')).json()).toEqual([
     expect.objectContaining({ id: saved.id }),
   ]);
+});
+
+it('authenticates sync mutations and serves preview/apply/status with structured errors', async () => {
+  const { store, dashboard, base, call } = await fixture();
+  expect((await call('/api/folders?offset=-1')).status).toBe(400);
+  const source = join(store.root, '..', 'source');
+  const destination = join(store.root, '..', 'workspace');
+  await mkdir(source);
+  await runGit(source, ['init', '-b', 'main']);
+  await writeFile(join(source, 'Acme.txt'), 'Acme');
+  const { repoId } = await createDashboard(store, source).context();
+  const saved = await dashboard.saveProfile({
+    scope: { kind: 'global' },
+    profile: {
+      kind: 'profile',
+      schemaVersion: 1,
+      name: 'company',
+      rules: [{ id: 'name', type: 'literal', match: 'Acme', replace: 'Northwind' }],
+    },
+  });
+  const input = {
+    intent: 'create',
+    repoId,
+    worktree: source,
+    destination,
+    files: ['Acme.txt'],
+    profiles: [{ id: saved.id, scope: saved.scope }],
+  };
+  for (const headers of [
+    { 'Content-Type': 'application/json' },
+    {
+      Authorization: 'Bearer test-token',
+      'Content-Type': 'application/json',
+      Origin: 'https://foreign.test',
+    },
+  ]) {
+    expect(
+      (
+        await fetch(`${base}/api/sync/preview`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(input),
+        })
+      ).status,
+    ).toBe(headers.Origin ? 403 : 401);
+  }
+  const preview = (await (await call('/api/sync/preview', 'POST', input)).json()) as {
+    operationId: string;
+  };
+  expect((await call(`/api/sync/${preview.operationId}`)).status).toBe(200);
+  for (const path of [
+    `/api/sync/${preview.operationId}/apply`,
+    `/api/sync/${preview.operationId}`,
+  ]) {
+    for (const headers of [
+      { 'Content-Type': 'application/json' },
+      {
+        Authorization: 'Bearer test-token',
+        'Content-Type': 'application/json',
+        Origin: 'https://foreign.test',
+      },
+    ]) {
+      expect(
+        (
+          await fetch(`${base}${path}`, {
+            method: path.endsWith('apply') ? 'POST' : 'DELETE',
+            headers,
+            ...(path.endsWith('apply') ? { body: '{}' } : {}),
+          })
+        ).status,
+      ).toBe(headers.Origin ? 403 : 401);
+    }
+  }
+  expect((await call(`/api/sync/${preview.operationId}/apply`, 'POST', {})).status).toBe(200);
+  await dashboard.sync.wait(preview.operationId);
+  expect(await (await call(`/api/sync/${preview.operationId}`)).json()).toMatchObject({
+    state: 'completed',
+  });
+  expect(await readFile(join(destination, 'Northwind.txt'), 'utf8')).toBe('Northwind');
+  const invalid = await call('/api/sync/unknown');
+  expect(invalid.status).toBe(404);
+  expect(await invalid.json()).toMatchObject({ code: 'unknown' });
+  const cancelled = (await (
+    await call('/api/sync/preview', 'POST', {
+      intent: 'refresh',
+      repoId,
+      workspaceId: (await dashboard.sync.wait(preview.operationId)).result?.workspaceId,
+      worktree: source,
+    })
+  ).json()) as { operationId: string };
+  expect((await call(`/api/sync/${cancelled.operationId}`, 'DELETE')).status).toBe(200);
+  expect((await call(`/api/sync/${cancelled.operationId}/apply`, 'POST', {})).status).toBe(410);
+  const finished = await dashboard.sync.wait(preview.operationId);
+  const workspaceUrl = `/api/workspaces/${repoId}/${finished.result?.workspaceId}`;
+  const deletion = { path: finished.result?.workspace, confirm: true };
+  expect(
+    (
+      await fetch(base + workspaceUrl, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(deletion),
+      })
+    ).status,
+  ).toBe(401);
+  expect(
+    (
+      await fetch(base + workspaceUrl, {
+        method: 'DELETE',
+        headers: {
+          Authorization: 'Bearer test-token',
+          Origin: 'https://foreign.test',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(deletion),
+      })
+    ).status,
+  ).toBe(403);
+  expect((await call(workspaceUrl, 'DELETE', { path: destination })).status).toBe(400);
+  expect(await readFile(join(destination, 'Northwind.txt'), 'utf8')).toBe('Northwind');
+  const removed = await call(workspaceUrl, 'DELETE', deletion);
+  expect(removed.status, await removed.text()).toBe(200);
+  expect((await call(workspaceUrl)).status).toBe(400);
+});
+
+it('searches nested paths across the repository while keeping directory browsing scoped', async () => {
+  const { store, call } = await fixture();
+  const source = join(store.root, '..', 'search-source');
+  await mkdir(join(source, 'src'), { recursive: true });
+  await runGit(source, ['init', '-b', 'main']);
+  await writeFile(join(source, 'src', 'Example.ts'), 'example');
+  const { repoId } = await createDashboard(store, source).context();
+  const query = new URLSearchParams({ worktree: source, query: 'EXAMPLE' });
+  expect(await (await call(`/api/repos/${repoId}/selection?${query}`)).json()).toMatchObject({
+    files: ['src/Example.ts'],
+    working: ['src/Example.ts'],
+    workingCount: 1,
+  });
+  query.set('directory', '');
+  expect(await (await call(`/api/repos/${repoId}/selection?${query}`)).json()).toMatchObject({
+    files: [],
+    directories: ['src'],
+  });
+});
+
+it('validates inventory ignore preferences and serves only fresh path metadata', async () => {
+  const { store, call } = await fixture();
+  const source = join(store.root, '..', 'inventory-source');
+  await mkdir(source);
+  await runGit(source, ['init', '-b', 'main']);
+  await writeFile(join(source, '.gitignore'), '.env\n');
+  await writeFile(join(source, '.env'), 'synthetic private content');
+  const { repoId } = await createDashboard(store, source).context();
+  const query = new URLSearchParams({ worktree: source });
+  const url = `/api/repos/${repoId}/inventory?${query}`;
+  expect(await (await call(url)).json()).toEqual({ files: ['.gitignore'] });
+  const shown = await (await call(url + '&respectGitIgnore=false')).json();
+  expect(shown).toEqual({ files: ['.env', '.gitignore'] });
+  expect(JSON.stringify(shown)).not.toContain('synthetic private content');
+  expect((await call(url + '&respectGitIgnore=invalid')).status).toBe(400);
+  await writeFile(join(source, 'fresh.ts'), 'fresh');
+  expect(await (await call(url)).json()).toEqual({ files: ['.gitignore', 'fresh.ts'] });
+  expect((await call(`/api/repos/${repoId}/selection-context?${query}`)).status).toBe(200);
 });

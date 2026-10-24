@@ -2,7 +2,7 @@ import { addSyncCommands } from './sync-program.js';
 import type { LoadSync } from './sync-program.js';
 import { addStatusCommand } from './status-program.js';
 import type { LoadStatus } from './status-program.js';
-import { createRequire } from 'node:module';
+import { version, description } from './package.js';
 import { Argument, Command } from 'commander';
 import { printSchema } from './commands/schema.js';
 import { documentKinds } from './core/schemas.js';
@@ -15,12 +15,6 @@ import type { InteractiveIO } from './commands/interactive.js';
 import { addUiCommand, runUi } from './ui-program.js';
 
 export type LoadInteractive = () => Promise<InteractiveIO>;
-
-const require = createRequire(import.meta.url);
-const { version, description } = require('../package.json') as {
-  version: string;
-  description: string;
-};
 
 export function createProgram(
   loadProfiles?: LoadProfiles,
@@ -60,7 +54,9 @@ export function createProgram(
     const write =
       program.configureOutput().writeOut ?? ((text: string) => process.stdout.write(text));
     await runInteractive(
-      loadInteractive ? await loadInteractive() : createInteractiveIO(write, () => runUi(write)),
+      loadInteractive
+        ? await loadInteractive()
+        : createInteractiveIO(write, (cwd) => runUi(write, { cwd })),
       version,
     );
   });

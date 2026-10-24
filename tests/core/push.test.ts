@@ -93,6 +93,12 @@ it('restores unchanged tracked files into a new target when its base differs', (
   const workspace = [file('Northwind.txt', 'Northwind')];
   const source = [file('Acme.txt', 'older base')];
   expect(planPush(previous, workspace, source).writes).toEqual([]);
+  expect(
+    planPush(previous, workspace, []).writes.map((write) => [
+      write.path,
+      Buffer.from(write.bytes).toString(),
+    ]),
+  ).toEqual([['Acme.txt', 'Acme']]);
   const plan = planPush(previous, workspace, source, { fullSnapshot: true });
   expect(plan.writes.map((write) => [write.path, Buffer.from(write.bytes).toString()])).toEqual([
     ['Acme.txt', 'Acme'],

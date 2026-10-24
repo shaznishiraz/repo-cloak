@@ -15,7 +15,7 @@ export interface PullIO {
   now(): string;
   newId(): string;
 }
-export async function runPull(setup: PullSetup, options: PullOptions, io: PullIO, version: string) {
+export async function preparePullRun(setup: PullSetup, io: PullIO, version: string) {
   const source = await io.readSource();
   if (!setup.previous && !source.files.some((file) => file.bytes))
     throw new Error('No selected source files remain after exclusions and safety checks');
@@ -41,6 +41,17 @@ export async function runPull(setup: PullSetup, options: PullOptions, io: PullIO
   if (setup.previous) input.previous = setup.previous;
   const plan = planPull(input);
   plan.warnings.push(...source.warnings);
+  return {
+    plan,
+    files: source.files,
+    workspace,
+    apply: () => io.save(plan, source.files, workspace),
+  };
+}
+
+export async function runPull(setup: PullSetup, options: PullOptions, io: PullIO, version: string) {
+  const prepared = await preparePullRun(setup, io, version);
+  const { plan } = prepared;
   if (options.dryRun) return { status: 'dry-run' as const, plan };
   if (!options.yes) {
     if (plan.profileChanges.length && !(await io.confirmProfiles(plan)))
@@ -48,6 +59,6 @@ export async function runPull(setup: PullSetup, options: PullOptions, io: PullIO
     if (!(await io.confirmPull(plan, setup.destination)))
       return { status: 'cancelled' as const, plan };
   }
-  await io.save(plan, source.files, workspace);
+  await prepared.apply();
   return { status: 'written' as const, plan };
 }

@@ -134,7 +134,50 @@ repo-cloak ui --no-open
 
 One dashboard manages all registered repositories and workspaces on your machine.
 It shows status and pull history, and provides profile forms, a JSON editor, and
-profile conflict checks. File extraction and restore stay in the CLI.
+profile conflict checks. Run it inside your existing project or Git worktree to
+open on that context. The repository and worktree are inferred; **Change worktree**
+is available when needed. First-time setup opens directly on **Select code**. Search file paths live across
+the repository or expand the nested file checklist. Folder checkboxes select their
+files and show partial selections. Select individual uncommitted files or all working
+changes, and choose commits in a searchable popup. Selections combine and survive
+searches and navigation. **Respect Git ignore rules** is on by default; turn it
+off to include ignored files, subject to repo-cloak’s separate exclusions. Tracked
+files remain visible even when ignore patterns match them. **Refresh file tree**
+reads a fresh inventory; no persistent inventory cache is used. Only file paths
+are loaded for the tree, and collapsed children are rendered when expanded.
+Then choose profiles and a destination, review the
+anonymization preview, and confirm.
+
+**Settings** stores a global cloak-workspaces folder. New anonymized repositories
+are created underneath it automatically. A folder browser is available for choosing
+locations, and creation can override or save the defaults. Optional **post-create
+commands** run in the new workspace after creation, never on refresh/restore or
+preview. Commands run in order with a two-minute limit each; failures are reported
+and keep the created workspace.
+
+The workspace overview shows real registered-workspace counts beside a compact
+repository panel. Cards show their name and **Last used** date; **Details**
+reveals the full path, saved profiles, tracked-file/change counts and history.
+Use **Pull from source** (source → cloak) or **Push to source** (cloak → source).
+Restore can target an existing worktree or
+create a new branch/worktree. Deletions, changed profiles, and forced overwrites
+require explicit confirmation. Source changes remain uncommitted for review.
+
+**Delete** on a workspace card permanently removes its cloak directory, including
+Git history and unsynced files, plus its local registration and stored manifest.
+Confirm the exact path before deleting. Source repositories and saved profiles
+are kept. Missing workspace directories can also be removed from the list.
+
+Previews expire after ten minutes. If files, profiles, or Git context change,
+create another preview. Applies run once even if a request is retried; reloading
+the same tab recovers operation status while the server is running.
+
+Use the header’s **Dark mode / Light mode** toggle to switch appearance. Your
+choice is remembered in this browser; the initial theme follows your system.
+
+File discovery and normal cloak sync stay on your machine; they do not upload
+repository contents to a cloud service or run a remote Git push. User-configured
+post-create shell commands can access the network.
 
 The server binds only to `127.0.0.1`, prints an authenticated URL, and normally
 opens your browser. A second invocation reuses the running dashboard. Press

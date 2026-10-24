@@ -25,37 +25,44 @@ export type InteractiveIO = {
   selection(repo: RepoState, profiles: SavedProfile[], tracked: string[]): Promise<PullOptions>;
   status(root: string): Promise<unknown>;
   write(text: string): void;
-  ui(): Promise<void>;
+  ui(cwd: string): Promise<void>;
 };
 
-/** Ask for the source repository and worktree, then return services rooted in that worktree. */
-async function chooseSource(io: InteractiveIO): Promise<SyncServices> {
+/** Keep the launch worktree; ask for context only when launched outside Git. */
+async function chooseSource(
+  io: InteractiveIO,
+): Promise<{ services: SyncServices; repo: RepoState }> {
   const { services } = io;
   const here = (await services.git.findRepo(services.cwd))
     ? await services.git.repoState(services.cwd)
     : undefined;
+  if (here) {
+    const cwd = await services.files.canonicalPath(here.path);
+    return { services: { ...services, cwd }, repo: { ...here, path: cwd } };
+  }
   const known = (await services.store.listRepos()).map((repo) => repo.path).sort();
   const chosen = await services.git.repoState(await io.source(here, known));
   const worktrees = await services.git.worktrees(chosen.path);
-  const current =
-    here && here.repoId === chosen.repoId
-      ? await services.files.canonicalPath(here.path)
-      : undefined;
   const path =
     worktrees.length > 1
-      ? await io.worktree(worktrees, current)
+      ? await io.worktree(worktrees, undefined)
       : (worktrees[0]?.path ?? chosen.path);
-  return { ...services, cwd: await services.files.canonicalPath(path) };
+  const cwd = await services.files.canonicalPath(path);
+  return {
+    services: { ...services, cwd },
+    repo: cwd === chosen.path ? chosen : await services.git.repoState(cwd),
+  };
 }
 
 export async function runInteractive(io: InteractiveIO, version: string): Promise<void> {
   if (!io.services.interactive)
     throw new Error('Interactive mode needs a terminal; use an explicit command');
   const root = await io.services.store.findWorkspace(io.services.cwd);
-  const services = root ? io.services : await chooseSource(io);
-  const repo = root ? undefined : await services.git.repoState(services.cwd);
+  const chosen = root ? undefined : await chooseSource(io);
+  const services = chosen ? chosen.services : io.services;
+  const repo = chosen?.repo;
   if (repo) await services.store.registerRepo(repo);
-  const linked = repo ? await listWorkspaces(services) : [];
+  const linked = repo ? await listWorkspaces(services, repo) : [];
   const ranked = [...linked].sort((a, b) => {
     const matches = (workspace: typeof a) =>
       repo?.branch !== null && workspace.target?.branch === repo?.branch;
@@ -64,7 +71,7 @@ export async function runInteractive(io: InteractiveIO, version: string): Promis
   const action = await io.action(root ? 'workspace' : 'source', ranked.length > 0);
   if (action === 'exit') return;
   if (action === 'ui') {
-    await io.ui();
+    await io.ui(services.cwd);
     return;
   }
   let workspace = root;

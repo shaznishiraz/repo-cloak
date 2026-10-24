@@ -41,13 +41,19 @@ export function planPush(
   const preview: PreviewMatch[] = [...restored.preview];
   for (const [path, original] of mapping) {
     const file = current.get(path);
+    const target = sources.get(original);
     const baseline = Object.hasOwn(previous.plain.files, path)
       ? previous.plain.files[path]
       : undefined;
-    if (!options.fullSnapshot && file?.bytes && baseline && hashBytes(file.bytes) === baseline.hash)
+    if (
+      !options.fullSnapshot &&
+      file?.bytes &&
+      target?.bytes !== undefined &&
+      baseline &&
+      hashBytes(file.bytes) === baseline.hash
+    )
       continue;
     if (!file && !baseline) continue;
-    const target = sources.get(original);
     const old = Object.hasOwn(previous.data.files, path) ? previous.data.files[path] : undefined;
     let bytes: Uint8Array | undefined;
     if (file?.bytes) {
@@ -68,9 +74,9 @@ export function planPush(
       options.fullSnapshot && old
         ? false
         : old
-          ? target?.bytes === undefined ||
-            hashBytes(target.bytes) !== old.sourceHash ||
-            target.executable !== (old.executable ?? false)
+          ? target?.bytes !== undefined &&
+            (hashBytes(target.bytes) !== old.sourceHash ||
+              target.executable !== (old.executable ?? false))
           : target?.bytes !== undefined;
     const executable = old?.executable ?? file?.executable ?? false;
     const alreadyApplied =

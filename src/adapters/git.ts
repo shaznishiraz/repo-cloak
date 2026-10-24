@@ -8,18 +8,20 @@ const exec = promisify(execFile);
 export async function resolveRepo(cwd: string) {
   try {
     // Ask for absolute paths: relative --git-common-dir output varies by worktree/cwd.
-    const gitPath = async (flag: string) => {
-      const { stdout } = await exec('git', ['rev-parse', '--path-format=absolute', flag], {
+    const { stdout } = await exec(
+      'git',
+      ['rev-parse', '--path-format=absolute', '--show-toplevel', '--git-common-dir'],
+      {
         cwd,
         encoding: 'utf8',
         windowsHide: true,
         env: { ...process.env, LC_ALL: 'C', GIT_OPTIONAL_LOCKS: '0' },
-      });
-      return realpath(resolve(cwd, stdout.replace(/\r?\n$/, '')));
-    };
+      },
+    );
+    const [topRaw = '', commonRaw = ''] = stdout.replace(/\r?\n$/, '').split(/\r?\n/);
     const [topLevel, commonDir] = await Promise.all([
-      gitPath('--show-toplevel'),
-      gitPath('--git-common-dir'),
+      realpath(resolve(cwd, topRaw)),
+      realpath(resolve(cwd, commonRaw)),
     ]);
     return { topLevel, commonDir, repoId: repoId(commonDir) };
   } catch (cause) {
@@ -59,16 +61,20 @@ export async function runGitBytes(cwd: string, args: string[]): Promise<Buffer> 
 }
 export async function repoState(cwd: string) {
   const repo = await resolveRepo(cwd);
+  const [branchResult, commitResult] = await Promise.allSettled([
+    runGit(repo.topLevel, ['symbolic-ref', '--quiet', '--short', 'HEAD']),
+    runGit(repo.topLevel, ['rev-parse', '--verify', '--quiet', 'HEAD']),
+  ]);
   let branch: string | null = null;
-  let commit: string | null = null;
-  try {
-    branch = (await runGit(repo.topLevel, ['symbolic-ref', '--quiet', '--short', 'HEAD'])).trim();
-  } catch (error) {
+  if (branchResult.status === 'fulfilled') branch = branchResult.value.trim();
+  else {
+    const error = branchResult.reason;
     if (!error || typeof error !== 'object' || !('code' in error) || error.code !== 1) throw error;
   }
-  try {
-    commit = (await runGit(repo.topLevel, ['rev-parse', '--verify', '--quiet', 'HEAD'])).trim();
-  } catch (error) {
+  let commit: string | null = null;
+  if (commitResult.status === 'fulfilled') commit = commitResult.value.trim();
+  else {
+    const error = commitResult.reason;
     if (!branch || !error || typeof error !== 'object' || !('code' in error) || error.code !== 1)
       throw error;
   }

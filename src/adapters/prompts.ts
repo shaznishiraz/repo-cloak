@@ -1,10 +1,12 @@
-import { confirm, editor, select } from '@inquirer/prompts';
 import { scopeName } from '../core/profiles.js';
 import type { SavedProfile } from '../core/profiles.js';
 import { validateProfile } from '../core/rules.js';
 import type { Profile } from '../core/rules.js';
 
+const loadPrompts = () => import('@inquirer/prompts');
+
 export async function editProfile(profile: Profile): Promise<unknown> {
+  const { editor } = await loadPrompts();
   const text = await editor({
     message: `Edit profile ${profile.name}`,
     default: JSON.stringify(profile, null, 2),
@@ -22,7 +24,8 @@ export async function editProfile(profile: Profile): Promise<unknown> {
   return JSON.parse(text) as unknown;
 }
 
-export function chooseProfile(profiles: SavedProfile[]): Promise<SavedProfile> {
+export async function chooseProfile(profiles: SavedProfile[]): Promise<SavedProfile> {
+  const { select } = await loadPrompts();
   return select({
     message: 'Which profile?',
     choices: profiles.map((profile) => ({
@@ -32,7 +35,8 @@ export function chooseProfile(profiles: SavedProfile[]): Promise<SavedProfile> {
   });
 }
 
-export function confirmDelete(profile: SavedProfile): Promise<boolean> {
+export async function confirmDelete(profile: SavedProfile): Promise<boolean> {
+  const { confirm } = await loadPrompts();
   return confirm({
     message: `Delete ${scopeName(profile.scope)}:${profile.profile.name}?`,
     default: false,

@@ -54,6 +54,7 @@ export function createSyncStore(store: ReturnType<typeof createStore>) {
       return repos;
     },
     async registerRepo(repo: RepoState): Promise<void> {
+      if (await readRepo(repo.repoId)) return;
       const directory = join(store.root, 'repos', repo.repoId);
       await mkdir(directory, { recursive: true, mode: 0o700 });
       const release = await lock(directory, {

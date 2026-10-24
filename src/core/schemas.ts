@@ -110,6 +110,7 @@ export const documentSchema = {
     kind: z.literal('config'),
     schemaVersion: z.literal(1),
     workspacesRoot: text.optional(),
+    postCreateCommands: z.array(z.string().trim().min(1).max(4000)).max(10).optional(),
     worktreePath: text.optional(),
     initGit: z.boolean().optional(),
     concurrency: z.number().int().positive().optional(),

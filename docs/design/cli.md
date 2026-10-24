@@ -49,7 +49,10 @@ The **first** `repo-cloak push` (or `repo-cloak`) in a source worktree with no
 linked workspace creates one, in `workspacesRoot` unless `--to` says
 otherwise. There is no `init` command.
 
-Running without a command opens the guided menu in a terminal. Source repos
+Running without a command opens the guided menu in a terminal. Inside a source
+repository it uses the exact launch worktree without asking for repository or
+worktree selection; outside Git it asks for that context. The dashboard receives
+the same selected context. Source repos
 can create or refresh workspaces, restore changes, or view status; workspaces
 can refresh, restore, or view status. Profile selection allows creating a new
 profile in the JSON editor and validates combined rules before continuing.

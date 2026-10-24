@@ -57,7 +57,8 @@ names never reveal a profile's name either.
 
 ## Config (`kind: config`)
 
-Plain JSON; nothing in it is sensitive.
+Plain JSON for paths, preferences and optional user-authored setup commands.
+Post-create commands are local configuration; see [dashboard-sync.md](dashboard-sync.md).
 
 ```json
 {
@@ -66,6 +67,7 @@ Plain JSON; nothing in it is sensitive.
   "schemaVersion": 1,
   "workspacesRoot": "/Users/me/cloak",
   "worktreePath": "/Users/me/worktrees",
+  "postCreateCommands": ["npm install"],
   "initGit": true,
   "concurrency": 16,
   "extensions": {}
@@ -453,6 +455,6 @@ Every error names the file, profile, and rule id involved.
 ## Decided
 
 - Store files (profiles, repo records) are encrypted at rest with the sealed
-  envelope; `config.json` stays plain because it holds nothing sensitive.
+  envelope; `config.json` stays plain for local settings and user-authored setup commands.
 - No v1 support: v2 does not read `.repo-cloak-map.json`. v1 workspaces must
   be pushed with v1 before upgrading.

@@ -1,6 +1,6 @@
+import { runPostCreateCommands } from './post-create.js';
 import { randomUUID } from 'node:crypto';
 import { dirname, resolve } from 'node:path';
-import { checkbox, confirm, input, select } from '@inquirer/prompts';
 import type { SavedProfile } from '../core/profiles.js';
 import type { PullPlan } from '../core/pull.js';
 import * as files from './files.js';
@@ -13,9 +13,13 @@ import { createWorkspaceWriter } from './workspace.js';
 import { createSourceWriter } from './source-writer.js';
 import type { PushPlan } from '../core/push.js';
 
+const loadPrompts = () => import('@inquirer/prompts');
+
 export function createSyncServices(cwd = process.cwd(), store = createStore()) {
   return {
     cwd: resolve(cwd),
+    runPostCreateCommands,
+    beforeApply: undefined as (() => Promise<void>) | undefined,
     store: createSyncStore(store),
     profiles: createProfileStore(store),
     files,
@@ -27,6 +31,7 @@ export function createSyncServices(cwd = process.cwd(), store = createStore()) {
     now: () => new Date().toISOString(),
     newId: randomUUID,
     async chooseProfiles(profiles: SavedProfile[]): Promise<SavedProfile[]> {
+      const { checkbox } = await loadPrompts();
       return checkbox({
         message: 'Profiles to use',
         required: true,
@@ -37,12 +42,14 @@ export function createSyncServices(cwd = process.cwd(), store = createStore()) {
       });
     },
     async chooseWorkspace(paths: string[]): Promise<string> {
+      const { select } = await loadPrompts();
       return select({
         message: 'Which workspace?',
         choices: paths.map((path) => ({ name: path, value: path })),
       });
     },
     async chooseProfile(profiles: SavedProfile[]): Promise<SavedProfile> {
+      const { select } = await loadPrompts();
       return select({
         message: 'Which profile?',
         choices: profiles.map((profile) => ({
@@ -53,6 +60,7 @@ export function createSyncServices(cwd = process.cwd(), store = createStore()) {
     },
     /** Suggest the launch directory, or the folder holding its repo (a workspace can't live inside it). */
     async workspacesRoot(): Promise<string> {
+      const { input } = await loadPrompts();
       const here = resolve(cwd);
       const repo = await git.findRepo(here).catch(() => undefined);
       const answer = await input({
@@ -64,12 +72,14 @@ export function createSyncServices(cwd = process.cwd(), store = createStore()) {
       return resolve(here, answer.trim());
     },
     async confirmProfiles(plan: PullPlan): Promise<boolean> {
+      const { confirm } = await loadPrompts();
       process.stderr.write(
         `Changed profiles: ${plan.profileChanges.join(', ')}\nRules before:\n${JSON.stringify(plan.previousRules, null, 2)}\nRules now:\n${JSON.stringify(plan.data.rules, null, 2)}\n`,
       );
       return confirm({ message: 'Refresh using these changed profiles?', default: false });
     },
     async confirmPull(plan: PullPlan, destination?: string): Promise<boolean> {
+      const { confirm } = await loadPrompts();
       const matches = plan.preview.filter((match) => match.status === 'replaced');
       if (destination) process.stderr.write(`Workspace: ${destination}\n`);
       process.stderr.write(
@@ -78,6 +88,7 @@ export function createSyncServices(cwd = process.cwd(), store = createStore()) {
       return confirm({ message: 'Apply this pull?', default: true });
     },
     async confirmPush(plan: PushPlan): Promise<boolean> {
+      const { confirm } = await loadPrompts();
       for (const warning of plan.warnings) process.stderr.write(`${warning}\n`);
       process.stderr.write(
         `${plan.writes.length} files to write, ${plan.deletes.length} files to delete in the source\n`,

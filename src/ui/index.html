@@ -3,101 +3,142 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="color-scheme" content="light" />
+    <meta name="color-scheme" content="light dark" />
     <title>repo-cloak · Local dashboard</title>
     <link rel="stylesheet" href="/app.css" />
     <script type="module" src="/app.js"></script>
   </head>
   <body>
     <a class="skip" href="#main">Skip to content</a>
-    <header>
-      <a class="brand" href="#"><span class="mark" aria-hidden="true">◈</span> repo-cloak</a>
-      <span class="local"><span aria-hidden="true">●</span> On this machine</span>
-      <button id="refresh" class="quiet" type="button">Refresh</button>
-    </header>
-    <div class="shell">
-      <aside>
-        <p class="eyebrow">YOUR REPOSITORIES</p>
-        <nav id="repos" aria-label="Repositories"></nav>
-        <p class="aside-note">
-          One dashboard. All your workspaces.<br />Changes sync through the CLI.
-        </p>
-      </aside>
-      <main id="main" tabindex="-1">
-        <div class="page-heading">
-          <div>
-            <p class="eyebrow">LOCAL WORKSPACE</p>
-            <h1 id="title">Your repositories</h1>
-            <p id="subtitle">Keep source code private. Keep work moving.</p>
-          </div>
-        </div>
-        <div id="notice" role="status" aria-live="polite" hidden></div>
+    <div class="app-frame">
+      <header class="topbar">
+        <a class="brand" href="#"><span class="brand-mark" data-icon="cloak"></span>repo-cloak</a>
         <nav class="tabs" aria-label="Dashboard sections">
           <button id="workspaces-tab" class="active" type="button">Workspaces</button>
           <button id="profiles-tab" type="button">Profiles</button>
+          <button id="settings-button" type="button">Settings</button>
         </nav>
-        <section id="workspace-view" aria-label="Workspaces"></section>
-        <section id="profile-view" aria-label="Profiles" hidden>
-          <div class="toolbar">
-            <p>Reusable rules for names, paths, and secrets.</p>
-            <button id="new-profile" type="button">New profile</button
-            ><button id="check-profiles" class="quiet" type="button">Check selected</button>
-          </div>
-          <div id="profiles"></div>
-          <form id="editor" class="panel" hidden>
-            <div class="toolbar">
-              <h2 id="editor-title">New profile</h2>
-              <button id="close-editor" class="quiet" type="button">Close</button>
+        <div class="utilities">
+          <label class="search" aria-label="Quick filter">
+            <span data-icon="search"></span>
+            <input id="global-search" type="search" placeholder="Filter workspaces…" />
+          </label>
+          <button
+            id="theme-toggle"
+            class="icon-pill quiet"
+            type="button"
+            aria-label="Switch theme"
+          ></button>
+          <button
+            id="refresh"
+            class="icon-pill quiet"
+            type="button"
+            data-icon="refresh"
+            aria-label="Refresh"
+            title="Refresh workspaces"
+          ></button>
+        </div>
+      </header>
+
+      <div id="notice" role="status" aria-live="polite"></div>
+      <button id="resume" class="quiet" type="button" hidden>Return to wizard</button>
+
+      <main id="main" tabindex="-1">
+        <div id="dashboard-grid" class="layout">
+          <aside class="repo-col">
+            <div class="section">
+              <h2>Repositories</h2>
+              <span id="repository-count" class="muted"></span>
             </div>
-            <label>Save for<select id="scope"></select></label>
-            <div class="tabs">
-              <button id="form-tab" class="active" type="button">Form</button
-              ><button id="json-tab" type="button">JSON</button>
-            </div>
-            <div id="form-fields">
-              <label>Name<input id="profile-name" required /></label>
-              <label>Description<input id="profile-description" /></label>
-              <label
-                >Exclude files (one pattern per line)<textarea
-                  id="profile-exclude"
-                  rows="3"
-                  spellcheck="false"
-                  placeholder="*.schema.json&#10;generated/&#10;/config/secrets.yml"
-                ></textarea>
-              </label>
-              <p class="muted">
-                Like .gitignore: a name such as <code>*.schema.json</code> matches in every folder,
-                <code>generated/</code> is a folder and everything in it, and a leading
-                <code>/</code> matches only at the repository root.
-              </p>
-              <label
-                >Include files skipped by default<textarea
-                  id="profile-include"
-                  rows="2"
-                  spellcheck="false"
-                  placeholder="package-lock.json&#10;dist/types/"
-                ></textarea>
-              </label>
-              <div class="toolbar">
-                <h3>Rules</h3>
-                <button id="add-rule" class="quiet" type="button">Add rule</button>
-              </div>
-              <div id="rules"></div>
-              <p class="muted">
-                Use JSON for advanced rule options such as styles, forms, and exceptions.
-              </p>
-            </div>
-            <label id="json-field" hidden
-              >Profile JSON<textarea id="profile-json" rows="18" spellcheck="false"></textarea>
-            </label>
-            <div class="toolbar">
-              <button type="submit">Save profile</button
-              ><button id="delete-profile" class="danger quiet" type="button" hidden>
-                Delete profile
+            <nav id="repos" aria-label="Repositories"></nav>
+          </aside>
+
+          <section class="ws-col">
+            <div class="ws-heading">
+              <h1 id="title">Workspaces</h1>
+              <button id="new-ws" class="new-ws" type="button" data-icon="plus">
+                New workspace
               </button>
             </div>
-          </form>
+            <section id="ws-view" aria-label="Workspaces"></section>
+          </section>
+        </div>
+
+        <section id="settings-view" class="panel view-box" aria-label="Settings" hidden></section>
+        <section
+          id="wizard"
+          class="panel view-box"
+          tabindex="-1"
+          aria-label="Sync wizard"
+          hidden
+        ></section>
+
+        <section id="profile-view" class="panel view-box" aria-label="Profiles" hidden>
+          <div class="toolbar prof-head">
+            <div>
+              <h2>Anonymization Profiles</h2>
+              <p class="muted">Rules for names, paths, and secrets.</p>
+            </div>
+            <div class="actions">
+              <button id="check-profiles" class="quiet" type="button">Check selected</button>
+              <button id="new-profile" type="button">New profile</button>
+            </div>
+          </div>
+          <div class="prof-grid">
+            <div id="profiles"></div>
+            <form id="editor" class="panel" hidden>
+              <div class="toolbar">
+                <h2 id="editor-title">New profile</h2>
+                <button id="close-editor" class="quiet" type="button">Close</button>
+              </div>
+              <label>Save for<select id="scope"></select></label>
+              <div class="tabs sub-tabs">
+                <button id="form-tab" class="active" type="button">Form</button>
+                <button id="json-tab" type="button">JSON</button>
+              </div>
+              <div id="form-fields">
+                <label>Name<input id="profile-name" required /></label>
+                <label>Description<input id="profile-description" /></label>
+                <label
+                  >Exclude files (one pattern per line)<textarea
+                    id="profile-exclude"
+                    rows="3"
+                    spellcheck="false"
+                    placeholder="*.schema.json&#10;generated/&#10;/config/secrets.yml"
+                  ></textarea>
+                </label>
+                <p class="muted">
+                  .gitignore patterns: <code>*.schema.json</code> matches any folder;
+                  <code>generated/</code> excludes its contents; <code>/</code> anchors to the root.
+                </p>
+                <label
+                  >Include files skipped by default<textarea
+                    id="profile-include"
+                    rows="2"
+                    spellcheck="false"
+                    placeholder="package-lock.json&#10;dist/types/"
+                  ></textarea>
+                </label>
+                <div class="toolbar">
+                  <h3>Rules</h3>
+                  <button id="add-rule" class="quiet" type="button">Add rule</button>
+                </div>
+                <div id="rules"></div>
+                <p class="muted">Use JSON for styles, forms, and exceptions.</p>
+              </div>
+              <label id="json-field" hidden
+                >Profile JSON<textarea id="profile-json" rows="14" spellcheck="false"></textarea>
+              </label>
+              <div class="toolbar">
+                <button type="submit">Save profile</button>
+                <button id="delete-profile" class="danger quiet" type="button" hidden>
+                  Delete profile
+                </button>
+              </div>
+            </form>
+          </div>
         </section>
+
         <footer>repo-cloak v2 <span>Local only · No cloud account</span></footer>
       </main>
     </div>

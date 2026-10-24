@@ -38,9 +38,12 @@ repo-cloak ui   (run anywhere)
 +----------------+------------------------------------------+
 ```
 
-Screens for the first version: **repos and workspaces** (list, status,
-history), **profiles** (list, form editor, raw JSON, check conflicts). Pull
-and push stay in the CLI at first; the buttons can come later.
+The original dashboard shipped with **repos and workspaces** (list, status,
+history), **profiles** (list, form editor, raw JSON, check conflicts). The dashboard now also supports
+guided creation, refresh and restoration; see the sync wizard design below.
+
+Sync workflows: [dashboard sync wizard](dashboard-sync.md), including
+first-run setup, preview and confirmed extraction/restoration from the browser.
 
 ## Design
 
@@ -67,8 +70,9 @@ browser                               server (same process as the CLI)
 
 Choices:
 
-- **No framework, no build step for the UI.** Plain HTML, CSS, and
-  JavaScript modules, copied into `dist/ui/`. Target: under 50 KB total.
+- **No framework.** Plain HTML, CSS, and JavaScript. The existing tsup build
+  minifies browser JavaScript into `dist/ui/`; HTML and CSS are copied.
+  Shipped assets stay under 50 KB total.
 - **`node:http` only.** No Express or similar; a small router over a handful
   of JSON routes.
 - **No new logic.** Every route calls the same `commands/` and `core/`
@@ -91,8 +95,8 @@ Security:
   build, which matters more than developer convenience at this size. Revisit
   if the UI grows past a few screens.
 - One UI per machine, opened on the current context; no background service.
-- First screens: repos and workspaces, profiles. Pull and push stay in the
-  CLI for now.
+- Repos and workspaces, profiles, Settings and the context-first sync wizard.
+  CLI and dashboard use the same prepared plans and writers.
 
 ## Implementation (step 7)
 
@@ -129,8 +133,8 @@ profile store as the CLI. Deletion is confirmed in the browser. Workspace
 status uses the shared status command; history comes from the authenticated
 manifest. Missing workspace folders are marked in the list.
 
-Sources live in `src/ui/`. The CLI build copies them into `dist/ui/` without
-a frontend build tool or framework. Tests enforce the 50 KB asset budget.
+Sources live in `src/ui/`. The CLI build copies HTML/CSS and minifies JavaScript into `dist/ui/` using
+the existing tsup dependency. Tests enforce the 50 KB shipped asset budget.
 
 ## Browser regression automation
 

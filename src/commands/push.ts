@@ -1,5 +1,6 @@
 import { basename, resolve } from 'node:path';
 import type { SyncServices } from '../adapters/sync-services.js';
+import { estimateRetainedBytes } from '../core/retained-size.js';
 import { hashBytes, hashJson } from '../core/hash.js';
 import { planPush } from '../core/push.js';
 import { restorePaths, checkPathCollisions } from '../core/paths.js';
@@ -10,7 +11,7 @@ import { listWorkspaces } from './workspaces.js';
 import type { RepoState } from '../core/pull.js';
 import { prepareNewWorktree } from './push-worktree.js';
 
-export async function runPush(
+export async function preparePushRun(
   services: SyncServices,
   options: PullOptions,
   currentWorkspace?: string,
@@ -156,9 +157,7 @@ export async function runPush(
         'The full workspace snapshot includes the uncommitted source changes captured during extraction',
       );
   }
-  let status: 'dry-run' | 'cancelled' | 'written' = options.dryRun ? 'dry-run' : 'written';
-  if (!options.dryRun && !options.yes && !(await services.confirmPush(plan))) status = 'cancelled';
-  if (status === 'written') {
+  const apply = async () => {
     const manifest = await services.store.sealManifest(plan);
     await services.writeSource({
       root: target.path,
@@ -175,6 +174,7 @@ export async function runPush(
           }
         : {}),
       async recheck() {
+        await services.beforeApply?.();
         const snapshot = await services.store.readSnapshot(workspace);
         if (!snapshot || hashBytes(snapshot.bytes) !== hashBytes(previous.bytes))
           throw new Error('Workspace manifest changed while preparing restore; retry');
@@ -210,9 +210,9 @@ export async function runPush(
       },
       afterSave: () => services.store.record(target, workspace, plan, manifest, services.now()),
     });
-  }
-  return {
-    status,
+  };
+  const result = {
+    status: 'written' as 'written' | 'dry-run' | 'cancelled',
     workspace,
     workspaceId: previous.plain.workspaceId,
     writes: plan.writes.map((file) => file.path),
@@ -223,6 +223,32 @@ export async function runPush(
       ...plan.warnings,
       ...plan.conflicts.map((path) => `${path}: skipped source conflict`),
     ],
-    profileChanges: [],
+    profileChanges: [] as string[],
   };
+  return {
+    plan,
+    redactions: 0,
+    postCreateCommands: [] as string[],
+    repository: repo,
+    source: { path: workspace, branch: null },
+    destination: target,
+    bytes: estimateRetainedBytes({ previous, workspaceBytes, current, source, plan }),
+    result,
+    apply,
+  };
+}
+
+export async function runPush(
+  services: SyncServices,
+  options: PullOptions,
+  currentWorkspace?: string,
+) {
+  const prepared = await preparePushRun(services, options, currentWorkspace);
+  const status = options.dryRun
+    ? 'dry-run'
+    : !options.yes && !(await services.confirmPush(prepared.plan))
+      ? 'cancelled'
+      : 'written';
+  if (status === 'written') await prepared.apply();
+  return { ...prepared.result, status };
 }

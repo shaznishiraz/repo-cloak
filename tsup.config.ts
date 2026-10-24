@@ -1,5 +1,6 @@
 import { defineConfig } from 'tsup';
-import { cp, mkdir, writeFile } from 'node:fs/promises';
+import { buildUi } from './scripts/build-ui.js';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { documentKinds, jsonSchema } from './src/core/schemas.js';
 
 export default defineConfig({
@@ -7,11 +8,12 @@ export default defineConfig({
   format: ['esm'],
   target: 'node22',
   platform: 'node',
+  noExternal: ['lodash-es'],
   clean: true,
   sourcemap: true,
   banner: { js: '#!/usr/bin/env node' },
   async onSuccess() {
-    await cp('src/ui', 'dist/ui', { recursive: true });
+    await buildUi('dist/ui');
     await mkdir('schemas', { recursive: true });
     await Promise.all(
       documentKinds.map((kind) =>

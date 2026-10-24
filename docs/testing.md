@@ -132,3 +132,18 @@ their dependency tree are locked separately from the CLI.
 Browser tests complement backend coverage; they do not add browser JavaScript
 to the V8 coverage percentages. Keep the manual release smoke check for actual
 browser and operating-system behavior beyond the automated Chromium target.
+
+## Git-aware inventory trial (2026-10-24)
+
+A disposable local fixture held 3,000 source files, 1,000 files under an ignored
+folder, and `.gitignore`. The previous algorithm repeated a full glob discovery
+for every 200-file page: 21 scans returned 4,001 paths in 2,223 ms. One fresh
+Git-aware inventory returned 3,001 eligible paths in 78 ms. A single scan with
+Git ignores disabled returned 4,001 paths in 101 ms.
+
+These are illustrative path-discovery measurements on the development machine,
+not end-to-end UI timings, cold-disk benchmarks, or performance guarantees. No
+application inventory cache was used; OS filesystem caches may have been warm.
+The fixture was removed afterwards. The browser regression suite verifies one
+inventory request per opening, fresh requests for checkbox changes/Refresh,
+local search without rescans, and same-origin-only resource requests.

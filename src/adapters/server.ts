@@ -1,3 +1,5 @@
+import { browseFolders } from './folders.js';
+import { OperationError } from './ui-operations.js';
 import { timingSafeEqual } from 'node:crypto';
 import { createServer } from 'node:http';
 import type { IncomingMessage, ServerResponse } from 'node:http';
@@ -51,12 +53,30 @@ export function createDashboardServer(
   const server = createServer((request, response) => {
     void handle(request, response).catch((error: unknown) => {
       if (!response.headersSent)
-        send(response, error instanceof RequestError ? error.status : 400, {
-          error: error instanceof Error ? error.message : 'Request failed',
-        });
+        send(
+          response,
+          error instanceof RequestError
+            ? error.status
+            : error instanceof OperationError
+              ? {
+                  validation: 400,
+                  conflict: 409,
+                  stale: 409,
+                  expired: 410,
+                  busy: 409,
+                  limit: 429,
+                  unknown: 404,
+                }[error.code]
+              : 400,
+          {
+            error: error instanceof Error ? error.message : 'Request failed',
+            code: error instanceof OperationError ? error.code : 'validation',
+          },
+        );
       else response.destroy();
     });
   });
+  server.once('close', () => dashboard.sync.close());
   server.requestTimeout = 15_000;
   server.headersTimeout = 10_000;
   async function handle(request: IncomingMessage, response: ServerResponse) {
@@ -98,8 +118,56 @@ export function createDashboardServer(
     let result: unknown;
     if (method === 'GET' && url.pathname === '/api/session')
       result = { app: 'repo-cloak', protocol: 1, pid: process.pid };
-    else if (method === 'GET' && url.pathname === '/api/repos') result = await dashboard.overview();
-    else if (method === 'GET' && url.pathname === '/api/profiles')
+    else if (method === 'GET' && url.pathname === '/api/settings')
+      result = await dashboard.settings.read();
+    else if (method === 'PUT' && url.pathname === '/api/settings')
+      result = await dashboard.settings.save(await readBody(request));
+    else if (method === 'GET' && url.pathname === '/api/folders') {
+      const offset = Number(url.searchParams.get('offset') ?? '0');
+      if (!Number.isSafeInteger(offset) || offset < 0)
+        throw new RequestError(400, 'Invalid folder offset');
+      result = await browseFolders(url.searchParams.get('path') ?? undefined, offset);
+    } else if (method === 'GET' && url.pathname === '/api/repos')
+      result = await dashboard.overview();
+    else if (method === 'GET' && /^\/api\/repos\/[^/]+\/worktrees$/.test(url.pathname))
+      result = await dashboard.sync.worktrees(decodeURIComponent(url.pathname.split('/')[3] ?? ''));
+    else if (method === 'GET' && /^\/api\/repos\/[^/]+\/inventory$/.test(url.pathname)) {
+      const respect = url.searchParams.get('respectGitIgnore') ?? 'true';
+      if (respect !== 'true' && respect !== 'false')
+        throw new RequestError(400, 'Invalid Git ignore preference');
+      result = await dashboard.sync.inventory(
+        decodeURIComponent(url.pathname.split('/')[3] ?? ''),
+        url.searchParams.get('worktree') ?? '',
+        JSON.parse(url.searchParams.get('profiles') ?? '[]') as unknown,
+        respect === 'true',
+      );
+    } else if (method === 'GET' && /^\/api\/repos\/[^/]+\/selection-context$/.test(url.pathname))
+      result = await dashboard.sync.selectionContext(
+        decodeURIComponent(url.pathname.split('/')[3] ?? ''),
+        url.searchParams.get('worktree') ?? '',
+        JSON.parse(url.searchParams.get('profiles') ?? '[]') as unknown,
+      );
+    else if (method === 'GET' && /^\/api\/repos\/[^/]+\/selection$/.test(url.pathname))
+      result = await dashboard.sync.selection(
+        decodeURIComponent(url.pathname.split('/')[3] ?? ''),
+        url.searchParams.get('worktree') ?? '',
+        Number(url.searchParams.get('offset') ?? '0'),
+        url.searchParams.get('query') ?? '',
+        JSON.parse(url.searchParams.get('profiles') ?? '[]') as unknown,
+        url.searchParams.get('directory') ?? undefined,
+      );
+    else if (method === 'POST' && url.pathname === '/api/sync/preview')
+      result = await dashboard.sync.preview(await readBody(request));
+    else if (/^\/api\/sync\/[^/]+(?:\/apply)?$/.test(url.pathname)) {
+      const id = decodeURIComponent(url.pathname.split('/')[3] ?? '');
+      if (method === 'POST' && url.pathname.endsWith('/apply'))
+        result = await dashboard.sync.apply(id, await readBody(request));
+      else if (method === 'GET' && !url.pathname.endsWith('/apply'))
+        result = dashboard.sync.status(id);
+      else if (method === 'DELETE' && !url.pathname.endsWith('/apply'))
+        result = dashboard.sync.cancel(id);
+      else throw new RequestError(404, 'Not found');
+    } else if (method === 'GET' && url.pathname === '/api/profiles')
       result = await dashboard.profiles(url.searchParams.get('repoId') ?? undefined);
     else if (method === 'POST' && url.pathname === '/api/profiles')
       result = await dashboard.saveProfile(await readBody(request));
@@ -107,12 +175,22 @@ export function createDashboardServer(
       result = await dashboard.deleteProfile(await readBody(request));
     else if (method === 'POST' && url.pathname === '/api/profiles/check')
       result = await dashboard.checkProfiles(await readBody(request));
-    else if (method === 'GET' && /^\/api\/workspaces\/[^/]+\/[^/]+$/.test(url.pathname)) {
+    else if (
+      (method === 'GET' || method === 'DELETE') &&
+      /^\/api\/workspaces\/[^/]+\/[^/]+$/.test(url.pathname)
+    ) {
       const parts = url.pathname.split('/');
-      result = await dashboard.workspace(
-        decodeURIComponent(parts[3] ?? ''),
-        decodeURIComponent(parts[4] ?? ''),
-      );
+      result =
+        method === 'DELETE'
+          ? await dashboard.deleteWorkspace(
+              decodeURIComponent(parts[3] ?? ''),
+              decodeURIComponent(parts[4] ?? ''),
+              await readBody(request),
+            )
+          : await dashboard.workspace(
+              decodeURIComponent(parts[3] ?? ''),
+              decodeURIComponent(parts[4] ?? ''),
+            );
     } else if (method === 'GET' && url.pathname.startsWith('/api/schema/')) {
       const kind = documentKinds.find((kind) => kind === url.pathname.slice('/api/schema/'.length));
       if (!kind) throw new RequestError(404, 'Unknown schema');

@@ -37,8 +37,9 @@ interactive mode with no arguments. Full list and flags: [cli.md](cli.md).
 
 ## Interactive flow
 
-Type `repo-cloak` anywhere. Outside a cloak workspace it first asks which
-source repository and worktree to use. Details, including worktrees:
+Type `repo-cloak` anywhere. Inside Git, keep the exact launch worktree (including
+when launched in a subdirectory) and go straight to CLI actions or the dashboard.
+Ask for a source repository and worktree only when launched outside Git. Details:
 [sync.md](sync.md).
 
 ```
@@ -46,18 +47,20 @@ repo-cloak
    |
    +-- in a cloak workspace? --------> pull / push / status / ui (source from manifest)
    |
-   +-- source repository?  (select)
-   |     > current directory's repo      default when run inside one
+   +-- in a source worktree? --------> use it directly; skip context questions
+   |
+   +-- outside Git: source repository?  (select)
    |       repos already registered      from the store
    |       Enter a path...               checked to be a Git repo; ~ = home
    |
-   +-- worktree?  (select, only if the repo has more than one)
-   |     > current worktree, else the main worktree (default)
+   +-- outside Git: worktree?  (select only if several exist)
+   |     > main worktree (default)
    |       other worktrees with their branches
    |     everything below runs in this worktree, on its branch B
    |
    +-- workspace linked to B exists? --> pull / push / status / ui / new
-   |   none yet ---------------------> continue below (first run)
+   |   none yet ---------------------> create in CLI / open dashboard / exit
+   |                                     dashboard keeps selected worktree
    |
    +-- workspaces root set?  no --> ask once, save to config.json
    |
