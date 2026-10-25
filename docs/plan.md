@@ -350,11 +350,11 @@ single-member groups and joining an existing group from the launch repository.
 - [x] Add combined preflight, member acknowledgements, ordered application queue,
       idempotent status and partial-failure/retry coverage.
 - [x] Add compact group navigation, editor, member repair and Pull all/Push all.
-- [x] Create shared folders with independent copies, preserved edits/Git history,
-      fresh workspace identities/credentials, rollback coverage and root guidance.
+- [x] Move workspaces into shared folders, preserving edits/Git history,
+      workspace identities/credentials/queues, rollback coverage and root guidance.
 - [x] Add Finder/Explorer, VS Code and Zed actions for groups and workspaces;
       verify authenticated target allowlists and installed-app detection.
-- [x] Keep copied dependencies/cache artifacts out of Push, inherit profile file
+- [x] Keep local dependencies/cache artifacts out of Push, inherit profile file
       eligibility, and invalidate approval when exclusions change before writing.
 - [x] Verify individual actions, exclusions, missing members and required backend/
       package checks; add and typecheck the browser regression scenario.
@@ -383,3 +383,26 @@ connection setup controls.
 - [ ] Execute the live browser/client walkthrough with desktop/mobile and both
       themes. BrowserOS is not connected; no personal client settings are edited
       during automated tests.
+
+## Workspace history and Orca
+
+Design: [workspace history and Orca](design/workspace-history.md).
+
+- [x] Always initialize new cloak workspaces and moved legacy workspaces as Git repositories.
+- [x] Checkpoint successful Pull/Push with the sealed manifest; preserve unrelated
+      staged work and roll back file/index changes on checkpoint failure.
+- [x] Add authenticated Open -> Add to Orca with literal arguments and clear
+      missing-CLI/runtime errors; verify supported CLI grouping/archive options.
+- [x] Cover creation, repeated sync, excluded helpers, failed checkpoints and
+      desktop argument handling; run required checks and build/package validation.
+
+## Group moves
+
+Design: [shared group folder](design/repository-groups.md#shared-folder-with-moved-workspaces).
+
+- [x] Replace copying with filesystem moves and stable workspace IDs/credentials/queues.
+- [x] Retarget internal absolute links and recognized workspace MCP configuration.
+- [x] Restore directories, metadata and registration on failure; reject cross-filesystem
+      moves and moving members out of another active physical group.
+- [x] Update UI/docs and cover moves, reuse, connection preservation and rollback;
+      run required checks and package validation.

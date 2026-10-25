@@ -124,9 +124,10 @@ it('opens only registered cloak/group folders through authenticated allowlisted 
   const desktop = createDesktop(
     'darwin',
     async (_command, args) => {
-      opened.push(args.at(-1) ?? '');
+      opened.push((args[0] === 'repo' ? args[3] : args.at(-1)) ?? '');
     },
     async (name) => `/Applications/${name}`,
+    'orca',
   );
   const { dashboard, store, base, call } = await fixture(desktop);
   const source = join(store.root, '..', 'source');
@@ -162,7 +163,7 @@ it('opens only registered cloak/group folders through authenticated allowlisted 
   const group = await dashboard.groups.save({
     name: 'App',
     members: [{ repoId, workspaceId: state.result.workspaceId, worktree: source }],
-    copyWorkspaces: true,
+    moveWorkspaces: true,
   });
   const route = `/api/groups/${group.id}/open`;
   expect((await call('/api/desktop')).status).toBe(200);
@@ -187,7 +188,19 @@ it('opens only registered cloak/group folders through authenticated allowlisted 
       })
     ).status,
   ).toBe(200);
-  expect(opened[1]).toBe(state.result.workspace);
+  const moved = await dashboard.sync.workspaceTarget(repoId, state.result.workspaceId);
+  expect(opened[1]).toBe(moved.path);
+  expect((await call(route, 'POST', { target: 'orca' })).status).toBe(200);
+  expect(opened[2]).toBe(group.folder);
+  expect((await call(route, 'POST', { target: 'orca', path: source })).status).toBe(400);
+  expect(
+    (
+      await call(`/api/workspaces/${repoId}/${state.result.workspaceId}/open`, 'POST', {
+        target: 'orca',
+      })
+    ).status,
+  ).toBe(200);
+  expect(opened[3]).toBe(moved.path);
 });
 
 it('binds loopback only, blocks a foreign Host, and serves only known assets', async () => {

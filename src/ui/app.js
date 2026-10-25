@@ -366,6 +366,7 @@ function openFolderMenu(endpoint, title, path) {
       try {
         await api(endpoint, 'POST', { target });
         menu.open = false;
+        if (target === 'orca') notice('Folder added to Orca');
       } finally {
         action.disabled = !app.available;
       }
@@ -374,7 +375,7 @@ function openFolderMenu(endpoint, title, path) {
     action.disabled = !app.available;
     action.title = app.available
       ? path
-      : 'Install this application or its command-line launcher first';
+      : (app.unavailableReason ?? 'Install this application or its command-line launcher first');
     options.append(action);
   }
   menu.append(summary, options);
@@ -473,7 +474,7 @@ async function openGroupEditor(group = null, joiningRepo = null) {
     fields.append(
       node(
         'p',
-        'Selected cloak workspaces are copied into one group folder. Originals stay in place. Existing group copies are reused.',
+        'Move selected cloak workspaces into one group folder. Files, history and agent connections stay together.',
         'muted',
       ),
     );
@@ -491,7 +492,7 @@ async function openGroupEditor(group = null, joiningRepo = null) {
         ['', 'Choose workspace'],
         ...options.map((workspace) => [
           workspace.id,
-          workspace.groupId ? `${workspace.name} · group copy` : workspace.name,
+          workspace.groupId ? `${workspace.name} · grouped` : workspace.name,
         ]),
       ];
       if (member && !options.some((workspace) => workspace.id === member.workspaceId))
@@ -553,9 +554,9 @@ async function openGroupEditor(group = null, joiningRepo = null) {
           throw new Error(
             'Enter a name and choose a workspace and worktree for each selected repository.',
           );
-        const input = { name: name.value.trim(), members, copyWorkspaces: true };
+        const input = { name: name.value.trim(), members, moveWorkspaces: true };
         if (folderRoot?.value.trim()) input.folderRoot = folderRoot.value.trim();
-        notice('Copying cloak workspaces into the group folder…');
+        notice('Moving cloak workspaces into the group folder…');
         saving = true;
         const saved = await api(
           target ? `groups/${target.id}` : 'groups',
@@ -842,7 +843,7 @@ async function renderWorkspaces() {
       heading.append(identity, controls);
       if (workspace.missing) identity.append(node('span', 'Missing on disk', 'pill pill-muted'));
       else if (workspace.groupId && !group)
-        identity.append(node('span', 'Group copy', 'pill pill-muted'));
+        identity.append(node('span', 'Grouped', 'pill pill-muted'));
       const meta = node('div', undefined, 'ws-meta');
       if (group || !repoId) {
         const source = node('span', repo.name, 'ws-source');

@@ -202,6 +202,12 @@ export async function preparePushRun(
       workspace,
       plan,
       manifest,
+      checkpoint: {
+        paths: [...new Set([...tracked, ...Object.keys(plan.plain.files)])].filter(
+          (path) => !plan.conflicts.includes(path),
+        ),
+        generated: previous.data.guidance?.generated ?? [],
+      },
       ...(newTree
         ? {
             prepare: () =>

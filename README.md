@@ -63,6 +63,13 @@ attention. Conflicts block writes unless you explicitly choose skip or force.
 The restore review also supports a new branch/worktree with an optional base
 reference and target directory. Restored source changes remain uncommitted.
 
+Every cloak workspace is a standalone Git repository. Each successful Pull and
+Push creates a local checkpoint of the affected cloak files and encrypted
+`.repo-cloak/manifest.json`; local credentials and generated agent helpers are
+excluded. Legacy workspaces initialize Git on their next sync. Use Git history
+to restore files and their matching manifest together in the same workspace.
+See [workspace history](docs/design/workspace-history.md).
+
 The dashboard includes workspace status/history, workspace deletion, theme
 switching, and encrypted repository-wide exclusions. Exclusions apply regardless
 of profile, disappear from the file picker, and block both Pull and Push.
@@ -83,14 +90,18 @@ confirmations. If a member fails, completed members stay synced and **Retry
 unfinished** prepares only the remaining members. Removing a group preserves
 all repository and workspace files.
 
-New dashboard groups create a real folder containing independent **copies of
-the selected cloak workspaces**. Originals stay in place; each copy keeps its
-profiles, mappings, edits and Git history, with a fresh workspace ID and agent
-credential. Group Pull/Push targets those copies. Existing groups can use
-**Create group folder**, or **Edit group → Save group**, to create theirs.
+New dashboard groups **move the selected cloak workspaces** into one real folder.
+Each member keeps its workspace ID, credentials, pending requests, profiles,
+mappings, edits and Git history. There is one workspace per member. Existing
+logical groups can use **Create group folder**, or **Edit group → Save group**.
+Moves require a destination on the same filesystem; failed saves restore the
+original locations. Old duplicates from earlier versions are kept for review.
 Use the **Open** menu to reveal the folder in Finder/Explorer or open it in
 VS Code or Zed. Workspace cards have the same menu. Start your agent in the group
 folder; root instructions and scoped MCP connections cover its members.
+**Open → Add to Orca** registers that cloak or group folder using
+`orca repo add --path /absolute/path --json`. Orca must be installed and running.
+Its current CLI does not offer repository group/archive placement.
 
 Hover a repository in the sidebar to reveal **Remove repository** (always visible
 on touch devices). Removal takes it out of the dashboard and groups while keeping

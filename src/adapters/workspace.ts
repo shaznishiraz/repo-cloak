@@ -16,18 +16,12 @@ import { hashBytes } from '../core/hash.js';
 import type { PullPlan } from '../core/pull.js';
 import { errorCode, writeAtomic } from './atomic.js';
 import { checkDestinationPath, exists } from './files.js';
-import {
-  commitWorkspace,
-  prepareWorkspaceGit,
-  resetWorkspaceIndex,
-  excludeAgentHelpers,
-} from './workspace-git.js';
+import { prepareWorkspaceCheckpoint } from './workspace-git.js';
 
 export type WorkspaceWrite = {
   root: string;
   plan: PullPlan;
   manifest: Uint8Array;
-  initGit: boolean;
   expected: Record<string, Uint8Array>;
   expectedManifest: Uint8Array | undefined;
   recheck(): Promise<void>;
@@ -58,9 +52,7 @@ export function createWorkspaceWriter(write = writeAtomic) {
     const created = new Set<string>();
     let started = false;
     let completed = false;
-    let initializedGit = false;
-    let previousExclude: Buffer | undefined;
-    let excludeChanged = false;
+    let checkpoint: Awaited<ReturnType<typeof prepareWorkspaceCheckpoint>> | undefined;
     let preserveStage = false;
     try {
       stage = await mkdtemp(join(tmpdir(), 'repo-cloak-'));
@@ -111,11 +103,12 @@ export function createWorkspaceWriter(write = writeAtomic) {
       }
       for (let i = 0; i < output.length; i++)
         await writeAtomic(join(stage, `next-${i}`), output[i]?.bytes ?? new Uint8Array());
-      if (request.initGit) initializedGit = await prepareWorkspaceGit(root, affected);
-      if (request.initGit && plan.data.guidance) {
-        previousExclude = await excludeAgentHelpers(root, plan.data.guidance.generated);
-        excludeChanged = true;
-      }
+      checkpoint = await prepareWorkspaceCheckpoint(
+        root,
+        affected.filter((path) => !(plan.extras ?? []).some((extra) => extra.path === path)),
+        plan.data.guidance?.generated,
+        [...Object.keys(plan.plain.files), '.repo-cloak/manifest.json'],
+      );
       started = true;
       for (const path of plan.deletes) {
         const file = join(root, ...path.split('/'));
@@ -132,11 +125,7 @@ export function createWorkspaceWriter(write = writeAtomic) {
         await write(target, await readFile(join(stage, `next-${index}`)));
         if (process.platform !== 'win32' && file.executable) await chmod(target, 0o700);
       }
-      if (request.initGit)
-        await commitWorkspace(
-          root,
-          affected.filter((path) => !(plan.extras ?? []).some((extra) => extra.path === path)),
-        );
+      await checkpoint.commit('Pull files from source');
       completed = true;
       await request.afterSave?.();
     } catch (error) {
@@ -163,13 +152,7 @@ export function createWorkspaceWriter(write = writeAtomic) {
           }
         }
         try {
-          if (excludeChanged && !initializedGit) {
-            const path = join(root, '.git/info/exclude');
-            if (previousExclude) await writeAtomic(path, previousExclude);
-            else await unlink(path);
-          }
-          if (initializedGit) await rm(join(root, '.git'), { recursive: true, force: true });
-          else if (request.initGit) await resetWorkspaceIndex(root, affected);
+          await checkpoint?.rollback();
         } catch (failure) {
           failures.push(failure);
         }

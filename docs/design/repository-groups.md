@@ -40,7 +40,7 @@ type RepositoryGroup = {
   schemaVersion: 1;
   id: string; // generated UUID
   name: string; // trimmed, 1..80 characters
-  folder?: string; // canonical root containing independent copied cloak workspaces
+  folder?: string; // canonical root containing the moved cloak workspaces
   members: Array<{
     repoId: string;
     workspaceId: string;
@@ -57,56 +57,69 @@ revision/hash to reject stale edits. Batch preparation also
 respects the shared memory limit.
 Fresh stores need no migration. Existing repositories/workspaces stay compatible.
 
-## Shared folder with independent copies
+## Shared folder with moved workspaces
 
-New groups created in the dashboard copy their selected **cloaked workspaces**
-into a single directory. Existing logical groups offer Create group folder.
-Original source repositories and original cloak folders stay in place.
+New dashboard groups move their selected **cloaked workspaces** into one directory.
+There is one registered workspace and one folder per member. Source repositories
+stay in place. Existing logical groups offer Create group folder.
 
 ```text
 <cloak root>/group-<id>/
   AGENTS.md / CLAUDE.md           group instructions and member tool routing
-  .codex/config.toml             one scoped MCP connection per copied workspace
+  .codex/config.toml             scoped MCP connections to member paths
   .mcp.json                      equivalent Claude project connections
   .repo-cloak/group.json         group ID and relative member folder names
-  api-cloak/                    actual directory copy; new workspace ID/token
-  web-cloak/                    actual directory copy; new workspace ID/token
+  api-cloak/                     moved directory; same workspace ID/token/history
+  web-cloak/                     moved directory; same workspace ID/token/history
 
-select cloak workspaces -> validate identities and destination
-  -> copy each directory (including local edits and standalone Git history)
-  -> reseal manifests with fresh workspace IDs; issue fresh scoped credentials
-  -> register copied workspaces -> save group pointing at the copies
-  -> on failure, remove only newly created copies/records and restore owned files
+select cloak workspaces -> validate identities, links and destination
+  -> lock members -> rename directories into group folder
+  -> retarget internal absolute links and installed workspace MCP entries
+  -> update existing workspace registrations and agent paths
+  -> save group and root helpers
+  -> failure: restore files, links, credentials, paths and registrations
 ```
 
-Copy no source files during grouping. Recreate self-contained project links
-inside each copy (including local dependencies); reject links outside the cloak
-workspace, special files, external Git worktrees and local client connection files. Preserve
-each copy's profiles, ledger, history, tracked baselines and unsynced edits.
-Install agent guidance in copied legacy workspaces while preserving instruction
-edits, tracked deletions and file baselines. Never reuse the original credential or queue.
-Copying does not run Git hooks or post-create commands.
-Untracked dependency/cache artifacts remain local: Push applies normal file
-eligibility, including selected profile includes/excludes, and rechecks exclusion
-changes under the writer lock. Inventory never follows project symlinks.
+Moves preserve workspace IDs, scoped credentials, pending queues, profiles,
+ledger, history, staged work and unsynced edits. Relative internal links remain
+unchanged; absolute internal links are retargeted. Reject external links, special
+files and non-self-contained Git metadata before moving. Existing standalone Git
+history remains unchanged; initialize Git for legacy folders. Install missing
+legacy guidance while preserving original instructions and edited file baselines.
+Never run post-create commands or Git hooks during relocation.
 
-The group gets a stable, neutral directory name; member directory names derive
-only from cloak folder names and receive a neutral suffix on collision. The
-destination root is the configured cloak root (or beside the first cloak), outside
-source repositories, existing workspaces, the owner store and other group folders.
-Never overwrite an existing destination. Serialize grouping with sync, validate
-copied manifests and keep an existing group's folder on edits. Retain its current
-copies; only new/replaced members are copied. Saving edits refreshes the root
-instructions and scoped connections. Removed copies stay registered and on disk,
-including inside the folder. Removing a repository from the dashboard preserves
-group-folder files too; hidden repositories refuse new file requests. Removal is
-not a filesystem deletion or revocation of already shared files. Deleting a group
-leaves its folder and workspaces intact.
+Use filesystem rename rather than copying file contents. Cross-filesystem moves
+are refused with a same-filesystem destination message and prior members are
+moved back. Do not overwrite an existing destination. Hold old and new workspace
+locks during registration changes. Rollback failures retain the recovery folder
+and report them; never delete workspace data after failed rollback.
+
+The group has a stable neutral directory name. Resolve member-name collisions
+with the stable workspace ID. The parent is the configured cloak root or beside
+the first member, outside sources, workspaces, the owner store and other groups.
+Existing group members are reused; only newly selected members move. A workspace
+in another active physical group cannot be moved away from it. Logical groups
+can still reference the same workspace ID. Deleting a group or removing a member
+preserves its workspace files. Old duplicates created by the earlier copy feature
+are not automatically deleted: they may contain independent edits.
+
+Keep existing Codex project comments and unrelated MCP entries. Retarget only
+recognized Repo Cloak workspace arguments; refuse customized TOML that cannot be
+updated safely. Regenerate group-root Codex/Claude configurations for all members.
+Reload an already running agent after moving, and open it in the group folder.
+Global client configuration is not rewritten. Root helper changes still require
+matching ownership hashes before group edits.
+
+Untracked dependencies and caches remain local: Push inherits profile includes,
+exclusions and repository exclusions, rechecked under the writer lock.
 
 Owner-only Reveal/Open actions accept registered workspace/group IDs and a fixed
 target enum, never an arbitrary path or command. Reveal uses Finder/Explorer/the
 system file manager; editors are VS Code and Zed. Detect installed editors, use
 argument arrays (no shell), and show an actionable unavailable-app message.
+The same menu offers Add to Orca for the registered folder; see
+[workspace history and Orca](workspace-history.md). Orca repository group/archive
+placement is not exposed by the installed CLI.
 Launching repo-cloak from the group root opens that group. Editor actions open
 the group root; a single agent session can read both actual member directories.
 
@@ -169,12 +182,14 @@ in-memory batches; reload member status and prepare again, without automatic rep
   batches only. Repeated apply observes the same batch and never executes twice.
 - Browser renders group CRUD, member repair, review and per-member progress.
   Reuse existing session/origin checks; batch IDs cannot authorize foreign members.
-- `copyWorkspaces: true` on group save creates the physical folder (or reuses its
-  current copies); optional `folderRoot` chooses its parent. Legacy API callers
-  can keep logical groups. The dashboard enables copying by default.
+- `moveWorkspaces: true` creates the physical folder and moves members (or reuses
+  current members); optional `folderRoot` chooses its parent. The old
+  `copyWorkspaces` request flag is rejected, so stale clients cannot unknowingly
+  move folders while promising to keep originals. Legacy callers can keep logical
+  groups by omitting the move flag. The dashboard enables moving.
 - `GET /api/desktop` reports installed openers; `POST /api/groups/:id/open` and
   `POST /api/workspaces/:repoId/:workspaceId/open` take only `target` (`folder`,
-  `vscode`, `zed`). Group/source paths and shell commands cannot be supplied.
+  `vscode`, `zed`, `orca`). Group/source paths and shell commands cannot be supplied.
 
 The generic single-workspace apply route rejects group-owned operation IDs, so
 it cannot bypass per-member review. Reload recovers a running batch by ID from

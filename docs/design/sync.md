@@ -19,8 +19,11 @@ are rechecked under writer locks. See [dashboard-sync](dashboard-sync.md).
 Pull combines selected files, working paths, commit paths and previously tracked
 paths. Repository exclusions are applied before reads and win over profiles.
 Profile changes are merged and validated before content/path anonymization. The
-ledger and original paths remain sealed. New workspaces may initialize their own
-Git repository; post-create commands run after a successful create only.
+ledger and original paths remain sealed. Every new workspace initializes its own
+Git repository; post-create commands run after a successful create only. Successful
+Pull and Push checkpoint the affected cloak files and sealed manifest, preserving
+unrelated staged changes. Legacy workspaces initialize Git on their next sync.
+See [workspace history](workspace-history.md) for rollback and Git failure behavior.
 
 Push resolves original paths from the saved manifest/ledger. It processes edits,
 additions and deletions while protecting source changes since the baseline.

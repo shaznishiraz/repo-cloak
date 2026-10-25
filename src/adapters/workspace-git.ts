@@ -1,4 +1,4 @@
-import { mkdir, readFile } from 'node:fs/promises';
+import { mkdir, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { findRepo, runGit } from './git.js';
 import { exists } from './files.js';
@@ -38,13 +38,18 @@ export async function prepareWorkspaceGit(root: string, paths: string[]): Promis
     .split('\0')
     .filter(Boolean);
   if (staged.some((path) => paths.includes(path)))
-    throw new Error('Unstage changes to the pull destination files before refreshing');
+    throw new Error('Unstage changes to the files being synchronized before continuing');
   return false;
 }
-export async function commitWorkspace(root: string, paths: string[]): Promise<void> {
+export async function commitWorkspace(
+  root: string,
+  paths: string[],
+  message = 'Refresh anonymized files',
+): Promise<void> {
   const hooks = join(root, '.git', 'repo-cloak-hooks');
   await mkdir(hooks, { recursive: true });
   const options = [
+    '--literal-pathspecs',
     '-c',
     `core.hooksPath=${hooks}`,
     '-c',
@@ -58,20 +63,77 @@ export async function commitWorkspace(root: string, paths: string[]): Promise<vo
     '-c',
     'user.email=repo-cloak@localhost',
   ];
-  await runGit(root, [...options, 'add', '-A', '--', ...paths]);
+  const present = await Promise.all(paths.map((path) => exists(join(root, path))));
+  const missing = paths.filter((_, index) => !present[index]);
+  const tracked = new Set(
+    missing.length
+      ? (await runGit(root, ['--literal-pathspecs', 'ls-files', '-z', '--', ...missing]))
+          .split('\0')
+          .filter(Boolean)
+      : [],
+  );
+  paths = paths.filter((path, index) => present[index] || tracked.has(path));
+  await runGit(root, [...options, 'add', '-A', '-f', '--', ...paths]);
   await runGit(root, [
     ...options,
     'commit',
     '--only',
     '--allow-empty',
     '-m',
-    'Refresh anonymized files',
+    message,
     '--',
     ...paths.filter(
       (path) => path === '.repo-cloak/manifest.json' || !path.startsWith('.repo-cloak/'),
     ),
   ]);
 }
-export async function resetWorkspaceIndex(root: string, paths: string[]): Promise<void> {
-  if (await exists(join(root, '.git'))) await runGit(root, ['reset', '-q', '--', ...paths]);
+
+/** Prepare inside the workspace writer lock; rollback restores unrelated staged bytes exactly. */
+export async function prepareWorkspaceCheckpoint(
+  root: string,
+  paths: string[],
+  generated: string[] = [],
+  initialPaths = paths,
+) {
+  const allowed = (path: string) =>
+    !generated.includes(path) &&
+    !path.toLowerCase().startsWith('.codex/') &&
+    (!path.startsWith('.repo-cloak/') || path === '.repo-cloak/manifest.json');
+  paths = [...new Set(paths)].filter(allowed);
+  const initialized = await prepareWorkspaceGit(root, paths);
+  let index: Buffer | undefined;
+  let exclude: Buffer | undefined;
+  const restore = async (relative: string, bytes: Buffer | undefined) => {
+    if (bytes) await writeAtomic(join(root, relative), bytes);
+    else await rm(join(root, relative), { force: true });
+  };
+  const rollback = async () => {
+    if (initialized) await rm(join(root, '.git'), { recursive: true, force: true });
+    else {
+      await restore('.git/index', index);
+      await restore('.git/info/exclude', exclude);
+    }
+  };
+  try {
+    await checkDestinationPath(root, '.git/index');
+    try {
+      index = await readFile(join(root, '.git/index'));
+    } catch (error) {
+      if (errorCode(error) !== 'ENOENT') throw error;
+    }
+    exclude = await excludeAgentHelpers(root, generated);
+  } catch (error) {
+    // An existing index has not been changed yet. Do not replace it on a read error.
+    if (initialized) await rm(join(root, '.git'), { recursive: true, force: true });
+    throw error;
+  }
+  return {
+    commit: (message: string) =>
+      commitWorkspace(
+        root,
+        initialized ? [...new Set(initialPaths)].filter(allowed) : paths,
+        message,
+      ),
+    rollback,
+  };
 }

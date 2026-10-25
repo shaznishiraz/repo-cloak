@@ -64,6 +64,15 @@ export function createAgentStore(store = createStore()) {
     read,
     write,
     locked,
+    async relocate(workspaceId: string, from: string, to: string) {
+      return locked(workspaceId, async () => {
+        const doc = await read(workspaceId);
+        if (!doc) return false;
+        if (doc.path !== from) throw new Error('Agent connection changed while moving');
+        await write({ ...doc, path: to });
+        return true;
+      });
+    },
     async ensure(
       input: { workspaceId: string; repoId: string; path: string; worktree: string },
       rotate = false,

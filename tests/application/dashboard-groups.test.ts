@@ -7,6 +7,8 @@ import {
   writeFile,
   lstat,
   symlink,
+  rename,
+  readlink,
 } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -17,6 +19,7 @@ import { createDashboardGroups } from '../../src/application/dashboard-groups.js
 import { createStore } from '../../src/adapters/store.js';
 import { createSyncServices } from '../../src/adapters/sync-services.js';
 import { createUiOperations } from '../../src/adapters/ui-operations.js';
+import { createGroupFolder } from '../../src/adapters/group-folder.js';
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => {
@@ -91,6 +94,22 @@ async function fixture() {
   return { root, store, dashboard, services, members: [backend, frontend] as const, input };
 }
 
+it('initializes Git for moved legacy cloak folders and keeps credentials out of history', async () => {
+  const f = await fixture();
+  for (const member of f.members) await rm(join(member.destination, '.git'), { recursive: true });
+  const group = await f.dashboard.groups.save({ ...f.input, moveWorkspaces: true });
+  for (const member of group.members) {
+    const workspace = await f.dashboard.sync.workspaceTarget(member.repoId, member.workspaceId);
+    const tracked = await f.services.git.runGit(workspace.path, ['ls-files']);
+    expect(tracked).toContain('.repo-cloak/manifest.json');
+    expect(tracked).toContain('Safe');
+    expect(tracked).not.toContain('token');
+    expect((await f.services.git.runGit(workspace.path, ['log', '-1', '--format=%s'])).trim()).toBe(
+      'Initialize grouped cloak workspace',
+    );
+  }
+});
+
 it('starts with one repo, adds another to an existing sealed group and preserves workspace data on removal', async () => {
   const f = await fixture();
   const first = await f.dashboard.groups.save({ ...f.input, members: [f.input.members[0]] });
@@ -129,7 +148,7 @@ it('starts with one repo, adds another to an existing sealed group and preserves
   );
 });
 
-it('copies cloaked workspaces into a real group folder with independent identities and working sync', async () => {
+it('moves cloaked workspaces into a group folder with stable identities and working sync', async () => {
   const f = await fixture();
   const original = f.members[0];
   const originalManifest = await readFile(join(original.destination, '.repo-cloak/manifest.json'));
@@ -137,6 +156,21 @@ it('copies cloaked workspaces into a real group folder with independent identiti
     join(original.destination, '.repo-cloak/agent/token'),
     'utf8',
   );
+  await f.dashboard.installAgentClient(original.repoId, original.workspaceId, 'codex', {
+    confirm: true,
+  });
+  const connection = await f.dashboard.agentClientConfig(original.repoId, original.workspaceId);
+  const configPath = join(original.destination, '.codex/config.toml');
+  await writeFile(configPath, '# Keep my comment\n' + (await readFile(configPath, 'utf8')));
+  await writeFile(join(original.destination, '.mcp.json'), connection.claude);
+  await writeFile(join(original.worktree, 'Extra.ts'), 'export const context = true;');
+  const grant = await f.dashboard.agents.authenticate(originalToken.trim());
+  if (!grant) throw new Error('Missing scoped credential');
+  const queued = await f.dashboard.agents.agentCall(grant, 'requests', {
+    paths: ['Extra.ts'],
+    reason: 'Need context',
+    clientRequestId: 'move-queue',
+  });
   await mkdir(join(original.destination, 'node_modules/local-test'), { recursive: true });
   await writeFile(
     join(original.destination, 'node_modules/local-test/index.js'),
@@ -171,7 +205,7 @@ it('copies cloaked workspaces into a real group folder with independent identiti
     'Original cloak history',
   ]);
   const originalHead = await f.services.git.runGit(original.destination, ['rev-parse', 'HEAD']);
-  const group = await f.dashboard.groups.save({ ...f.input, copyWorkspaces: true });
+  const group = await f.dashboard.groups.save({ ...f.input, moveWorkspaces: true });
   expect(group.folder).toBeTruthy();
   if (!group.folder) throw new Error('Missing group folder');
   expect((await lstat(group.folder)).isDirectory()).toBe(true);
@@ -181,18 +215,21 @@ it('copies cloaked workspaces into a real group folder with independent identiti
     ),
   );
   for (const [index, copy] of copies.entries()) {
+    const previous = f.members[index];
+    const member = group.members[index];
+    if (!previous || !member) throw new Error('Missing moved member');
+    const repo = await f.services.store.readRepo(member.repoId);
+    if (!repo) throw new Error('Missing repository');
     expect(dirname(copy.path)).toBe(group.folder);
     expect((await lstat(copy.path)).isSymbolicLink()).toBe(false);
-    expect(copy.snapshot.plain.workspaceId).not.toBe(f.members[index]?.workspaceId);
+    expect(copy.snapshot.plain.workspaceId).toBe(f.members[index]?.workspaceId);
+    await expect(lstat(previous.destination)).rejects.toThrow();
+    expect(Object.keys(repo.workspaces)).toEqual([previous.workspaceId]);
   }
-  expect(await readFile(join(original.destination, '.repo-cloak/manifest.json'))).toEqual(
-    originalManifest,
-  );
-  expect(await readFile(join(original.destination, '.repo-cloak/agent/token'), 'utf8')).toBe(
-    originalToken,
-  );
   const backend = copies[0];
-  if (!backend) throw new Error('Missing copied backend');
+  if (!backend) throw new Error('Missing moved backend');
+  expect(await readFile(join(backend.path, '.repo-cloak/manifest.json'))).toEqual(originalManifest);
+  expect(await readFile(join(backend.path, '.repo-cloak/agent/token'), 'utf8')).toBe(originalToken);
   expect(await realpath(join(backend.path, 'node_modules/local-alias'))).toBe(
     join(backend.path, 'node_modules/local-test'),
   );
@@ -203,8 +240,17 @@ it('copies cloaked workspaces into a real group folder with independent identiti
   expect(await readFile(join(backend.path, '.repo-cloak/agent/SKILL.md'), 'utf8')).toContain(
     'name: repo-cloak',
   );
-  expect(token).not.toBe(originalToken.trim());
+  expect(token).toBe(originalToken.trim());
   expect((await f.dashboard.agents.authenticate(token))?.path).toBe(backend.path);
+  const after = await f.dashboard.agents.info(original.repoId, original.workspaceId);
+  expect(after.requests.map((request) => request.id)).toContain((queued as { id: string }).id);
+  const movedConfig = await readFile(join(backend.path, '.codex/config.toml'), 'utf8');
+  expect(movedConfig).toContain('# Keep my comment');
+  expect(movedConfig).toContain(JSON.stringify(backend.path));
+  expect(movedConfig).not.toContain(JSON.stringify(original.destination));
+  expect(await readFile(join(backend.path, '.mcp.json'), 'utf8')).toContain(
+    JSON.stringify(backend.path),
+  );
   const rootInstructions = await readFile(join(group.folder, 'AGENTS.md'), 'utf8');
   expect(rootInstructions).toContain('repo-cloak group');
   expect(rootInstructions).not.toContain(original.worktree);
@@ -222,11 +268,9 @@ it('copies cloaked workspaces into a real group folder with independent identiti
   expect((await f.dashboard.groups.wait(push.operationId)).state).toBe('completed');
   expect(await readFile(join(original.worktree, 'Backend.ts'), 'utf8')).toContain('grouped = true');
   await expect(lstat(join(original.worktree, 'node_modules'))).rejects.toThrow();
-  expect(await readFile(join(original.destination, 'SafeBackend.ts'), 'utf8')).toContain(
-    'local = true',
-  );
+  await expect(lstat(original.destination)).rejects.toThrow();
   const edited = await f.dashboard.groups.save(
-    { name: 'Renamed', members: group.members, copyWorkspaces: true },
+    { name: 'Renamed', members: group.members, moveWorkspaces: true },
     group.id,
     group.revision,
   );
@@ -257,7 +301,7 @@ it('keeps generated artifacts local, honors profile includes/excludes and reject
   const group = await f.dashboard.groups.save({
     name: 'Eligibility',
     members: [f.input.members[0]],
-    copyWorkspaces: true,
+    moveWorkspaces: true,
   });
   const member = group.members[0];
   if (!member) throw new Error('Missing copied member');
@@ -299,7 +343,7 @@ it('keeps generated artifacts local, honors profile includes/excludes and reject
   expect(fresh.writes).toEqual([]);
 });
 
-it('installs guidance in copied legacy workspaces without changing original files or losing local edits', async () => {
+it('installs guidance in moved legacy workspaces while preserving local edits', async () => {
   const f = await fixture();
   const original = f.members[0];
   const snapshot = await f.services.store.readSnapshot(original.destination);
@@ -318,16 +362,14 @@ it('installs guidance in copied legacy workspaces without changing original file
   const group = await f.dashboard.groups.save({
     name: 'Legacy',
     members: [f.input.members[0]],
-    copyWorkspaces: true,
+    moveWorkspaces: true,
   });
   const member = group.members[0];
   if (!member) throw new Error('Missing copied member');
   const copy = await f.dashboard.sync.workspaceTarget(member.repoId, member.workspaceId);
   expect(await readFile(join(copy.path, 'AGENTS.md'), 'utf8')).toContain('# My instructions');
   expect(await readFile(join(copy.path, 'AGENTS.md'), 'utf8')).toContain('repo-cloak workspace');
-  expect(await readFile(join(original.destination, 'AGENTS.md'), 'utf8')).toBe(
-    '# My instructions\n',
-  );
+  await expect(lstat(original.destination)).rejects.toThrow();
   const push = await f.dashboard.groups.preview(group.id, {
     revision: group.revision,
     intent: 'restore',
@@ -341,15 +383,23 @@ it('installs guidance in copied legacy workspaces without changing original file
   await expect(readFile(join(original.worktree, 'CLAUDE.md'))).rejects.toThrow();
 });
 
-it('refuses unsafe copies and rolls back new files and registrations if saving a copied group fails', async () => {
+it('refuses unsafe moves and restores folders and registrations when group saving fails', async () => {
   const f = await fixture();
+  const original = f.members[0];
+  await f.dashboard.installAgentClient(original.repoId, original.workspaceId, 'codex', {
+    confirm: true,
+  });
+  const originalConfig = await readFile(join(original.destination, '.codex/config.toml'));
+  const link = join(original.destination, 'internal-link.ts');
+  const linkTarget = join(original.destination, 'SafeBackend.ts');
+  await symlink(linkTarget, link, 'file');
   const before = await f.dashboard.overview();
   await symlink(
     f.members[0].worktree,
     join(f.members[0].destination, 'external'),
     process.platform === 'win32' ? 'junction' : 'dir',
   );
-  await expect(f.dashboard.groups.save({ ...f.input, copyWorkspaces: true })).rejects.toThrow(
+  await expect(f.dashboard.groups.save({ ...f.input, moveWorkspaces: true })).rejects.toThrow(
     /symbolic|symlink/i,
   );
   expect(await f.dashboard.overview()).toEqual(before);
@@ -358,7 +408,7 @@ it('refuses unsafe copies and rolls back new files and registrations if saving a
   await expect(
     f.dashboard.groups.save({
       ...f.input,
-      copyWorkspaces: true,
+      moveWorkspaces: true,
       folderRoot: f.members[0].worktree,
     }),
   ).rejects.toThrow(/outside|repository|repositories/);
@@ -368,7 +418,7 @@ it('refuses unsafe copies and rolls back new files and registrations if saving a
     await write(...args);
   });
   try {
-    await expect(f.dashboard.groups.save({ ...f.input, copyWorkspaces: true })).rejects.toThrow(
+    await expect(f.dashboard.groups.save({ ...f.input, moveWorkspaces: true })).rejects.toThrow(
       /Simulated/,
     );
   } finally {
@@ -377,6 +427,57 @@ it('refuses unsafe copies and rolls back new files and registrations if saving a
   expect(await f.dashboard.overview()).toEqual(before);
   expect(await f.dashboard.groups.list()).toEqual([]);
   expect(await f.store.listFiles('agents')).toHaveLength(2);
+  expect(await readFile(join(original.destination, '.codex/config.toml'))).toEqual(originalConfig);
+  expect(await readlink(link)).toBe(linkTarget);
+});
+
+it('refuses cross-filesystem moves without leaving a second workspace or changing registration', async () => {
+  const f = await fixture();
+  const group = await f.dashboard.groups.save(f.input);
+  const before = await f.dashboard.overview();
+  const targets = await Promise.all(
+    group.members.map(async (member) => ({
+      ...member,
+      ...(await f.dashboard.sync.workspaceTarget(member.repoId, member.workspaceId)),
+    })),
+  );
+  const folders = createGroupFolder(f.store, async (from, to) => {
+    if (from === f.members[1].destination)
+      throw Object.assign(new Error('Different filesystem'), { code: 'EXDEV' });
+    await rename(from, to);
+  });
+  await expect(folders.save(group, targets, undefined, async () => group)).rejects.toThrow(
+    /same filesystem/,
+  );
+  expect(await f.dashboard.overview()).toEqual(before);
+  for (const member of f.members)
+    expect((await lstat(member.destination)).isDirectory()).toBe(true);
+  await expect(lstat(join(f.root, `group-${group.id.slice(0, 8)}`))).rejects.toThrow();
+});
+
+it('reuses moved members on group edits and refuses to move them out of another active group', async () => {
+  const f = await fixture();
+  const first = await f.dashboard.groups.save({
+    ...f.input,
+    members: [f.input.members[0]],
+    moveWorkspaces: true,
+  });
+  const member = first.members[0];
+  if (!member) throw new Error('Missing first member');
+  const existing = await f.dashboard.sync.workspaceTarget(member.repoId, member.workspaceId);
+  const edited = await f.dashboard.groups.save(
+    { ...f.input, moveWorkspaces: true },
+    first.id,
+    first.revision,
+  );
+  expect(edited.members).toEqual(f.input.members);
+  expect((await f.dashboard.sync.workspaceTarget(member.repoId, member.workspaceId)).path).toBe(
+    existing.path,
+  );
+  await expect(
+    f.dashboard.groups.save({ ...f.input, name: 'Other', moveWorkspaces: true }),
+  ).rejects.toThrow(/another group/);
+  expect((await f.dashboard.groups.list()).map((group) => group.id)).toEqual([edited.id]);
 });
 
 it('removes a repository from the dashboard and groups while retaining its files and saved setup', async () => {
@@ -487,7 +588,7 @@ it('previews all members without writes, pulls and pushes both using separate pr
     );
     expect(await readFile(join(member.worktree, 'private.txt'), 'utf8')).toBe('do not copy');
   }
-});
+}, 15_000);
 
 it('requires per-member review and rejects changed groups, missing members and stale preflight before writes', async () => {
   const f = await fixture();

@@ -203,7 +203,7 @@ export function createDashboardGroups(store: ReturnType<typeof createStore>, syn
     async save(value: unknown, id?: string, revision?: string) {
       const input = groupInputSchema
         .extend({
-          copyWorkspaces: z.boolean().optional(),
+          moveWorkspaces: z.boolean().optional(),
           folderRoot: z.string().trim().min(1).optional(),
         })
         .parse(value);
@@ -219,7 +219,7 @@ export function createDashboardGroups(store: ReturnType<typeof createStore>, syn
             members,
             ...(previous?.folder ? { folder: previous.folder } : {}),
           } as const;
-          if (input.copyWorkspaces || previous?.folder) {
+          if (input.moveWorkspaces || previous?.folder) {
             const targets = await Promise.all(
               members.map(async (member) => ({
                 ...member,

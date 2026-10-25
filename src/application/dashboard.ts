@@ -67,7 +67,7 @@ export function createDashboard(
       availability: desktop.availability,
       async openWorkspace(repoId: string, workspaceId: string, value: unknown) {
         const { target } = z
-          .object({ target: z.enum(['folder', 'vscode', 'zed']) })
+          .object({ target: z.enum(['folder', 'vscode', 'zed', 'orca']) })
           .strict()
           .parse(value);
         const workspace = await sync.workspaceTarget(repoId, workspaceId);
@@ -75,7 +75,7 @@ export function createDashboard(
       },
       async openGroup(id: string, value: unknown) {
         const { target } = z
-          .object({ target: z.enum(['folder', 'vscode', 'zed']) })
+          .object({ target: z.enum(['folder', 'vscode', 'zed', 'orca']) })
           .strict()
           .parse(value);
         const group = await groupStore.read(id);

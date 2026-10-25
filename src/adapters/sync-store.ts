@@ -128,37 +128,23 @@ export function createSyncStore(store: ReturnType<typeof createStore>) {
       parseDocument('manifest', manifest);
       return Buffer.from(`${JSON.stringify(manifest, null, 2)}\n`);
     },
-    async recordCopy(
+    async relocateWorkspace(
       repoId: string,
-      originalId: string,
-      path: string,
-      snapshot: Snapshot,
-      manifest: Uint8Array,
+      workspaceId: string,
+      expectedPath: string,
+      workspace: Document<'repo'>['workspaces'][string],
     ) {
       const directory = join(store.root, 'repos', repoId);
       const release = await lock(directory, { retries: 0 });
       try {
         const repo = await readRepo(repoId);
-        const original = repo?.workspaces[originalId];
-        if (!repo || repo.hidden || !original)
-          throw new Error('Original workspace registration changed');
-        const now = new Date().toISOString();
-        await writeAtomic(
-          join(directory, 'manifests', `${hashJson(snapshot.plain.workspaceId).slice(7)}.json`),
-          manifest,
-        );
+        if (!repo || repo.hidden || repo.workspaces[workspaceId]?.path !== expectedPath)
+          throw new Error('Workspace registration changed while moving');
         await store.writeSealed(`repos/${repoId}/repo.json`, repoId, 'repo', {
           ...repo,
           workspaces: {
             ...repo.workspaces,
-            [snapshot.plain.workspaceId]: {
-              ...original,
-              path,
-              createdAt: now,
-              lastUsedAt: now,
-              useCount: 0,
-              groupId: snapshot.plain.extensions?.groupId,
-            },
+            [workspaceId]: workspace,
           },
         });
       } finally {

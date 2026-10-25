@@ -6,13 +6,15 @@ import { delimiter, isAbsolute, join } from 'node:path';
 import { promisify } from 'node:util';
 import { canonicalPath } from './locations.js';
 
-export type DesktopTarget = 'folder' | 'vscode' | 'zed';
+export type DesktopTarget = 'folder' | 'vscode' | 'zed' | 'orca';
 const execute = promisify(execFile);
 
 async function locate(name: string): Promise<string | undefined> {
-  const candidates = name.endsWith('.app')
-    ? [join('/Applications', name), join(homedir(), 'Applications', name)]
-    : (process.env.PATH ?? '').split(delimiter).map((directory) => join(directory, name));
+  const candidates = isAbsolute(name)
+    ? [name]
+    : name.endsWith('.app')
+      ? [join('/Applications', name), join(homedir(), 'Applications', name)]
+      : (process.env.PATH ?? '').split(delimiter).map((directory) => join(directory, name));
   for (const candidate of candidates) {
     try {
       await access(candidate, name.endsWith('.app') ? constants.F_OK : constants.X_OK);
@@ -30,8 +32,11 @@ export function createDesktop(
     await execute(command, args, { timeout: 10_000, maxBuffer: 64 * 1024, windowsHide: true });
   },
   find: (name: string) => Promise<string | undefined> = locate,
+  orcaCommand = process.env.ORCA_CLI_COMMAND ??
+    (process.env.ORCA_DEV_REPO_ROOT ? 'orca-dev' : platform === 'linux' ? 'orca-ide' : 'orca'),
 ) {
   async function application(target: DesktopTarget) {
+    if (target === 'orca') return find(orcaCommand);
     if (target === 'folder')
       return platform === 'darwin'
         ? '/usr/bin/open'
@@ -61,14 +66,21 @@ export function createDesktop(
           : 'Open in Files',
     vscode: 'Open in VS Code',
     zed: 'Open in Zed',
+    orca: 'Add to Orca',
   };
   return {
     async availability() {
       return Object.fromEntries(
         await Promise.all(
-          (['folder', 'vscode', 'zed'] as const).map(async (target) => [
+          (['folder', 'vscode', 'zed', 'orca'] as const).map(async (target) => [
             target,
-            { label: labels[target], available: !!(await application(target)) },
+            {
+              label: labels[target],
+              available: !!(await application(target)),
+              ...(target === 'orca'
+                ? { unavailableReason: 'Install Orca and enable its CLI first.' }
+                : {}),
+            },
           ]),
         ),
       );
@@ -77,18 +89,36 @@ export function createDesktop(
       if (!isAbsolute(path) || (await canonicalPath(path)) !== path)
         throw new Error('Folder changed; refresh the dashboard before opening it');
       const app = await application(target);
+      if (!app && target === 'orca')
+        throw new Error(
+          'Orca CLI is not installed or not available on PATH. Install Orca and enable its CLI.',
+        );
       if (!app)
         throw new Error(
           `${labels[target]} is unavailable. Install the application or its command-line launcher first.`,
         );
       try {
-        if (platform === 'darwin' && target === 'folder') await run('/usr/bin/open', ['-R', path]);
+        if (target === 'orca') await run(app, ['repo', 'add', '--path', path, '--json']);
+        else if (platform === 'darwin' && target === 'folder')
+          await run('/usr/bin/open', ['-R', path]);
         else if (platform === 'darwin' && app.endsWith('.app'))
           await run('/usr/bin/open', ['-a', app, path]);
         else await run(app, [path]);
-      } catch {
+      } catch (error) {
+        if (target === 'orca') {
+          if (error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT')
+            throw new Error(
+              'Orca CLI is not installed or no longer available. Install Orca and enable its CLI.',
+              { cause: error },
+            );
+          throw new Error(
+            'Could not add this folder to Orca. Open Orca and check that its CLI can run.',
+            { cause: error },
+          );
+        }
         throw new Error(
           `Could not ${labels[target].toLowerCase()}. Check that the application is installed and can open folders.`,
+          { cause: error },
         );
       }
       return { opened: true };

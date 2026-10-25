@@ -1,7 +1,4 @@
-import { randomUUID } from 'node:crypto';
-import { constants } from 'node:fs';
 import {
-  copyFile,
   lstat,
   mkdir,
   readFile,
@@ -10,8 +7,12 @@ import {
   chmod,
   realpath,
   symlink,
+  readlink,
+  rename,
+  rmdir,
+  unlink,
 } from 'node:fs/promises';
-import { basename, dirname, join, relative } from 'node:path';
+import { basename, dirname, isAbsolute, join, relative } from 'node:path';
 import { lock } from 'proper-lockfile';
 import { z } from 'zod';
 import { createStore } from './store.js';
@@ -22,13 +23,29 @@ import { writeAtomic, errorCode } from './atomic.js';
 import { canonicalPath, isWithin } from './locations.js';
 import { checkDestinationPath, exists } from './files.js';
 import { findRepo } from './git.js';
+import { prepareWorkspaceCheckpoint } from './workspace-git.js';
 import { hashBytes, hashJson } from '../core/hash.js';
 import { groupGuidance } from '../core/group-guidance.js';
 import { agentSkill, instructionFiles, addAgentGuidance } from '../core/agent-guidance.js';
 import type { GroupMember, RepositoryGroup } from '../core/groups.js';
 import type { Snapshot } from '../core/manifest.js';
+import type { Document } from '../core/schemas.js';
+import { createGroupStore } from './groups.js';
 
-export type GroupCopyTarget = GroupMember & { path: string; snapshot: Snapshot };
+export type GroupMoveTarget = GroupMember & { path: string; snapshot: Snapshot };
+type Link = { path: string; before: string; target: string; directory: boolean };
+type Backup = { bytes: Buffer; mode: number } | undefined;
+type Move = {
+  target: GroupMoveTarget;
+  path: string;
+  previous: Document<'repo'>['workspaces'][string];
+  backups: Map<string, Backup>;
+  links: Link[];
+  hadAgent: boolean;
+  hadGit: boolean;
+  moved: boolean;
+  registered: boolean;
+};
 const helperNames = [
   'AGENTS.md',
   'CLAUDE.md',
@@ -42,10 +59,14 @@ const folderMetadata = z.object({
   hashes: z.record(z.enum(helperNames), z.string()),
 });
 
-export function createGroupFolder(store = createStore()) {
+export function createGroupFolder(
+  store = createStore(),
+  moveDirectory: (from: string, to: string) => Promise<void> = rename,
+) {
   const records = createSyncStore(store);
   const agents = createAgentStore(store);
   const clients = createAgentClientConfig();
+  const groups = createGroupStore(store);
 
   async function installGuidance(path: string, snapshot: Snapshot) {
     const generated = new Set(snapshot.data.guidance?.generated ?? []);
@@ -71,69 +92,54 @@ export function createGroupFolder(store = createStore()) {
     snapshot.data.guidance = { generated: [...generated] };
   }
 
-  async function copyTree(root: string, source: string, destination: string, copyRoot: string) {
+  async function inspectTree(root: string, source = root, links: Link[] = []): Promise<Link[]> {
     const name = relative(root, source).split('\\').join('/');
-    if (name === '.codex' || name === '.mcp.json' || name === '.repo-cloak/agent') return;
     const info = await lstat(source);
     if (info.isSymbolicLink()) {
       const resolved = await realpath(source);
       if (!isWithin(root, resolved))
-        throw new Error('Cannot copy symbolic links outside the cloak workspace');
-      const target = join(copyRoot, relative(root, resolved));
-      const directory = (await lstat(resolved)).isDirectory();
-      await symlink(
-        process.platform === 'win32' ? target : relative(dirname(destination), target),
-        destination,
-        process.platform === 'win32' ? (directory ? 'junction' : 'file') : undefined,
-      );
-      return;
+        throw new Error('Cannot move symbolic links outside the cloak workspace');
+      const before = await readlink(source);
+      if (isAbsolute(before))
+        links.push({
+          path: name,
+          before,
+          target: relative(root, resolved),
+          directory: (await lstat(resolved)).isDirectory(),
+        });
+      return links;
     }
     if ((await canonicalPath(source)) !== source)
-      throw new Error('Workspace path changed during copying');
+      throw new Error('Workspace path changed while preparing the move');
     if (info.isDirectory()) {
-      if (source !== root) await mkdir(destination, { mode: 0o700 });
       for (const entry of await readdir(source))
-        await copyTree(root, join(source, entry), join(destination, entry), copyRoot);
-    } else {
-      if (!info.isFile()) throw new Error('Cannot copy special workspace files');
-      await copyFile(source, destination, constants.COPYFILE_EXCL);
-      const after = await lstat(source);
-      if (
-        after.isSymbolicLink() ||
-        info.size !== after.size ||
-        info.mtimeMs !== after.mtimeMs ||
-        info.ino !== after.ino ||
-        (await canonicalPath(source)) !== source
-      )
-        throw new Error('Workspace files changed during copying; try again');
-      if (process.platform !== 'win32') await chmod(destination, info.mode & 0o777);
-    }
+        await inspectTree(root, join(source, entry), links);
+    } else if (!info.isFile()) throw new Error('Cannot move special workspace files');
+    return links;
   }
 
-  async function forget(repoId: string, workspaceId: string) {
-    const directory = join(store.root, 'repos', repoId);
-    const release = await lock(directory, { retries: 0 });
-    try {
-      const repo = await records.readRepo(repoId);
-      if (repo) {
-        const workspaces = Object.fromEntries(
-          Object.entries(repo.workspaces).filter(([id]) => id !== workspaceId),
-        );
-        await store.writeSealed(`repos/${repoId}/repo.json`, repoId, 'repo', {
-          ...repo,
-          workspaces,
-        });
-      }
-      for (const file of [
-        `agents/${workspaceId}.json`,
-        `repos/${repoId}/manifests/${hashJson(workspaceId).slice(7)}.json`,
-      ])
-        await store.remove(file).catch((error) => {
-          if (errorCode(error) !== 'ENOENT') throw error;
-        });
-    } finally {
-      await release();
-    }
+  async function restore(path: string, backup: Backup) {
+    if (backup) {
+      await writeAtomic(path, backup.bytes);
+      if (process.platform !== 'win32') await chmod(path, backup.mode);
+    } else await rm(path, { force: true });
+  }
+
+  async function rewriteLink(root: string, link: Link, restoring = false) {
+    const path = join(root, link.path);
+    const target = join(root, link.target);
+    await unlink(path).catch((error) => {
+      if (errorCode(error) !== 'ENOENT') throw error;
+    });
+    await symlink(
+      restoring
+        ? link.before
+        : process.platform === 'win32'
+          ? target
+          : relative(dirname(path), target),
+      path,
+      process.platform === 'win32' ? (link.directory ? 'junction' : 'file') : undefined,
+    );
   }
 
   async function validateParent(root: string) {
@@ -159,7 +165,7 @@ export function createGroupFolder(store = createStore()) {
   return {
     async save<T>(
       group: RepositoryGroup,
-      targets: GroupCopyTarget[],
+      targets: GroupMoveTarget[],
       folderRoot: string | undefined,
       persist: (value: RepositoryGroup) => Promise<T>,
     ): Promise<T> {
@@ -174,7 +180,8 @@ export function createGroupFolder(store = createStore()) {
         throw new Error('Group folders must be outside the private store');
       if ((await canonicalPath(folder)) !== folder) throw new Error('Group folder path changed');
       const createdRoot = !group.folder;
-      const created: { repoId: string; workspaceId: string; path: string }[] = [];
+      const moves: Move[] = [];
+      const privateBackups = new Map<string, Backup>();
       const backups = new Map<string, Buffer | undefined>();
       const releases: (() => Promise<void>)[] = [];
       let rootRelease: (() => Promise<void>) | undefined;
@@ -225,7 +232,7 @@ export function createGroupFolder(store = createStore()) {
         );
         for (const target of targets) {
           let path = target.path;
-          let workspaceId = target.workspaceId;
+          const workspaceId = target.workspaceId;
           if (dirname(path) !== folder) {
             if (isWithin(path, folder) || isWithin(folder, path))
               throw new Error('Group and workspace folders must not overlap');
@@ -239,43 +246,152 @@ export function createGroupFolder(store = createStore()) {
             )
               throw new Error('Workspace manifest changed; refresh before grouping');
             const git = await findRepo(path);
-            if (git && (git.topLevel !== path || !isWithin(path, git.commonDir)))
-              throw new Error('Only standalone cloak repositories can be copied');
+            if (git && (git.topLevel !== path || git.commonDir !== join(path, '.git')))
+              throw new Error('Only standalone cloak repositories can be moved');
             if (
               git &&
               (!(await lstat(join(path, '.git'))).isDirectory() ||
                 (await exists(join(path, '.git/objects/info/alternates'))))
             )
               throw new Error(
-                'Git metadata must be self-contained before copying a cloak repository',
+                'Git metadata must be self-contained before moving a cloak repository',
               );
-            workspaceId = randomUUID();
+            if (
+              (await exists(join(path, '.git/worktrees'))) &&
+              (await readdir(join(path, '.git/worktrees'))).length
+            )
+              throw new Error('Remove linked Git worktrees before moving this cloak workspace');
+            const parentMetadata = join(dirname(path), '.repo-cloak/group.json');
+            if (await exists(parentMetadata)) {
+              const owner = JSON.parse(await readFile(parentMetadata, 'utf8')) as {
+                groupId: string;
+              };
+              if (owner.groupId !== group.id && (await groups.read(owner.groupId)))
+                throw new Error('This workspace already lives in another group folder');
+            }
+            const previous = (await records.readRepo(target.repoId))?.workspaces[workspaceId];
+            if (!previous || previous.path !== target.path)
+              throw new Error('Workspace registration changed while preparing the move');
+            const links = await inspectTree(path);
             const name =
               basename(path)
                 .replace(/[^A-Za-z0-9._-]/g, '-')
                 .slice(0, 100) || 'workspace';
             path = join(folder, name);
-            if (usedNames.has(name.toLowerCase()))
-              path = join(folder, `${name}-${workspaceId.slice(0, 8)}`);
+            for (let suffix = 0; usedNames.has(basename(path).toLowerCase()); suffix++)
+              path = join(
+                folder,
+                `${name}-${workspaceId.slice(0, 8)}${suffix ? `-${suffix}` : ''}`,
+              );
             await mkdir(path, { mode: 0o700 });
             usedNames.add(basename(path).toLowerCase());
-            created.push({ repoId: target.repoId, workspaceId, path });
-            await copyTree(target.path, target.path, path, path);
+            const item: Move = {
+              target,
+              path,
+              previous,
+              links,
+              backups: new Map(),
+              hadAgent: !!(await agents.read(workspaceId)),
+              hadGit: !!git,
+              moved: false,
+              registered: false,
+            };
+            moves.push(item);
+            try {
+              // POSIX rename replaces only our exclusively created empty reservation.
+              if (process.platform === 'win32') await rmdir(path);
+              await moveDirectory(target.path, path);
+              item.moved = true;
+            } catch (error) {
+              if (errorCode(error) === 'EXDEV')
+                throw new Error(
+                  'Choose a group folder on the same filesystem as the cloak workspaces.',
+                  { cause: error },
+                );
+              throw error;
+            }
+            releases.push(await lock(path, { retries: 0 }));
+            if (git) {
+              const movedGit = await findRepo(path);
+              if (
+                !movedGit ||
+                movedGit.topLevel !== path ||
+                movedGit.commonDir !== join(path, '.git')
+              )
+                throw new Error('Workspace Git metadata cannot be relocated safely');
+            }
+            for (const file of [
+              ...instructionFiles,
+              '.repo-cloak/manifest.json',
+              '.codex/config.toml',
+              '.mcp.json',
+              '.repo-cloak/agent/token',
+              '.repo-cloak/agent/connection.json',
+              '.repo-cloak/agent/SKILL.md',
+              '.repo-cloak/agent/.gitignore',
+              '.git/info/exclude',
+            ]) {
+              const full = join(path, file);
+              item.backups.set(
+                file,
+                (await exists(full))
+                  ? { bytes: await readFile(full), mode: (await lstat(full)).mode & 0o777 }
+                  : undefined,
+              );
+            }
+            for (const link of links) await rewriteLink(path, link);
             const snapshot = structuredClone(current);
-            snapshot.plain.workspaceId = workspaceId;
-            snapshot.plain.extensions = { ...snapshot.plain.extensions, groupId: group.id };
-            await installGuidance(path, snapshot);
-            const manifest = await records.sealManifest(snapshot);
-            await writeAtomic(join(path, '.repo-cloak/manifest.json'), manifest);
+            const legacy = !snapshot.data.guidance;
+            if (legacy) await installGuidance(path, snapshot);
+            if (legacy || snapshot.plain.extensions?.groupId) {
+              snapshot.plain.extensions = { ...snapshot.plain.extensions, groupId: group.id };
+              const manifest = await records.sealManifest(snapshot);
+              await writeAtomic(join(path, '.repo-cloak/manifest.json'), manifest);
+              const backupPath = join(
+                store.root,
+                'repos',
+                target.repoId,
+                'manifests',
+                `${hashJson(workspaceId).slice(7)}.json`,
+              );
+              privateBackups.set(
+                backupPath,
+                (await exists(backupPath))
+                  ? {
+                      bytes: await readFile(backupPath),
+                      mode: (await lstat(backupPath)).mode & 0o777,
+                    }
+                  : undefined,
+              );
+              await writeAtomic(backupPath, manifest);
+            }
+            if (!git) {
+              const paths = [...Object.keys(snapshot.plain.files), '.repo-cloak/manifest.json'];
+              const checkpoint = await prepareWorkspaceCheckpoint(
+                path,
+                paths,
+                snapshot.data.guidance?.generated,
+              );
+              await checkpoint.commit('Initialize grouped cloak workspace');
+            }
+            await agents.relocate(workspaceId, target.path, path);
             await agents.ensure({
               repoId: target.repoId,
               workspaceId,
               path,
               worktree: snapshot.data.source.path,
             });
-            await writeAtomic(join(path, '.repo-cloak/agent/SKILL.md'), agentSkill);
-            await writeAtomic(join(path, '.repo-cloak/agent/.gitignore'), '*\n');
-            await records.recordCopy(target.repoId, target.workspaceId, path, snapshot, manifest);
+            if (legacy) {
+              await writeAtomic(join(path, '.repo-cloak/agent/SKILL.md'), agentSkill);
+              await writeAtomic(join(path, '.repo-cloak/agent/.gitignore'), '*\n');
+            }
+            await clients.relocate(workspaceId, target.path, path);
+            await records.relocateWorkspace(target.repoId, workspaceId, target.path, {
+              ...previous,
+              path,
+              groupId: group.id,
+            });
+            item.registered = true;
           }
           members.push({ repoId: target.repoId, workspaceId, worktree: target.worktree });
           connections.push({ directory: basename(path), ...clients.info(workspaceId, path) });
@@ -332,10 +448,43 @@ export function createGroupFolder(store = createStore()) {
         return result;
       } catch (error) {
         const failures: unknown[] = [];
-        for (const item of [...created].reverse()) {
+        for (const item of moves.reverse()) {
           try {
-            await forget(item.repoId, item.workspaceId);
-            await rm(item.path, { recursive: true, force: true });
+            const { target } = item;
+            if (!item.moved) {
+              if (await exists(item.path)) await rmdir(item.path);
+              continue;
+            }
+            for (const [file, backup] of item.backups) await restore(join(item.path, file), backup);
+            for (const link of item.links) await rewriteLink(item.path, link, true);
+            if (!item.hadGit) await rm(join(item.path, '.git'), { recursive: true, force: true });
+            if (await exists(target.path))
+              throw new Error('Original workspace path is occupied; moved files retained', {
+                cause: error,
+              });
+            await moveDirectory(item.path, target.path);
+            if (item.hadAgent) {
+              const doc = await agents.read(target.workspaceId);
+              if (doc?.path === item.path)
+                await agents.relocate(target.workspaceId, item.path, target.path);
+            } else
+              await store.remove(`agents/${target.workspaceId}.json`).catch((error) => {
+                if (errorCode(error) !== 'ENOENT') throw error;
+              });
+            if (item.registered)
+              await records.relocateWorkspace(
+                target.repoId,
+                target.workspaceId,
+                item.path,
+                item.previous,
+              );
+          } catch (failure) {
+            failures.push(failure);
+          }
+        }
+        for (const [path, backup] of privateBackups) {
+          try {
+            await restore(path, backup);
           } catch (failure) {
             failures.push(failure);
           }
@@ -353,7 +502,7 @@ export function createGroupFolder(store = createStore()) {
           preserveRoot = true;
           throw new AggregateError(
             [error, ...failures],
-            `Group copy cleanup failed; recovery folder: ${folder}`,
+            `Group move rollback failed; recovery folder: ${folder}`,
             { cause: error },
           );
         }

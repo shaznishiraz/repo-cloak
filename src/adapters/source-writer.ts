@@ -5,6 +5,7 @@ import { lock } from 'proper-lockfile';
 import type { PushPlan } from '../core/push.js';
 import { writeAtomic } from './atomic.js';
 import { checkDestinationPath, checkSourceDestination, exists } from './files.js';
+import { prepareWorkspaceCheckpoint } from './workspace-git.js';
 
 export type SourceWrite = {
   root: string;
@@ -12,6 +13,7 @@ export type SourceWrite = {
   workspace: string;
   plan: PushPlan;
   manifest: Uint8Array;
+  checkpoint?: { paths: string[]; generated: string[] };
   recheck(): Promise<void>;
   afterSave(): Promise<void>;
   prepare?(): Promise<void>;
@@ -28,6 +30,7 @@ export function createSourceWriter(write = writeAtomic) {
     let started = false;
     let completed = false;
     let prepared = false;
+    let checkpoint: Awaited<ReturnType<typeof prepareWorkspaceCheckpoint>> | undefined;
     try {
       releaseSource = await lock(request.commonDir, { retries: 0 });
       await request.recheck();
@@ -65,6 +68,12 @@ export function createSourceWriter(write = writeAtomic) {
           directory = dirname(directory);
         }
       }
+      if (request.checkpoint)
+        checkpoint = await prepareWorkspaceCheckpoint(
+          request.workspace,
+          [...request.checkpoint.paths, '.repo-cloak/manifest.json'],
+          request.checkpoint.generated,
+        );
       started = true;
       for (const path of request.plan.deletes) await unlink(join(request.root, ...path.split('/')));
       for (const file of outputs) {
@@ -76,6 +85,7 @@ export function createSourceWriter(write = writeAtomic) {
         }
       }
       await write(manifestPath, request.manifest);
+      await checkpoint?.commit('Push changes to source');
       completed = true;
       await request.afterSave();
     } catch (error) {
@@ -95,6 +105,13 @@ export function createSourceWriter(write = writeAtomic) {
           } catch (failure) {
             failures.push(failure);
           }
+        }
+      }
+      if (checkpoint) {
+        try {
+          await checkpoint.rollback();
+        } catch (failure) {
+          failures.push(failure);
         }
       }
       if (prepared && !failures.length) {

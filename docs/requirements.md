@@ -69,6 +69,9 @@ Create a workspace or choose **Pull files** in the dashboard.
   the original path (encrypted), plus the rules used (encrypted), so push can
   reverse everything.
 - Pulling again into an existing workspace updates it rather than starting over.
+- Every cloak workspace has its own Git repository. Successful Pull and Push
+  operations checkpoint managed cloak files and the sealed manifest for rollback;
+  source changes remain uncommitted. Local credentials are never checkpointed.
 
 - Detected secrets are replaced with placeholders in the workspace and restored
   on push. The v1 pattern list is the starting point, with its bugs fixed.
@@ -106,6 +109,8 @@ Choose **Push changes** for the selected cloak workspace in the dashboard.
 - Optional globally configured post-create commands run once in the new workspace;
   a failed command stops the sequence and leaves the workspace available.
 - Manage workspace status/history, profiles, rules and workspace defaults in the browser.
+- Open menus can register a cloak or group folder with Orca using its installed CLI,
+  with actionable errors when the CLI or running application is unavailable.
 - Local only: bound to `127.0.0.1`, protected by a per-session token.
 - As light as possible, since it ships inside the npm package: no front-end
   framework, no extra runtime dependencies, fast to load.
@@ -119,10 +124,10 @@ Choose **Push changes** for the selected cloak workspace in the dashboard.
   repositories and workspaces.
 - Show grouped navigation, combined Pull all/Push all and individual member
   controls. Keep profiles, exclusions and history independent.
-- Dashboard grouping creates a shared directory containing actual independent
-  copies of the selected cloak workspaces. Preserve originals, local edits and
-  Git histories; give each copy a fresh identity and agent credential. Existing
-  groups can create their folder through the group editor.
+- Dashboard grouping moves selected cloak workspaces into one shared directory.
+  Keep one workspace per member, preserving its identity, scoped credentials,
+  request queue, local edits and Git history. Existing logical groups can create
+  their folder through the editor. Failed moves restore original locations.
 - Include root agent instructions and scoped member connections. Reveal cloak
   workspaces/group folders in the file manager or open them in VS Code or Zed.
 - Preview and recheck all members before starting writes; preserve per-member

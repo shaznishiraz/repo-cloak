@@ -99,7 +99,6 @@ async function extraction(
         root: setup.destination,
         plan,
         manifest,
-        initGit: setup.config.initGit ?? true,
         expected: workspace.files,
         expectedManifest: setup.previous?.bytes,
         async afterSave() {

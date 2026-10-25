@@ -44,6 +44,40 @@ export function createAgentClientConfig(
   }
   return {
     info,
+    async relocate(workspaceId: string, from: string, to: string) {
+      const before = info(workspaceId, from);
+      const after = info(workspaceId, to);
+      const tomlPath = join(to, '.codex/config.toml');
+      await checkDestinationPath(to, '.codex/config.toml');
+      try {
+        const text = await readFile(tomlPath, 'utf8');
+        const servers = parse(text).mcp_servers as Record<string, { args?: unknown }> | undefined;
+        if (JSON.stringify(servers?.[before.name]?.args) === JSON.stringify(before.args)) {
+          const old = JSON.stringify(before.args);
+          if (!text.includes(old))
+            throw new Error(
+              'Customized Repo Cloak MCP configuration must be updated before moving',
+            );
+          await writeAtomic(tomlPath, text.replace(old, JSON.stringify(after.args)));
+        }
+      } catch (error) {
+        if (errorCode(error) !== 'ENOENT') throw error;
+      }
+      await checkDestinationPath(to, '.mcp.json');
+      const jsonPath = join(to, '.mcp.json');
+      try {
+        const config = JSON.parse(await readFile(jsonPath, 'utf8')) as {
+          mcpServers?: Record<string, { args?: unknown }>;
+        };
+        const server = config.mcpServers?.[before.name];
+        if (server && JSON.stringify(server.args) === JSON.stringify(before.args)) {
+          server.args = after.args;
+          await writeAtomic(jsonPath, JSON.stringify(config, null, 2) + '\n');
+        }
+      } catch (error) {
+        if (errorCode(error) !== 'ENOENT') throw error;
+      }
+    },
     async install(provider: 'codex' | 'claude', workspaceId: string, path: string) {
       const config = info(workspaceId, path);
       if (provider === 'codex') {

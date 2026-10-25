@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { expect, it } from 'vitest';
@@ -66,4 +66,37 @@ it('uses Claude local-scope commands with literal arguments and leaves existing 
   calls.length = 0;
   expect((await config.install('claude', 'ws_id', path)).status).toBe('existing');
   expect(calls).toHaveLength(1);
+});
+
+it('retargets moved workspace MCP entries while preserving comments and unrelated settings', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'cloak move config '));
+  const from = join(root, 'before');
+  const to = join(root, 'after');
+  try {
+    await mkdir(from);
+    const config = createAgentClientConfig('/app/cli.js');
+    await config.install('codex', 'ws_id', from);
+    const before = config.info('ws_id', from);
+    const file = join(from, '.codex/config.toml');
+    const original = '# Keep this comment\n' + (await readFile(file, 'utf8'));
+    await writeFile(file, original + '\n[mcp_servers.other]\ncommand = "keep-me"\n');
+    await writeFile(join(from, '.mcp.json'), before.claude);
+    await rename(from, to);
+    await config.relocate('ws_id', from, to);
+    const moved = await readFile(join(to, '.codex/config.toml'), 'utf8');
+    expect(moved).toContain('# Keep this comment');
+    expect(moved).toContain('command = "keep-me"');
+    expect(moved).toContain(JSON.stringify(config.info('ws_id', to).args));
+    const claude = JSON.parse(await readFile(join(to, '.mcp.json'), 'utf8'));
+    expect(claude.mcpServers[before.name].args).toEqual(config.info('ws_id', to).args);
+    const custom = original.replace(
+      JSON.stringify(before.args),
+      '[\n' + before.args.map((arg) => JSON.stringify(arg)).join(',\n') + '\n]',
+    );
+    await writeFile(join(to, '.codex/config.toml'), custom);
+    await expect(config.relocate('ws_id', from, to)).rejects.toThrow(/Customized/);
+    expect(await readFile(join(to, '.codex/config.toml'), 'utf8')).toBe(custom);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
