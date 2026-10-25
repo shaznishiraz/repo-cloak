@@ -10,16 +10,18 @@ requirements.md  -->  design/  -->  plan.md  -->  code  -->  openwiki/
 
 ## Start here
 
-| Doc                                          | Read it to                                                     |
-| -------------------------------------------- | -------------------------------------------------------------- |
-| [requirements.md](requirements.md)           | Know what repo-cloak must do and why                           |
-| [design/overview.md](design/overview.md)     | See the big picture, flows, and module layout                  |
-| [design/cli.md](design/cli.md)               | Look up a command, flag, or exit code                          |
-| [design/data-model.md](design/data-model.md) | Understand a JSON file, encryption, or rule types              |
-| [design/anonymizer.md](design/anonymizer.md) | Understand how names are matched, replaced, and restored       |
-| [design/sync.md](design/sync.md)             | Understand pull/push direction, multiple workspaces, worktrees |
-| [design/web-ui.md](design/web-ui.md)         | Work on the local web UI                                       |
-| [plan.md](plan.md)                           | Find the next step to build and how it is accepted             |
+| Doc                                                            | Read it to                                                           |
+| -------------------------------------------------------------- | -------------------------------------------------------------------- |
+| [requirements.md](requirements.md)                             | Know what repo-cloak must do and why                                 |
+| [design/overview.md](design/overview.md)                       | See the big picture, flows, and module layout                        |
+| [design/cli.md](design/cli.md)                                 | Look up a command, flag, or exit code                                |
+| [design/data-model.md](design/data-model.md)                   | Understand a JSON file, encryption, or rule types                    |
+| [design/anonymizer.md](design/anonymizer.md)                   | Understand how names are matched, replaced, and restored             |
+| [design/sync.md](design/sync.md)                               | Understand pull/push direction, multiple workspaces, worktrees       |
+| [design/web-ui.md](design/web-ui.md)                           | Work on the local web UI                                             |
+| [design/repository-groups.md](design/repository-groups.md)     | Review the proposed backend/frontend grouping and combined sync      |
+| [design/agent-file-requests.md](design/agent-file-requests.md) | Review scoped agent probes, queued requests and human-approved pulls |
+| [plan.md](plan.md)                                             | Find the next step to build and how it is accepted                   |
 
 ## Launch the dashboard
 

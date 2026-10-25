@@ -50,6 +50,34 @@ function fixture() {
   return { setup, io, save, readWorkspace };
 }
 describe('pull preparation with fake adapters', () => {
+  it('keeps unrelated tracked file bytes out of a selective request read', async () => {
+    const { setup, io, readWorkspace } = fixture();
+    const first = await preparePullRun(setup, io, '2.0.0');
+    setup.previous = {
+      plain: first.plan.plain,
+      data: first.plan.data,
+      bytes: Buffer.from('baseline'),
+    };
+    setup.exactSelection = true;
+    setup.paths = ['extra.ts'];
+    io.readSource = async () => ({
+      files: [
+        {
+          path: 'extra.ts',
+          bytes: Buffer.from('export {};'),
+          text: 'export {};',
+          binary: false,
+          executable: false,
+        },
+      ],
+      warnings: [],
+    });
+    readWorkspace.mockClear();
+    const next = await preparePullRun(setup, io, '2.0.0');
+    expect(readWorkspace.mock.calls[0]?.[0]).not.toContain('Northwind.ts');
+    expect(next.plan.plain.files).toHaveProperty('Northwind.ts');
+    expect(next.plan.writes.map((file) => file.path)).toEqual(['extra.ts']);
+  });
   it('plans without writing until explicitly applied', async () => {
     const { setup, io, save } = fixture();
     const prepared = await preparePullRun(setup, io, '2.0.0');

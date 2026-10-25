@@ -7,12 +7,14 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import type { Dashboard } from '../application/dashboard.js';
+import { z } from 'zod';
 import { documentKinds, jsonSchema } from '../core/schemas.js';
 
 const assets = new Map([
   ['/', ['index.html', 'text/html; charset=utf-8']],
   ['/app.js', ['app.js', 'text/javascript; charset=utf-8']],
   ['/app.css', ['app.css', 'text/css; charset=utf-8']],
+  ['/favicon.svg', ['favicon.svg', 'image/svg+xml']],
 ]);
 class RequestError extends Error {
   constructor(
@@ -98,6 +100,47 @@ export function createDashboardServer(
       throw new RequestError(403, 'Foreign Host or Origin');
     const url = new URL(request.url ?? '/', `http://${host}`);
     const method = request.method ?? 'GET';
+    if (url.pathname.startsWith('/agent/')) {
+      if (request.headers.origin)
+        throw new RequestError(403, 'Agent clients must use a direct local connection');
+      try {
+        const header = request.headers.authorization ?? '';
+        const doc = await dashboard.agents.authenticate(
+          header.startsWith('Bearer ') ? header.slice(7) : '',
+        );
+        if (!doc) {
+          send(response, 401, { error: 'Scoped workspace credential required' });
+          return;
+        }
+        const route = url.pathname.slice('/agent/v1/'.length);
+        const requestId = route.startsWith('requests/') ? route.slice(9) : undefined;
+        if (
+          !url.pathname.startsWith('/agent/v1/') ||
+          !(
+            (method === 'POST' && ['probe', 'requests'].includes(route)) ||
+            (method === 'GET' && (route === 'info' || /^[a-f0-9-]{36}$/.test(requestId ?? '')))
+          )
+        ) {
+          send(response, 404, { error: 'Agent route unavailable' });
+          return;
+        }
+        send(
+          response,
+          200,
+          await dashboard.agents.agentCall(
+            doc,
+            requestId ?? route,
+            method === 'POST' ? await readBody(request) : {},
+          ),
+        );
+      } catch {
+        send(response, 400, {
+          error:
+            'Agent request unavailable; check input, connection or exclusions in the dashboard',
+        });
+      }
+      return;
+    }
     if (!url.pathname.startsWith('/api/')) {
       const asset = assets.get(url.pathname);
       if (!asset || method !== 'GET') throw new RequestError(404, 'Not found');
@@ -120,6 +163,8 @@ export function createDashboardServer(
       result = { app: 'repo-cloak', protocol: 1, pid: process.pid };
     else if (method === 'GET' && url.pathname === '/api/settings')
       result = await dashboard.settings.read();
+    else if (method === 'GET' && url.pathname === '/api/desktop')
+      result = await dashboard.desktop.availability();
     else if (method === 'PUT' && url.pathname === '/api/settings')
       result = await dashboard.settings.save(await readBody(request));
     else if (method === 'GET' && url.pathname === '/api/folders') {
@@ -131,7 +176,54 @@ export function createDashboardServer(
       result = await dashboard.overview();
     else if (method === 'POST' && url.pathname === '/api/repos')
       result = await dashboard.addRepository(await readBody(request));
-    else if (method === 'GET' && /^\/api\/repos\/[^/]+\/worktrees$/.test(url.pathname))
+    else if (method === 'DELETE' && /^\/api\/repos\/[^/]+$/.test(url.pathname))
+      result = await dashboard.removeRepository(
+        decodeURIComponent(url.pathname.split('/')[3] ?? ''),
+      );
+    else if (url.pathname === '/api/groups') {
+      if (method === 'GET') result = await dashboard.groups.list();
+      else if (method === 'POST') result = await dashboard.groups.save(await readBody(request));
+      else throw new RequestError(404, 'Not found');
+    } else if (method === 'POST' && /^\/api\/groups\/[^/]+\/open$/.test(url.pathname))
+      result = await dashboard.desktop.openGroup(
+        decodeURIComponent(url.pathname.split('/')[3] ?? ''),
+        await readBody(request),
+      );
+    else if (method === 'POST' && /^\/api\/workspaces\/[^/]+\/[^/]+\/open$/.test(url.pathname))
+      result = await dashboard.desktop.openWorkspace(
+        decodeURIComponent(url.pathname.split('/')[3] ?? ''),
+        decodeURIComponent(url.pathname.split('/')[4] ?? ''),
+        await readBody(request),
+      );
+    else if (/^\/api\/groups\/[^/]+(?:\/preview)?$/.test(url.pathname)) {
+      const id = decodeURIComponent(url.pathname.split('/')[3] ?? '');
+      if (method === 'POST' && url.pathname.endsWith('/preview'))
+        result = await dashboard.groups.preview(id, await readBody(request));
+      else if (!url.pathname.endsWith('/preview') && method === 'PUT') {
+        const { revision, group } = z
+          .object({ revision: z.string().min(1), group: z.unknown() })
+          .strict()
+          .parse(await readBody(request));
+        result = await dashboard.groups.save(group, id, revision);
+      } else if (!url.pathname.endsWith('/preview') && method === 'DELETE') {
+        const { revision } = z
+          .object({ revision: z.string().min(1) })
+          .strict()
+          .parse(await readBody(request));
+        result = await dashboard.groups.remove(id, revision);
+      } else throw new RequestError(404, 'Not found');
+    } else if (/^\/api\/group-sync\/[^/]+(?:\/(?:apply|retry))?$/.test(url.pathname)) {
+      const id = decodeURIComponent(url.pathname.split('/')[3] ?? '');
+      if (method === 'POST' && url.pathname.endsWith('/apply'))
+        result = await dashboard.groups.apply(id, await readBody(request));
+      else if (method === 'POST' && url.pathname.endsWith('/retry'))
+        result = await dashboard.groups.retry(id);
+      else if (method === 'GET' && url.pathname.split('/').length === 4)
+        result = dashboard.groups.status(id);
+      else if (method === 'DELETE' && url.pathname.split('/').length === 4)
+        result = dashboard.groups.cancel(id);
+      else throw new RequestError(404, 'Not found');
+    } else if (method === 'GET' && /^\/api\/repos\/[^/]+\/worktrees$/.test(url.pathname))
       result = await dashboard.sync.worktrees(decodeURIComponent(url.pathname.split('/')[3] ?? ''));
     else if (method === 'GET' && /^\/api\/repos\/[^/]+\/commits$/.test(url.pathname))
       result = await dashboard.sync.commits(
@@ -198,7 +290,54 @@ export function createDashboardServer(
       );
     else if (method === 'POST' && url.pathname === '/api/sync/preview')
       result = await dashboard.sync.preview(await readBody(request));
-    else if (/^\/api\/sync\/[^/]+(?:\/apply)?$/.test(url.pathname)) {
+    else if (/^\/api\/workspaces\/[^/]+\/[^/]+\/agent(?:\/.*)?$/.test(url.pathname)) {
+      const parts = url.pathname.split('/');
+      const repoId = decodeURIComponent(parts[3] ?? '');
+      const workspaceId = decodeURIComponent(parts[4] ?? '');
+      const suffix = parts.slice(6);
+      if (!suffix.length && method === 'GET')
+        result = await dashboard.agents.info(repoId, workspaceId);
+      else if (!suffix.length && method === 'PUT')
+        result = await dashboard.agents.configure(repoId, workspaceId, await readBody(request));
+      else if (suffix[0] === 'requests' && suffix.length === 3 && method === 'POST') {
+        const requestId = decodeURIComponent(suffix[1] ?? '');
+        if (suffix[2] === 'preview')
+          result = await dashboard.agents.preview(
+            repoId,
+            workspaceId,
+            requestId,
+            await readBody(request),
+          );
+        else if (suffix[2] === 'reject')
+          result = await dashboard.agents.reject(
+            repoId,
+            workspaceId,
+            requestId,
+            await readBody(request),
+          );
+        else throw new RequestError(404, 'Not found');
+      } else if (
+        suffix[0] === 'operations' &&
+        suffix[2] === 'apply' &&
+        suffix.length === 3 &&
+        method === 'POST'
+      )
+        result = await dashboard.agents.apply(
+          repoId,
+          workspaceId,
+          decodeURIComponent(suffix[1] ?? ''),
+        );
+      else if (suffix[0] === 'mcp' && suffix.length === 1 && method === 'GET')
+        result = await dashboard.agentClientConfig(repoId, workspaceId);
+      else if (suffix[0] === 'mcp' && suffix.length === 2 && method === 'POST')
+        result = await dashboard.installAgentClient(
+          repoId,
+          workspaceId,
+          suffix[1] ?? '',
+          await readBody(request),
+        );
+      else throw new RequestError(404, 'Not found');
+    } else if (/^\/api\/sync\/[^/]+(?:\/apply)?$/.test(url.pathname)) {
       const id = decodeURIComponent(url.pathname.split('/')[3] ?? '');
       if (method === 'POST' && url.pathname.endsWith('/apply'))
         result = await dashboard.sync.apply(id, await readBody(request));

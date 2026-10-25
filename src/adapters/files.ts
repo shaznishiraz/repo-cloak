@@ -11,7 +11,14 @@ import type { Profile } from '../core/rules.js';
 import { errorCode } from './atomic.js';
 import { isWithin } from './locations.js';
 
-const metadata = ['**/.git', '**/.git/**', '**/.repo-cloak', '**/.repo-cloak/**'];
+const metadata = [
+  '**/.git',
+  '**/.git/**',
+  '**/.repo-cloak',
+  '**/.repo-cloak/**',
+  '**/.codex',
+  '**/.codex/**',
+];
 const excluded = [
   '**/node_modules/**',
   '**/dist/**',
@@ -164,14 +171,17 @@ export async function readSourceFiles(root: string, paths: string[], concurrency
 }
 export async function readWorkspace(root: string, paths: string[], concurrency: number) {
   if (!(await exists(root))) return { files: {}, paths: [] as string[] };
-  const names = await glob('**/*', {
+  const inventory = await glob('**/*', {
     cwd: root,
     dot: true,
     nodir: true,
     follow: false,
     ignore: metadata,
-    posix: true,
+    withFileTypes: true,
   });
+  const names = inventory
+    .filter((entry) => entry.isFile())
+    .map((entry) => relative(root, entry.fullpath()).split('\\').join('/'));
   const limit = pLimit(concurrency);
   const pairs = await Promise.all(
     [...new Set(paths)].map((path) =>

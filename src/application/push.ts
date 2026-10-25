@@ -1,4 +1,5 @@
 import type { SyncServices } from '../adapters/sync-services.js';
+import { agentLocalPath } from '../core/agent-guidance.js';
 import { estimateRetainedBytes } from '../core/retained-size.js';
 import { hashBytes, hashJson } from '../core/hash.js';
 import { planPush } from '../core/push.js';
@@ -56,10 +57,27 @@ export async function preparePushRun(
     : repo;
   const concurrency = config.concurrency ?? 16;
   const repoRecord = await services.store.readRepo(repo.repoId);
-  const isRepoExcluded = compilePatterns(repoRecord?.exclude ?? []);
+  const eligibilityProfiles = async () =>
+    (
+      await Promise.all(
+        previous.data.profiles.map(
+          async (ref) =>
+            (await services.profiles.list(ref.scope)).find((profile) => profile.id === ref.id)
+              ?.profile,
+        ),
+      )
+    ).filter((profile) => profile !== undefined);
+  const selectedProfiles = await eligibilityProfiles();
+  const eligibility = (profiles: typeof selectedProfiles) =>
+    profiles.map(({ include, exclude }) => ({ include, exclude }));
+  const profileEligibilityHash = hashJson(eligibility(selectedProfiles));
+  const isRepoExcluded = compilePatterns([
+    ...(repoRecord?.exclude ?? []),
+    ...selectedProfiles.flatMap((profile) => profile.exclude ?? []),
+  ]);
   const inventory = await services.files.readWorkspace(workspace, [], concurrency);
   const allowedTracked = Object.entries(previous.data.files).filter(
-    ([, file]) => !isRepoExcluded(file.path),
+    ([, file]) => !isRepoExcluded(file.path) && !agentLocalPath(file.path),
   );
   const tracked = allowedTracked.map(([path]) => path);
   const trackedSet = new Set(tracked);
@@ -74,14 +92,23 @@ export async function preparePushRun(
     data: { ...previous.data, files: Object.fromEntries(allowedTracked) },
   };
   const untracked = inventory.paths.filter(
-    (path) => !Object.hasOwn(activePrevious.plain.files, path),
+    (path) =>
+      !Object.hasOwn(activePrevious.plain.files, path) &&
+      !previous.data.guidance?.generated.includes(path),
   );
   const restored = restorePaths(
     untracked,
     createReplacer(previous.data.rules),
     previous.data.ledger,
   );
-  const allowedNew = restored.paths.filter((path) => !isRepoExcluded(path.original));
+  const eligibleNew = new Set(
+    services.files.filterPaths(
+      restored.paths.map((path) => path.original),
+      selectedProfiles,
+      repoRecord?.exclude ?? [],
+    ),
+  );
+  const allowedNew = restored.paths.filter((path) => eligibleNew.has(path.original));
   const workspacePaths = [...new Set([...tracked, ...allowedNew.map((path) => path.anonymized)])];
   const workspaceBytes = await services.files.readWorkspace(workspace, workspacePaths, concurrency);
   const current = await services.files.readSourceFiles(
@@ -134,6 +161,39 @@ export async function preparePushRun(
         'The full workspace snapshot includes the uncommitted source changes captured during extraction',
       );
   }
+  const recheck = async () => {
+    if (hashJson(eligibility(await eligibilityProfiles())) !== profileEligibilityHash)
+      throw new Error('Profile file exclusions changed while preparing restore; retry');
+    const currentRepo = await services.store.readRepo(repo.repoId);
+    if (hashJson(currentRepo?.exclude ?? []) !== hashJson(repoRecord?.exclude ?? []))
+      throw new Error('Repository exclusions changed while preparing restore; retry');
+    const snapshot = await services.store.readSnapshot(workspace);
+    if (!snapshot || hashBytes(snapshot.bytes) !== hashBytes(previous.bytes))
+      throw new Error('Workspace manifest changed while preparing restore; retry');
+    const check = await services.files.readWorkspace(workspace, workspacePaths, concurrency);
+    if (hashJson(check) !== hashJson(workspaceBytes))
+      throw new Error('Workspace files changed while preparing restore; retry');
+    if (newTree) {
+      await newTree.validate();
+      if ((await services.git.repoState(repo.path)).repoId !== repo.repoId)
+        throw new Error('Source repository changed while preparing restore; retry');
+      return;
+    }
+    for (const path of paths) await services.files.checkSourceDestination(repo.path, path);
+    const checkSource = await services.files.readSourceFiles(repo.path, paths, concurrency);
+    if (hashJson(checkSource) !== hashJson(source))
+      throw new Error('Source files changed while preparing restore; retry');
+    const checkInventory = await services.files.readWorkspace(repo.path, [], concurrency);
+    if (hashJson([...checkInventory.paths].sort()) !== hashJson([...sourceInventory.paths].sort()))
+      throw new Error('Source paths changed while preparing restore; retry');
+    const state = await services.git.repoState(repo.path);
+    if (
+      state.repoId !== repo.repoId ||
+      state.branch !== repo.branch ||
+      state.commit !== repo.commit
+    )
+      throw new Error('Source worktree changed while preparing restore; retry');
+  };
   const apply = async () => {
     const manifest = await services.store.sealManifest(plan);
     await services.writeSource({
@@ -152,37 +212,7 @@ export async function preparePushRun(
         : {}),
       async recheck() {
         await services.beforeApply?.();
-        const currentRepo = await services.store.readRepo(repo.repoId);
-        if (hashJson(currentRepo?.exclude ?? []) !== hashJson(repoRecord?.exclude ?? []))
-          throw new Error('Repository exclusions changed while preparing restore; retry');
-        const snapshot = await services.store.readSnapshot(workspace);
-        if (!snapshot || hashBytes(snapshot.bytes) !== hashBytes(previous.bytes))
-          throw new Error('Workspace manifest changed while preparing restore; retry');
-        const check = await services.files.readWorkspace(workspace, workspacePaths, concurrency);
-        if (hashJson(check) !== hashJson(workspaceBytes))
-          throw new Error('Workspace files changed while preparing restore; retry');
-        if (newTree) {
-          await newTree.validate();
-          if ((await services.git.repoState(repo.path)).repoId !== repo.repoId)
-            throw new Error('Source repository changed while preparing restore; retry');
-          return;
-        }
-        for (const path of paths) await services.files.checkSourceDestination(repo.path, path);
-        const checkSource = await services.files.readSourceFiles(repo.path, paths, concurrency);
-        if (hashJson(checkSource) !== hashJson(source))
-          throw new Error('Source files changed while preparing restore; retry');
-        const checkInventory = await services.files.readWorkspace(repo.path, [], concurrency);
-        if (
-          hashJson([...checkInventory.paths].sort()) !== hashJson([...sourceInventory.paths].sort())
-        )
-          throw new Error('Source paths changed while preparing restore; retry');
-        const state = await services.git.repoState(repo.path);
-        if (
-          state.repoId !== repo.repoId ||
-          state.branch !== repo.branch ||
-          state.commit !== repo.commit
-        )
-          throw new Error('Source worktree changed while preparing restore; retry');
+        await recheck();
       },
       afterSave: () => services.store.record(target, workspace, plan, manifest, services.now()),
     });
@@ -210,6 +240,7 @@ export async function preparePushRun(
     destination: target,
     bytes: estimateRetainedBytes({ previous, workspaceBytes, current, source, plan }),
     result,
+    recheck,
     apply,
   };
 }

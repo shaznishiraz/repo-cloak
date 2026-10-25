@@ -5,7 +5,7 @@ import { lock } from 'proper-lockfile';
 import { hashJson } from '../core/hash.js';
 import { validateSnapshot } from '../core/manifest.js';
 import type { Snapshot } from '../core/manifest.js';
-import type { PullPlan, RepoState } from '../core/pull.js';
+import type { RepoState } from '../core/pull.js';
 import { parseDocument } from '../core/schemas.js';
 import type { Document } from '../core/schemas.js';
 import { writeAtomic } from './atomic.js';
@@ -49,19 +49,29 @@ export function createSyncStore(store: ReturnType<typeof createStore>) {
       const repos: { repoId: string; path: string }[] = [];
       for (const id of await store.listDirectories('repos')) {
         const repo = await readRepo(id);
-        if (repo && (await exists(repo.path))) repos.push({ repoId: id, path: repo.path });
+        if (repo && !repo.hidden && (await exists(repo.path)))
+          repos.push({ repoId: id, path: repo.path });
       }
       return repos;
     },
     async registerRepo(repo: RepoState): Promise<void> {
-      if (await readRepo(repo.repoId)) return;
+      const previous = await readRepo(repo.repoId);
+      if (previous && !previous.hidden) return;
       const directory = join(store.root, 'repos', repo.repoId);
       await mkdir(directory, { recursive: true, mode: 0o700 });
       const release = await lock(directory, {
         retries: { retries: 8, minTimeout: 25, maxTimeout: 100 },
       });
       try {
-        if (await readRepo(repo.repoId)) return;
+        const current = await readRepo(repo.repoId);
+        if (current) {
+          if (current.hidden)
+            await store.writeSealed(`repos/${repo.repoId}/repo.json`, repo.repoId, 'repo', {
+              ...current,
+              hidden: false,
+            });
+          return;
+        }
         await store.writeSealed(`repos/${repo.repoId}/repo.json`, repo.repoId, 'repo', {
           kind: 'repo',
           schemaVersion: 1,
@@ -70,6 +80,19 @@ export function createSyncStore(store: ReturnType<typeof createStore>) {
           commonDir: repo.commonDir,
           workspaces: {},
         });
+      } finally {
+        await release();
+      }
+    },
+    async setRepoHidden(repoId: string, hidden: boolean): Promise<void> {
+      const directory = join(store.root, 'repos', repoId);
+      const release = await lock(directory, {
+        retries: { retries: 8, minTimeout: 25, maxTimeout: 100 },
+      });
+      try {
+        const record = await readRepo(repoId);
+        if (!record) throw new Error('Repository is not registered');
+        await store.writeSealed(`repos/${repoId}/repo.json`, repoId, 'repo', { ...record, hidden });
       } finally {
         await release();
       }
@@ -99,16 +122,53 @@ export function createSyncStore(store: ReturnType<typeof createStore>) {
     async saveConfig(config: Document<'config'>) {
       await store.writePlain('config.json', 'config', config);
     },
-    async sealManifest(plan: PullPlan): Promise<Uint8Array> {
+    async sealManifest<T extends Snapshot>(plan: T): Promise<Uint8Array> {
       const key = await getOrCreateKey(join(store.root, 'key'));
       const manifest = { ...plan.plain, sealed: seal(plan.data, key, plan.plain) };
       parseDocument('manifest', manifest);
       return Buffer.from(`${JSON.stringify(manifest, null, 2)}\n`);
     },
+    async recordCopy(
+      repoId: string,
+      originalId: string,
+      path: string,
+      snapshot: Snapshot,
+      manifest: Uint8Array,
+    ) {
+      const directory = join(store.root, 'repos', repoId);
+      const release = await lock(directory, { retries: 0 });
+      try {
+        const repo = await readRepo(repoId);
+        const original = repo?.workspaces[originalId];
+        if (!repo || repo.hidden || !original)
+          throw new Error('Original workspace registration changed');
+        const now = new Date().toISOString();
+        await writeAtomic(
+          join(directory, 'manifests', `${hashJson(snapshot.plain.workspaceId).slice(7)}.json`),
+          manifest,
+        );
+        await store.writeSealed(`repos/${repoId}/repo.json`, repoId, 'repo', {
+          ...repo,
+          workspaces: {
+            ...repo.workspaces,
+            [snapshot.plain.workspaceId]: {
+              ...original,
+              path,
+              createdAt: now,
+              lastUsedAt: now,
+              useCount: 0,
+              groupId: snapshot.plain.extensions?.groupId,
+            },
+          },
+        });
+      } finally {
+        await release();
+      }
+    },
     async record(
       repo: RepoState,
       workspace: string,
-      plan: PullPlan,
+      plan: Snapshot,
       manifest: Uint8Array,
       usedAt = plan.plain.pulls.at(-1)?.at,
     ): Promise<void> {
@@ -137,6 +197,9 @@ export function createSyncStore(store: ReturnType<typeof createStore>) {
               lastUsedAt: usedAt,
               useCount: (previous?.useCount ?? 0) + 1,
               lastProfiles: plan.data.profiles.map((profile) => profile.name),
+              ...(typeof plan.plain.extensions?.groupId === 'string'
+                ? { groupId: plan.plain.extensions?.groupId }
+                : {}),
               origin: plan.data.origin,
               target: { worktree: repo.path, branch: plan.data.target.branch, commit: repo.commit },
             },

@@ -18,6 +18,7 @@ export const profileRefSchema = z.looseObject({
   ]),
 });
 export const manifestDataSchema = z.looseObject({
+  guidance: z.object({ generated: z.array(z.string()) }).optional(),
   source: z.looseObject({ path: text, commonDir: text.optional() }),
   origin: z.looseObject({
     worktree: text,

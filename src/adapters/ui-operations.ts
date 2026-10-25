@@ -37,8 +37,10 @@ export type PreviewSummary = {
   postCreateCommands: string[];
 };
 export type PreparedOperation = {
+  owner?: 'group' | 'agent-request';
   summary: PreviewSummary;
   bytes: number;
+  recheck?(): Promise<void>;
   apply(): Promise<SyncResult>;
 };
 export type OperationState = {
@@ -143,6 +145,7 @@ export function createUiOperations(limits: OperationLimits = {}) {
         profiles?: boolean | undefined;
         force?: boolean | undefined;
       },
+      owner?: 'group' | 'agent-request',
     ): Promise<OperationState> {
       const operation = get(id);
       if (operation.state.state === 'expired' || operation.state.state === 'cancelled')
@@ -153,6 +156,8 @@ export function createUiOperations(limits: OperationLimits = {}) {
       if (operation.state.state !== 'pending') return { ...operation.state };
       const prepared = operation.prepared;
       if (!prepared) throw new OperationError('unknown', 'Preview is no longer available');
+      if (prepared.owner !== owner)
+        throw new OperationError('validation', 'Use the group review or request review to apply this operation');
       const summary = prepared.summary;
       if (!summary.canApply)
         throw new OperationError('conflict', 'Resolve conflicts and create a new preview');

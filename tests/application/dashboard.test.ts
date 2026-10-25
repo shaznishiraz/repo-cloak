@@ -38,6 +38,11 @@ it('opens on the current repo or workspace and exposes real status and pull hist
       files: ['Acme.ts'],
       to: destination,
     });
+    expect((await dashboard.overview())[0]?.workspaces[0]).toMatchObject({
+      id: result.workspaceId,
+      worktree: source,
+      missing: false,
+    });
     await writeFile(join(destination, 'Northwind.ts'), 'class Northwind { edited = true }');
     const repoId = context.repoId ?? '';
     const detail = await dashboard.workspace(repoId, result.workspaceId);
@@ -58,6 +63,43 @@ it('opens on the current repo or workspace and exposes real status and pull hist
     const before = await readFile(join(destination, '.repo-cloak', 'manifest.json'));
     await dashboard.workspace(repoId, result.workspaceId);
     expect(await readFile(join(destination, '.repo-cloak', 'manifest.json'))).toEqual(before);
+    await services.git.runGit(source, [
+      '-c',
+      'user.name=Test',
+      '-c',
+      'user.email=test@example.test',
+      '-c',
+      'commit.gpgSign=false',
+      '-c',
+      `core.hooksPath=${join(root, 'no-hooks')}`,
+      'commit',
+      '--allow-empty',
+      '-m',
+      'Initial',
+    ]);
+    const otherWorktree = join(root, 'feature');
+    await services.git.runGit(source, ['worktree', 'add', '-b', 'feature', otherWorktree]);
+    await mkdir(join(otherWorktree, 'nested'));
+    await writeFile(join(otherWorktree, 'nested', 'Acme.ts'), 'class Acme {}');
+    expect(await createDashboard(store, join(otherWorktree, 'nested')).context()).toEqual({
+      repoId,
+      worktree: otherWorktree,
+    });
+    // The existing workspace belongs to main, not the newly launched feature worktree.
+    expect(
+      (await dashboard.overview())[0]?.workspaces.map((workspace) => workspace.worktree),
+    ).toEqual([source]);
+    const other = await createTestSync(createSyncServices(otherWorktree, store), '2.0.0')('push', {
+      profiles: ['names'],
+      files: ['nested/Acme.ts'],
+      to: join(root, 'feature-cloak'),
+    });
+    expect((await dashboard.overview())[0]?.workspaces).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: result.workspaceId, worktree: source }),
+        expect.objectContaining({ id: other.workspaceId, worktree: otherWorktree }),
+      ]),
+    );
   } finally {
     await rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
   }

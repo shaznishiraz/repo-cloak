@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { build } from 'tsup';
 import { minify } from 'terser';
@@ -9,6 +9,7 @@ export async function buildUi(destination: string) {
   await mkdir(destination, { recursive: true });
   const html = await readFile(join(source, 'index.html'), 'utf8');
   await Promise.all([
+    copyFile(join(source, 'favicon.svg'), join(destination, 'favicon.svg')),
     writeFile(
       join(destination, 'index.html'),
       html

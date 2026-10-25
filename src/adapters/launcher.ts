@@ -10,10 +10,12 @@ export async function runUi(
   const dashboard = createDashboard(store, options.cwd);
   const context = await dashboard.context();
   const session = await startUiSession(store.root, dashboard, options.port);
+  await dashboard.agents.refreshDescriptors();
   const fragment = new URLSearchParams({ token: session.token });
   if (context.repoId) fragment.set('repo', context.repoId);
   if (context.worktree) fragment.set('worktree', context.worktree);
   if (context.workspaceId) fragment.set('workspace', context.workspaceId);
+  if ('groupId' in context && context.groupId) fragment.set('group', context.groupId);
   const url = `http://127.0.0.1:${session.port}/#${fragment}`;
   if (!session.reused) {
     const stop = () => {

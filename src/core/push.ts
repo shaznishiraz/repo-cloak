@@ -5,6 +5,7 @@ import type { FileWrite, SourceFile } from './pull.js';
 import { checkPathCollisions, restorePaths } from './paths.js';
 import { createReplacer } from './replacer.js';
 import type { PreviewMatch } from './ledger.js';
+import { instructionFiles, stripAgentGuidance } from './agent-guidance.js';
 
 export type PushOptions = { force?: boolean; skipConflicts?: boolean; fullSnapshot?: boolean };
 
@@ -62,7 +63,13 @@ export function planPush(
         warnings.push(`${path}: binary file copied unchanged`);
       } else {
         if (file.text === undefined) throw new Error(`${path}: missing decoded contents`);
-        const result = replacer.restore(file.text, previous.data.ledger, {
+        const text =
+          previous.data.guidance &&
+          instructionFiles.includes(path) &&
+          !previous.data.guidance.generated.includes(path)
+            ? stripAgentGuidance(file.text)
+            : file.text;
+        const result = replacer.restore(text, previous.data.ledger, {
           file: path,
           scope: 'content',
         });

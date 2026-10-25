@@ -75,7 +75,7 @@ inspect the missing behavior or resource contention first.
 
 The package smoke check verifies launcher help/version, rejects removed workflow
 commands without starting a server, validates shipped schema presence, and inspects
-the npm package file list and the 68 KB browser asset budget. It does not access
+the npm package file list and the 92 KB browser asset budget. It does not access
 the user's private machine store.
 
 ## Release gates

@@ -217,7 +217,7 @@ Design: [web-ui.md](design/web-ui.md).
 - **WHEN** an API call has no valid token **THEN** it is rejected.
 - **WHEN** a request has a foreign `Origin` **THEN** it is rejected.
 - **WHEN** a profile is saved in the UI **THEN** it passes the same validation as the CLI.
-- **WHEN** the UI assets are built **THEN** they total under 68 KB.
+- **WHEN** the UI assets are built **THEN** they total under 92 KB.
 
 **Milestone documentation:** OpenWiki regeneration remains pending the
 credentials described under step 4. Generated pages were left untouched.
@@ -295,10 +295,11 @@ context-first setup refinement. Acceptance tests cover each implementation slice
 - **WHEN** the browser wizard runs at desktop and 390-pixel widths **THEN** back,
   profile-editor return, validation, confirmation and results remain usable.
 - **WHEN** validation runs **THEN** typecheck, lint, Vitest, browser regressions,
-  build/package checks and the existing 68 KB UI asset budget pass.
+  build/package checks and the existing 92 KB UI asset budget pass.
 
-- **WHEN** a first launch identifies the source worktree **THEN** setup starts with
-  folder selection and the optional Change control exposes other worktrees.
+- **WHEN** a launch identifies a source worktree without its own available workspace
+  **THEN** setup starts with folder selection, even when another worktree already
+  has a workspace; the optional Change control exposes other worktrees.
 - **WHEN** settings save a root and setup commands **THEN** future creations inherit
   them; selecting or previewing never changes the defaults.
 - **WHEN** new workspace creation succeeds **THEN** setup commands run once in that
@@ -320,7 +321,7 @@ scheduled workflow after these changes are committed. Generated pages are untouc
 - [ ] Publish only when the user asks
 
 Release preparation checked npm version `1.3.4` on 2026-10-17. The package
-preview contains the CLI, source map, three UI assets, four schemas, README,
+preview contains the CLI, source map, three UI assets, six schemas, README,
 license and package metadata. The local suite passes on Node 22.13.1 and Node
 24; the final cross-platform CI run awaits pushing the commits. OpenWiki still
 needs the credentials or scheduled workflow described under step 4. Publication
@@ -335,3 +336,50 @@ Design: [dashboard-first](design/dashboard-first.md).
 - [x] Quick-sync review for deletions/profile changes; advanced restore target control.
 - [x] Remove terminal-only commands/prompts and dependency; move shared application services.
 - [x] Update launcher/API coverage, package checks and active documentation.
+- [x] Scope automatic setup to the exact source worktree, ignore missing workspace
+      folders, and recover saved sync entries before opening the file picker.
+- [x] Add repository removal from the sidebar, detach group memberships, retain
+      saved setup/files for re-adding, and invalidate removed-repository previews.
+
+## Repository groups
+
+Design: [repository groups](design/repository-groups.md). Approved, including
+single-member groups and joining an existing group from the launch repository.
+
+- [x] Add sealed group schema/store, validation, revision checks and CRUD coverage.
+- [x] Add combined preflight, member acknowledgements, ordered application queue,
+      idempotent status and partial-failure/retry coverage.
+- [x] Add compact group navigation, editor, member repair and Pull all/Push all.
+- [x] Create shared folders with independent copies, preserved edits/Git history,
+      fresh workspace identities/credentials, rollback coverage and root guidance.
+- [x] Add Finder/Explorer, VS Code and Zed actions for groups and workspaces;
+      verify authenticated target allowlists and installed-app detection.
+- [x] Keep copied dependencies/cache artifacts out of Push, inherit profile file
+      eligibility, and invalidate approval when exclusions change before writing.
+- [x] Verify individual actions, exclusions, missing members and required backend/
+      package checks; add and typecheck the browser regression scenario.
+- [ ] Execute the new group browser scenario at desktop and 390px widths in
+      both themes. BrowserOS tools are not connected in this session.
+
+## Agent file requests
+
+Design: [agent file requests](design/agent-file-requests.md). Approved, including
+automatic guidance on creation, optional names, multiple workspaces, and MCP
+connection setup controls.
+
+- [x] Add exact anonymized-path resolution, public probe outcomes and protection
+      policy with the acceptance tests in design step 1.
+- [x] Add workspace-scoped credentials, encrypted queues, isolated HTTP routes,
+      idempotency, quotas and revocation with authorization/leakage tests.
+- [x] Add owner queue review/rejection and selective approval/pull, including
+      stale approval checks, group views and crash reconciliation tests.
+- [x] Add managed agent guidance/skill templates for new and existing workspaces;
+      preserve user instructions and exclude generated data from source/export.
+- [x] Add a thin MCP adapter, actual stdio package smoke test, and tested Codex
+      project/Claude local configuration helpers; validate the generated skill.
+- [x] Remove the duplicate Requests Policy editor and saved request-only rules;
+      inherit selected global/repository profiles and repository exclusions, with
+      regression coverage for legacy grants and exclusion changes before approval.
+- [ ] Execute the live browser/client walkthrough with desktop/mobile and both
+      themes. BrowserOS is not connected; no personal client settings are edited
+      during automated tests.

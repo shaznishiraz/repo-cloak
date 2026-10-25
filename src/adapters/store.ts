@@ -66,7 +66,7 @@ export function createStore(root = join(homedir(), '.repo-cloak')) {
       const doc = parseDocument(kind, value, file);
       await writeAtomic(file, `${JSON.stringify(doc, null, 2)}\n`);
     },
-    async readSealed<K extends 'profile' | 'repo'>(
+    async readSealed<K extends 'profile' | 'repo' | 'group' | 'agent'>(
       relative: string,
       kind: K,
       migrations: Migrations = {},
@@ -81,7 +81,7 @@ export function createStore(root = join(homedir(), '.repo-cloak')) {
         throw new Error(`${file}: envelope and document schemaVersion differ`);
       return parseDocument(kind, doc, file, migrations);
     },
-    async writeSealed<K extends 'profile' | 'repo'>(
+    async writeSealed<K extends 'profile' | 'repo' | 'group' | 'agent'>(
       relative: string,
       id: string,
       kind: K,

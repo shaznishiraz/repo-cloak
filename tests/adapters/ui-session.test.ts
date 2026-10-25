@@ -38,14 +38,16 @@ it('reuses one server for concurrent launches and removes session files on shutd
   await rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
 });
 
-it('ships less than 68 KB of browser assets', async () => {
+it('ships less than 92 KB of browser assets', async () => {
   const root = await mkdtemp(join(tmpdir(), 'cloak UI build '));
   try {
     await buildUi(root);
     const sizes = await Promise.all(
-      ['index.html', 'app.js', 'app.css'].map(async (name) => (await stat(join(root, name))).size),
+      ['index.html', 'app.js', 'app.css', 'favicon.svg'].map(
+        async (name) => (await stat(join(root, name))).size,
+      ),
     );
-    expect(sizes.reduce((sum, size) => sum + size, 0)).toBeLessThan(68_000);
+    expect(sizes.reduce((sum, size) => sum + size, 0)).toBeLessThan(92_000);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

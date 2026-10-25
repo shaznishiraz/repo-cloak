@@ -17,6 +17,35 @@ confirmation prompts and their runtime dependency. Keep a `ui` launcher alias,
 help/version, port selection and browser suppression. Reject obsolete commands
 without executing an operation. Package and bin names remain unchanged.
 
+The optional `agent-mcp` mode is a stdio transport for scoped file-request tools,
+not a return of terminal sync/profile workflows. See [agent requests](agent-file-requests.md).
+
+Launching from a source worktree with no available cloak workspace for that exact
+worktree opens setup at the file picker, even when other worktrees of the same
+repository have workspaces. The overview exposes each workspace's recorded target
+worktree (falling back to its origin for older records). Missing workspace folders
+do not count as configured. Explicit cloak-workspace and group links keep their
+normal views. Recover saved operations before deciding whether to open setup.
+
+Repository removal is a reversible dashboard action:
+
+```text
+repository row -> trash icon -> DELETE /api/repos/:id
+  -> shared operation queue (refuse while syncing)
+  -> detach from groups; discard empty groups
+  -> seal hidden=true in the repository record
+  -> reload sidebar and select an available repository/group
+
+Add source / launch from source -> register -> clear hidden -> restore saved links
+```
+
+Keep source/workspace directories, profiles, exclusions, manifest backups and
+workspace links. Hidden repositories are excluded from dashboard lists and sync
+targets; pending previews fail revalidation after removal. Do not automatically
+restore group membership when the repository is added again. Show the row's trash
+icon on hover or keyboard focus, and keep it visible on touch devices. Removal is
+available for missing source folders too and needs no filesystem deletion.
+
 Move shared orchestration from `commands/` to `application/`. All syncing is a
 prepare/preview plus explicit apply operation; only dashboard operation approvals
 permit writes. Keep conflict checks, encryption, exclusions, locks, rollback,

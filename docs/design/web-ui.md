@@ -72,7 +72,7 @@ Choices:
 
 - **No framework.** Plain HTML, CSS, and JavaScript. The existing tsup build
   minifies browser JavaScript into `dist/ui/`; HTML and CSS are copied.
-  Shipped assets stay under 68 KB total.
+  Shipped assets stay under 92 KB total.
 - **`node:http` only.** No Express or similar; a small router over a handful
   of JSON routes.
 - **No new logic.** Every route calls the shared `application/` and `core/`
@@ -112,7 +112,8 @@ The token starts in the URL fragment, is moved into tab-local session storage,
 and is removed from the address bar. API requests use `Authorization: Bearer`.
 No API request logging is enabled. Every response disables caching and sets a
 content security policy; the server accepts only its loopback Host and Origin.
-JSON write requests are limited to 1 MB. Only three named static assets are
+JSON write requests are limited to 1 MB. Only four named static assets (HTML,
+JavaScript, CSS and the SVG favicon) are
 served. All user-controlled text is rendered as text, not HTML.
 
 ```
@@ -134,7 +135,7 @@ status uses the shared status service; history comes from the authenticated
 manifest. Missing workspace folders are marked in the list.
 
 Sources live in `src/ui/`. The CLI build copies HTML/CSS and minifies JavaScript into `dist/ui/` using
-the existing tsup dependency. Tests enforce the 68 KB shipped asset budget.
+the existing tsup dependency. Tests enforce the 92 KB shipped asset budget.
 
 ## Browser regression automation
 

@@ -7,16 +7,17 @@ import { runGit } from '../../src/adapters/git.js';
 import { createStore } from '../../src/adapters/store.js';
 import { createDashboard } from '../../src/application/dashboard.js';
 import { createDashboardServer } from '../../src/adapters/server.js';
+import { createDesktop } from '../../src/adapters/desktop.js';
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => {
   for (const cleanup of cleanups.splice(0).reverse()) await cleanup();
 });
-async function fixture() {
+async function fixture(desktop?: ReturnType<typeof createDesktop>) {
   const root = await mkdtemp(join(tmpdir(), 'cloak dashboard '));
   cleanups.push(() => rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }));
   const store = createStore(join(root, 'store'));
-  const dashboard = createDashboard(store, root);
+  const dashboard = createDashboard(store, root, desktop);
   const server = createDashboardServer(dashboard, 'test-token', resolve('src/ui'));
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   cleanups.push(
@@ -45,6 +46,7 @@ it('requires a token on every API route and rejects foreign origins', async () =
   const { base, call } = await fixture();
   for (const path of [
     '/api/repos',
+    '/api/repos/aaaaaaaaaaaaaaaa',
     '/api/profiles',
     '/api/session',
     '/api/settings',
@@ -58,6 +60,15 @@ it('requires a token on every API route and rejects foreign origins', async () =
     '/api/sync/preview',
     '/api/sync/example',
     '/api/sync/example/apply',
+    '/api/groups',
+    '/api/desktop',
+    '/api/groups/example/open',
+    '/api/workspaces/a/b/open',
+    '/api/groups/example',
+    '/api/groups/example/preview',
+    '/api/group-sync/example',
+    '/api/group-sync/example/apply',
+    '/api/group-sync/example/retry',
   ]) {
     expect((await fetch(`${base}${path}`)).status).toBe(401);
     expect(
@@ -79,6 +90,104 @@ it('requires a token on every API route and rejects foreign origins', async () =
     ).status,
   ).toBe(200);
   expect(await (await call('/api/repos')).json()).toEqual([]);
+});
+
+it('removes repositories through an authenticated owner route without touching source files', async () => {
+  const { base, store, call } = await fixture();
+  const source = join(store.root, '..', 'source');
+  await mkdir(source);
+  await runGit(source, ['init', '-b', 'main']);
+  await writeFile(join(source, 'keep.txt'), 'keep source');
+  const added = await call('/api/repos', 'POST', { path: source });
+  const { repoId } = (await added.json()) as { repoId: string };
+  const route = `/api/repos/${repoId}`;
+  expect((await fetch(base + route, { method: 'DELETE' })).status).toBe(401);
+  expect(
+    (
+      await fetch(base + route, {
+        method: 'DELETE',
+        headers: { Authorization: 'Bearer test-token', Origin: 'https://foreign.test' },
+      })
+    ).status,
+  ).toBe(403);
+  expect((await call('/api/repos/not-a-repo', 'DELETE')).status).toBe(400);
+  expect((await call('/api/repos/aaaaaaaaaaaaaaaa', 'DELETE')).status).toBe(404);
+  expect((await call(route, 'DELETE')).status).toBe(200);
+  expect(await (await call('/api/repos')).json()).toEqual([]);
+  expect(await readFile(join(source, 'keep.txt'), 'utf8')).toBe('keep source');
+  expect((await call('/api/repos', 'POST', { path: source })).status).toBe(200);
+  expect(await (await call('/api/repos')).json()).toMatchObject([{ id: repoId }]);
+});
+
+it('opens only registered cloak/group folders through authenticated allowlisted desktop actions', async () => {
+  const opened: string[] = [];
+  const desktop = createDesktop(
+    'darwin',
+    async (_command, args) => {
+      opened.push(args.at(-1) ?? '');
+    },
+    async (name) => `/Applications/${name}`,
+  );
+  const { dashboard, store, base, call } = await fixture(desktop);
+  const source = join(store.root, '..', 'source');
+  await mkdir(source);
+  await runGit(source, ['init', '-b', 'main']);
+  await writeFile(join(source, 'file.ts'), 'export const safe = true;');
+  await store.writePlain('config.json', 'config', {
+    kind: 'config',
+    schemaVersion: 1,
+    initGit: false,
+  });
+  const { repoId } = await dashboard.addRepository({ path: source });
+  const profile = await dashboard.saveProfile({
+    scope: { kind: 'repo', repoId },
+    profile: {
+      kind: 'profile',
+      schemaVersion: 1,
+      name: 'test',
+      rules: [],
+    },
+  });
+  const preview = await dashboard.sync.preview({
+    intent: 'create',
+    repoId,
+    worktree: source,
+    destination: join(source, '..', 'cloak'),
+    files: ['file.ts'],
+    profiles: [{ id: profile.id, scope: profile.scope }],
+  });
+  await dashboard.sync.apply(preview.operationId, {});
+  const state = await dashboard.sync.wait(preview.operationId);
+  if (!state.result) throw new Error(state.error ?? 'Missing fixture workspace');
+  const group = await dashboard.groups.save({
+    name: 'App',
+    members: [{ repoId, workspaceId: state.result.workspaceId, worktree: source }],
+    copyWorkspaces: true,
+  });
+  const route = `/api/groups/${group.id}/open`;
+  expect((await call('/api/desktop')).status).toBe(200);
+  expect((await fetch(base + route, { method: 'POST' })).status).toBe(401);
+  expect(
+    (
+      await fetch(base + route, {
+        method: 'POST',
+        headers: { Authorization: 'Bearer test-token', Origin: 'https://foreign.test' },
+      })
+    ).status,
+  ).toBe(403);
+  expect((await call(route, 'POST', { target: 'sh' })).status).toBe(400);
+  expect((await call(route, 'POST', { target: 'vscode', path: source })).status).toBe(400);
+  expect(opened).toEqual([]);
+  expect((await call(route, 'POST', { target: 'vscode' })).status).toBe(200);
+  expect(opened).toEqual([group.folder]);
+  expect(
+    (
+      await call(`/api/workspaces/${repoId}/${state.result.workspaceId}/open`, 'POST', {
+        target: 'folder',
+      })
+    ).status,
+  ).toBe(200);
+  expect(opened[1]).toBe(state.result.workspace);
 });
 
 it('binds loopback only, blocks a foreign Host, and serves only known assets', async () => {
@@ -105,6 +214,89 @@ it('binds loopback only, blocks a foreign Host, and serves only known assets', a
   expect(await page.text()).toContain('Local dashboard');
   expect((await fetch(`${base}/key`)).status).toBe(404);
   expect((await fetch(`${base}/app.js`)).headers.get('content-type')).toContain('javascript');
+  const favicon = await fetch(`${base}/favicon.svg`);
+  expect(favicon.status).toBe(200);
+  expect(favicon.headers.get('content-type')).toBe('image/svg+xml');
+  expect(await favicon.text()).toBe(await readFile(resolve('src/ui/favicon.svg'), 'utf8'));
+});
+
+it('registers a launched source in an existing group and routes guarded group sync, revisions and deletion', async () => {
+  const { store, dashboard, call } = await fixture();
+  const source = join(store.root, '..', 'Backend');
+  const destination = join(store.root, '..', 'backend-cloak');
+  await mkdir(source);
+  await runGit(source, ['init', '-b', 'main']);
+  await writeFile(join(source, 'backend.ts'), 'export const backend = true;');
+  await store.writePlain('config.json', 'config', {
+    kind: 'config',
+    schemaVersion: 1,
+    initGit: false,
+  });
+  const { repoId, worktree } = await dashboard.addRepository({ path: source });
+  const profile = await dashboard.saveProfile({
+    scope: { kind: 'global' },
+    profile: { kind: 'profile', schemaVersion: 1, name: 'names', rules: [] },
+  });
+  const preview = await dashboard.sync.preview({
+    intent: 'create',
+    repoId,
+    worktree,
+    destination,
+    files: ['backend.ts'],
+    profiles: [{ id: profile.id, scope: profile.scope }],
+  });
+  await dashboard.sync.apply(preview.operationId, {});
+  const created = await dashboard.sync.wait(preview.operationId);
+  expect(created.state).toBe('completed');
+  if (!created.result) throw new Error('Workspace was not created');
+  const input = {
+    name: 'Product',
+    members: [{ repoId, workspaceId: created.result.workspaceId, worktree }],
+  };
+  expect((await call('/api/groups', 'POST', { name: 'Invalid', members: [] })).status).toBe(400);
+  const savedResponse = await call('/api/groups', 'POST', input);
+  expect(savedResponse.status).toBe(200);
+  const saved = (await savedResponse.json()) as { id: string; revision: string };
+  expect(await (await call('/api/groups')).json()).toMatchObject([{ ...saved, name: 'Product' }]);
+  const batch = (await (
+    await call(`/api/groups/${saved.id}/preview`, 'POST', {
+      revision: saved.revision,
+      intent: 'refresh',
+    })
+  ).json()) as { operationId: string };
+  expect(
+    (
+      await call(`/api/sync/${batch.operationId}/apply`, 'POST', {
+        deletions: true,
+        profiles: true,
+      })
+    ).status,
+  ).toBe(400);
+  expect(
+    (await call(`/api/group-sync/${batch.operationId}/apply`, 'POST', { members: [] })).status,
+  ).toBe(200);
+  await dashboard.groups.wait(batch.operationId);
+  expect(await (await call(`/api/group-sync/${batch.operationId}`)).json()).toMatchObject({
+    state: 'completed',
+    members: [{ state: 'completed' }],
+  });
+  expect((await call(`/api/group-sync/${batch.operationId}/retry`, 'POST', {})).status).toBe(400);
+  expect((await call(`/api/group-sync/${batch.operationId}`, 'DELETE')).status).toBe(200);
+  const edited = (await (
+    await call(`/api/groups/${saved.id}`, 'PUT', {
+      revision: saved.revision,
+      group: { ...input, name: 'Renamed' },
+    })
+  ).json()) as { revision: string };
+  expect(
+    (await call(`/api/groups/${saved.id}`, 'DELETE', { revision: saved.revision })).status,
+  ).toBe(409);
+  expect(
+    (await call(`/api/groups/${saved.id}`, 'DELETE', { revision: edited.revision })).status,
+  ).toBe(200);
+  expect(await (await call('/api/groups')).json()).toEqual([]);
+  expect(await readFile(join(destination, 'backend.ts'), 'utf8')).toContain('backend');
+  dashboard.sync.close();
 });
 
 it('uses CLI profile validation and supports save, edit, check and confirmed deletion', async () => {

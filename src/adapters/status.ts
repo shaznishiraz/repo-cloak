@@ -3,9 +3,10 @@ import { join } from 'node:path';
 import type { StatusIO } from '../application/status.js';
 import { parseDocument } from '../core/schemas.js';
 import { validateRelativePath } from '../core/paths.js';
-import { checkDestinationPath, readWorkspace } from './files.js';
+import { checkDestinationPath, readWorkspace, filterPaths } from './files.js';
 import { createStore } from './store.js';
 import { createSyncStore } from './sync-store.js';
+import { instructionFiles, addAgentGuidance } from '../core/agent-guidance.js';
 
 export function createStatusIO(cwd = process.cwd()): StatusIO {
   return {
@@ -20,7 +21,21 @@ export function createStatusIO(cwd = process.cwd()): StatusIO {
     },
     async readFiles(root, tracked) {
       const inventory = await readWorkspace(root, [], 16);
-      return (await readWorkspace(root, [...new Set([...tracked, ...inventory.paths])], 16)).files;
+      const files = (
+        await readWorkspace(
+          root,
+          [...new Set([...tracked, ...filterPaths(inventory.paths, [])])],
+          16,
+        )
+      ).files;
+      return Object.fromEntries(
+        Object.entries(files).filter(
+          ([path, bytes]) =>
+            tracked.includes(path) ||
+            !instructionFiles.includes(path) ||
+            !Buffer.from(bytes).toString('utf8').endsWith(addAgentGuidance('')),
+        ),
+      );
     },
   };
 }

@@ -7,17 +7,15 @@ import { createSyncServices } from '../src/adapters/sync-services.js';
 import { prepareSync } from '../src/application/sync.js';
 import { createDashboard } from '../src/application/dashboard.js';
 import { createDashboardServer } from '../src/adapters/server.js';
+import { createAgentStore } from '../src/adapters/agent-store.js';
 
 // Only synthetic data lives here. Never use the user's machine store.
 const root = await realpath(await mkdtemp(join(tmpdir(), 'cloak browser ')));
 const store = createStore(join(root, 'store'));
 const source = join(root, 'sample-source');
 const workspace = join(root, 'sample-workspace');
-const server = createDashboardServer(
-  createDashboard(store, source),
-  'browser-test-token',
-  resolve('../dist/ui'),
-);
+const dashboard = createDashboard(store, source);
+const server = createDashboardServer(dashboard, 'browser-test-token', resolve('../dist/ui'));
 let closing: Promise<void> | undefined;
 function close() {
   return (closing ??= (async () => {
@@ -85,6 +83,13 @@ try {
   await runGit(fresh, ['init', '-b', 'main']);
   await writeFile(join(fresh, 'hello.txt'), 'Hello');
   await createDashboard(store, fresh).context();
+  const grant = await createAgentStore(store).read(prepared.result.workspaceId);
+  if (!grant) throw new Error('Synthetic agent grant missing');
+  await dashboard.agents.agentCall(grant, 'requests', {
+    clientRequestId: 'browser-context',
+    paths: ['src/Northwind.ts'],
+    reason: 'Need the class definition to continue editing.',
+  });
   await new Promise<void>((done, reject) => {
     server.once('error', reject);
     server.listen(Number(process.argv[2]), '127.0.0.1', done);

@@ -9,10 +9,12 @@ import { createStore } from './store.js';
 import { createSyncStore } from './sync-store.js';
 import { createWorkspaceWriter } from './workspace.js';
 import { createSourceWriter } from './source-writer.js';
+import { createAgentStore } from './agent-store.js';
 
 export function createSyncServices(cwd = process.cwd(), store = createStore()) {
   return {
     cwd: resolve(cwd),
+    agentAccess: createAgentStore(store),
     runPostCreateCommands,
     beforeApply: undefined as (() => Promise<void>) | undefined,
     store: createSyncStore(store),

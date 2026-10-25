@@ -131,5 +131,6 @@ describe('file selection and reading', () => {
       process.platform === 'win32' ? 'junction' : 'dir',
     );
     await expect(readWorkspace(root, ['alias/file.ts'], 2)).rejects.toThrow(/symlink/);
+    expect((await readWorkspace(root, [], 2)).paths).toEqual(['real/file.ts']);
   });
 });

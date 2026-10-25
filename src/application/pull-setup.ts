@@ -8,8 +8,11 @@ import { validateRelativePath } from '../core/paths.js';
 import { createReplacer } from '../core/replacer.js';
 import { selectFiles } from '../core/selection.js';
 import { compilePatterns } from '../core/patterns.js';
+import { agentLocalPath } from '../core/agent-guidance.js';
 
 export type SyncOptions = {
+  name?: string;
+  exactFiles?: boolean;
   workspacesRoot?: string;
   postCreateCommands?: string[];
   saveDefaults?: boolean;
@@ -64,7 +67,9 @@ export async function preparePull(
     throw new Error('Choose an empty destination for a new workspace');
   if (previous) {
     const files = Object.fromEntries(
-      Object.entries(previous.data.files).filter(([, file]) => !isRepoExcluded(file.path)),
+      Object.entries(previous.data.files).filter(
+        ([, file]) => !isRepoExcluded(file.path) && !agentLocalPath(file.path),
+      ),
     );
     previous = {
       ...previous,
@@ -99,8 +104,13 @@ export async function preparePull(
     } catch {
       /* A generic name is safer than leaking an unanonymized repo name. */
     }
+    if (options.name) {
+      validateRelativePath(options.name);
+      if (options.name.includes('/') || options.name.length > 80)
+        throw new Error('Workspace name must be one folder name, up to 80 characters');
+    }
     destination = await services.files.canonicalPath(
-      join(root, `${name}-${workspaceId.slice(0, 8)}`),
+      join(root, options.name || `${name}-${workspaceId.slice(0, 8)}`),
     );
   }
   destination = await services.files.canonicalPath(destination);
@@ -127,13 +137,15 @@ export async function preparePull(
   const explicit = Boolean(options.files?.length || options.commits?.length || options.working);
   if (!explicit && !previous)
     throw new Error('Select files, commits, or working changes in the dashboard');
-  const files = await services.files.expandPaths(
-    repo.path,
-    currentWorkspace ? repo.path : services.cwd,
-    options.files ?? [],
-    profiles.map((profile) => profile.profile),
-    repoRecord?.exclude ?? [],
-  );
+  const files = options.exactFiles
+    ? (options.files ?? []).map((path) => validateRelativePath(path))
+    : await services.files.expandPaths(
+        repo.path,
+        currentWorkspace ? repo.path : services.cwd,
+        options.files ?? [],
+        profiles.map((profile) => profile.profile),
+        repoRecord?.exclude ?? [],
+      );
   if (options.files?.length && files.some(isRepoExcluded))
     throw new Error('Explicit file selection includes a path excluded for this repository');
   const commits = await Promise.all(
@@ -168,6 +180,7 @@ export async function preparePull(
       working: Boolean(options.working),
       extra: 0,
     },
+    ...(options.exactFiles ? { exactSelection: true } : {}),
   };
 }
 export type PullSetup = Omit<Awaited<ReturnType<typeof preparePull>>, 'repoExcludes'> & {

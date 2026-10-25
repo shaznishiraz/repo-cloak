@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="light dark" />
     <title>repo-cloak · Local dashboard</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="stylesheet" href="/app.css" />
     <script type="module" src="/app.js"></script>
   </head>
@@ -48,15 +49,25 @@
           <aside class="repo-col">
             <div class="section">
               <h2>Repositories</h2>
-              <button
-                id="add-repo"
-                class="quiet icon-pill"
-                type="button"
-                data-icon="plus"
-                aria-label="Add source repository"
-                title="Add source repository"
-              ></button>
-              <span id="repository-count" class="muted"></span>
+              <span id="repository-count" class="repo-count"></span>
+              <div class="repo-heading-actions">
+                <button
+                  id="new-group"
+                  class="quiet icon-pill"
+                  type="button"
+                  data-icon="group"
+                  aria-label="Create repository group"
+                  title="New group"
+                ></button>
+                <button
+                  id="add-repo"
+                  class="quiet icon-pill"
+                  type="button"
+                  data-icon="plus"
+                  aria-label="Add source repository"
+                  title="Add source repository"
+                ></button>
+              </div>
             </div>
             <nav id="repos" aria-label="Repositories"></nav>
           </aside>
@@ -64,9 +75,32 @@
           <section class="ws-col">
             <div class="ws-heading">
               <h1 id="title">Workspaces</h1>
-              <button id="new-ws" class="new-ws" type="button" data-icon="plus">
-                New workspace
-              </button>
+              <div class="ws-heading-actions">
+                <div id="group-controls" class="ws-heading-actions" hidden>
+                  <div id="group-open"></div>
+                  <button id="edit-group" class="quiet ws-more" type="button">Edit group</button>
+                  <button
+                    id="group-requests"
+                    class="quiet ws-more"
+                    type="button"
+                    data-icon="request"
+                  >
+                    Requests
+                  </button>
+                  <button id="pull-group" class="sync-btn pull-btn" type="button" data-icon="pull">
+                    Pull all
+                  </button>
+                  <button id="push-group" class="sync-btn push-btn" type="button" data-icon="push">
+                    Push all
+                  </button>
+                </div>
+                <button id="join-group" class="quiet ws-more" type="button" data-icon="group">
+                  Add to group
+                </button>
+                <button id="new-ws" class="new-ws" type="button" data-icon="plus">
+                  New workspace
+                </button>
+              </div>
             </div>
             <section id="ws-view" aria-label="Workspaces"></section>
           </section>

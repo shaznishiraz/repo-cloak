@@ -7,6 +7,12 @@ import { mergeProfiles } from './merge.js';
 import { anonymizePaths, checkPathCollisions } from './paths.js';
 import type { SavedProfile } from './profiles.js';
 import { createReplacer } from './replacer.js';
+import {
+  instructionFiles,
+  addAgentGuidance,
+  agentSkill,
+  agentLocalPath,
+} from './agent-guidance.js';
 
 export type SourceFile = {
   path: string;
@@ -23,6 +29,7 @@ export type RepoState = {
   commit: string | null;
 };
 export type PullInput = {
+  guidance?: boolean;
   repo: RepoState;
   workspaceId: string;
   pullId: string;
@@ -85,6 +92,8 @@ export function planPull(input: PullInput) {
   const deletes: string[] = [];
   const warnings: string[] = [];
   const preview: PreviewMatch[] = [...mapped.preview];
+  const guidance = input.guidance || !!previous?.data.guidance;
+  const generated = new Set(previous?.data.guidance?.generated ?? []);
   for (const file of input.files) {
     const oldPath = oldPaths.get(file.path);
     const old = oldPath ? previous?.data.files[oldPath] : undefined;
@@ -92,6 +101,8 @@ export function planPull(input: PullInput) {
     const sourceChanged =
       old && (sourceHash !== old.sourceHash || file.executable !== (old.executable ?? false));
     if (oldPath && workspaceChanged(oldPath)) {
+      if (guidance && !previous?.data.guidance && instructionFiles.includes(oldPath))
+        throw new Error('Push existing instruction edits before installing managed agent guidance');
       if (sourceChanged || profileChanges.length)
         throw new ConflictError(
           `${oldPath}: both source and workspace changed; no files were written`,
@@ -108,7 +119,17 @@ export function planPull(input: PullInput) {
     }
     const path = paths.get(file.path);
     if (!path) throw new Error(`Missing anonymized path for ${file.path}`);
-    if (!oldPath && input.workspace[path])
+    if (agentLocalPath(path))
+      throw new Error('The local agent connection configuration is reserved');
+    if (
+      !oldPath &&
+      input.workspace[path] &&
+      !(
+        guidance &&
+        generated.has(path) &&
+        Buffer.from(input.workspace[path]).toString('utf8') === addAgentGuidance('')
+      )
+    )
       throw new Error(`${path}: refusing to overwrite an untracked workspace file`);
     let bytes = file.bytes;
     if (file.binary) warnings.push(`${path}: binary file copied unchanged`);
@@ -124,6 +145,11 @@ export function planPull(input: PullInput) {
       deletes.push(oldPath);
       files.delete(oldPath);
       originals.delete(oldPath);
+    }
+    if (guidance && instructionFiles.includes(path)) {
+      if (file.binary) throw new Error('Agent instruction files must contain text');
+      bytes = Buffer.from(addAgentGuidance(Buffer.from(bytes).toString('utf8')));
+      generated.delete(path);
     }
     const hash = hashBytes(bytes);
     if (!input.workspace[path] || hashBytes(input.workspace[path]) !== hash || sourceChanged)
@@ -167,6 +193,21 @@ export function planPull(input: PullInput) {
     ],
     extensions: previous?.plain.extensions ?? {},
   };
+  const extras: FileWrite[] = [];
+  if (guidance) {
+    for (const path of instructionFiles) {
+      if (files.has(path)) continue;
+      generated.add(path);
+      const text = input.workspace[path] ? Buffer.from(input.workspace[path]).toString('utf8') : '';
+      if (!text.endsWith(addAgentGuidance('')))
+        extras.push({ path, bytes: Buffer.from(addAgentGuidance(text)), executable: false });
+    }
+    if (!previous?.data.guidance)
+      extras.push(
+        { path: '.repo-cloak/agent/SKILL.md', bytes: Buffer.from(agentSkill), executable: false },
+        { path: '.repo-cloak/agent/.gitignore', bytes: Buffer.from('*\n'), executable: false },
+      );
+  }
   const data: ManifestData = {
     ...previous?.data,
     source: { path: repo.path, ...(repo.commonDir ? { commonDir: repo.commonDir } : {}) },
@@ -180,6 +221,7 @@ export function planPull(input: PullInput) {
     profiles: profileRefs(input.profiles),
     rules,
     ledger,
+    ...(guidance ? { guidance: { generated: [...generated] } } : {}),
     files: Object.fromEntries(originals),
     pulls: [
       ...(previous?.data.pulls ?? []),
@@ -187,6 +229,7 @@ export function planPull(input: PullInput) {
     ],
   };
   return {
+    ...(extras.length ? { extras } : {}),
     plain,
     data,
     writes,

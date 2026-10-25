@@ -110,6 +110,44 @@ Choose **Push changes** for the selected cloak workspace in the dashboard.
 - As light as possible, since it ships inside the npm package: no front-end
   framework, no extra runtime dependencies, fast to load.
 
+## R8. Repository groups
+
+- Group 1..8 registered source repositories, with one explicitly chosen workspace
+  and source worktree per repository. Add the launch repository to a new or
+  existing group after creating its workspace.
+- Persist group names and targets encrypted locally; group removal preserves
+  repositories and workspaces.
+- Show grouped navigation, combined Pull all/Push all and individual member
+  controls. Keep profiles, exclusions and history independent.
+- Dashboard grouping creates a shared directory containing actual independent
+  copies of the selected cloak workspaces. Preserve originals, local edits and
+  Git histories; give each copy a fresh identity and agent credential. Existing
+  groups can create their folder through the group editor.
+- Include root agent instructions and scoped member connections. Reveal cloak
+  workspaces/group folders in the file manager or open them in VS Code or Zed.
+- Preview and recheck all members before starting writes; preserve per-member
+  confirmations, conflicts and existing writer safety checks.
+- Queue members sequentially, report partial success and retry only unfinished
+  members. No transaction is promised across independent repositories.
+
+See [repository groups](design/repository-groups.md).
+
+## R9. Agent file requests and workspace guidance
+
+- Every new workspace includes managed agent guidance and a skill; preserve user
+  instructions and prevent generated helper/configuration data from pushing to source.
+- Offer a neutral custom workspace name while retaining automatic names and
+  multiple workspaces per repository/worktree.
+- Agents use workspace-scoped HTTP/MCP credentials to probe anonymized paths,
+  queue necessary files and poll sanitized status. They cannot approve or sync.
+- The owner previews and approves exact file subsets. Exclusions, text/size
+  limits, source identity, stale approval checks and atomic writer guarantees apply.
+- Provide per-workspace/group request views and reviewed MCP setup controls for
+  Codex project configuration, Claude local scope and other clients via copyable
+  configuration, preserving existing entries.
+
+See [agent file requests](design/agent-file-requests.md).
+
 ## Out of scope (for now)
 
 - Reading v1 workspaces (`.repo-cloak-map.json`). v2 is a fresh start.

@@ -24,5 +24,14 @@ export function createProgram(launch: typeof runUi = runUi): Command {
   options(program).action(() => start(program));
   const alias = options(program.command('ui').description('Open the local dashboard'));
   alias.action(() => start(alias));
+  program
+    .command('agent-mcp')
+    .description('Serve scoped workspace file-request tools over MCP stdio')
+    .requiredOption('--workspace <path>', 'cloak workspace directory')
+    .requiredOption('--workspace-id <id>', 'expected cloak workspace identity')
+    .action(async (flags: { workspace: string; workspaceId: string }) => {
+      const { runAgentMcp } = await import('./adapters/agent-mcp.js');
+      await runAgentMcp(flags.workspace, flags.workspaceId);
+    });
   return program;
 }

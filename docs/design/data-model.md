@@ -363,6 +363,18 @@ Why it is shaped this way:
 
 ## Encryption
 
+Repository groups add a version-1 `group` document, stored sealed under
+`groups/<uuid>.json`. It references existing repository IDs, workspace IDs and
+canonical source worktrees rather than copying their configuration. See
+[repository groups](repository-groups.md) for the schema and revision/locking rules.
+
+Its optional `folder` is the canonical directory containing independent copied
+cloak workspaces. Copies have new manifest/workspace IDs, re-sealed private data,
+and fresh scoped credentials. Workspace registrations retain their source links
+and may include the owning `groupId`; the public manifest extension also records
+that opaque ID. The group folder's plain `.repo-cloak/group.json` contains only
+its UUID, anonymous member directory/server names, and generated helper hashes.
+
 - AES-256-GCM via `node:crypto`, a fresh random 12-byte nonce per seal, the
   manifest's plain part bound as additional authenticated data (AAD), so
   tampering with either part fails decryption.

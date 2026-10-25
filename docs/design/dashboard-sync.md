@@ -140,7 +140,7 @@ operation state during apply; no WebSocket or background daemon is needed.
 
 ## Scope and delivery
 
-Keep the existing vanilla UI and dependencies. Measure the existing 68 KB asset
+Keep the existing vanilla UI and dependencies. Measure the existing 92 KB asset
 budget before implementing; split modules if useful, but retain the budget unless
 a separately agreed design change raises it. Use step 7a in [plan.md](../plan.md)
 for implementation order and acceptance scenarios. Update README usage once the
@@ -184,7 +184,7 @@ or included in previews. CLI and dashboard use the same creation hook.
 
 Add `GET /api/folders`, `GET /api/settings`, and `PUT /api/settings`. The selection
 API takes a repo-relative directory and returns immediate subdirectories plus
-paginated eligible files. Keep shipped UI assets under the existing 68 KB budget by minifying browser JavaScript with the existing tsup build tool; no frontend framework or new dependency is added. Source remains formatted for maintenance.
+paginated eligible files. Keep shipped UI assets under the existing 92 KB budget by minifying browser JavaScript with the existing tsup build tool; no frontend framework or new dependency is added. Source remains formatted for maintenance.
 
 ## Selection-first workflow refinement
 
@@ -305,7 +305,7 @@ work, an orange scanner line moves along the frame and the active button's icon
 animates. Stop on completion, preview handoff, or error; retain readable error
 text. Respect reduced motion, and prevent duplicate sync clicks while running.
 No new API or sync semantics are introduced. Build-time JavaScript compression
-keeps assets within the existing 68 KB limit without runtime dependencies.
+keeps assets within the existing 92 KB limit without runtime dependencies.
 
 Preview budget estimation counts binary backing buffers directly, shared references
 once, and estimated JavaScript metadata overhead. It does not stringify selected

@@ -1,8 +1,30 @@
-import { mkdir } from 'node:fs/promises';
+import { mkdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { findRepo, runGit } from './git.js';
 import { exists } from './files.js';
 import { isWithin } from './locations.js';
+import { checkDestinationPath } from './files.js';
+import { errorCode, writeAtomic } from './atomic.js';
+
+export async function excludeAgentHelpers(root: string, generated: string[]) {
+  await checkDestinationPath(root, '.git/info/exclude');
+  const path = join(root, '.git/info/exclude');
+  let previous: Buffer | undefined;
+  try {
+    previous = await readFile(path);
+  } catch (error) {
+    if (errorCode(error) !== 'ENOENT') throw error;
+  }
+  const text = (previous?.toString('utf8') ?? '').replace(
+    /\n?# repo-cloak agent helpers:start\n[\s\S]*?# repo-cloak agent helpers:end\n?/g,
+    '\n',
+  );
+  await writeAtomic(
+    path,
+    `${text}\n# repo-cloak agent helpers:start\n/.repo-cloak/agent/\n/.codex/\n${generated.map((name) => `/${name}`).join('\n')}\n# repo-cloak agent helpers:end\n`,
+  );
+  return previous;
+}
 
 export async function prepareWorkspaceGit(root: string, paths: string[]): Promise<boolean> {
   const repo = await findRepo(root);

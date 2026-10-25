@@ -40,7 +40,7 @@ describe('document schemas', () => {
     ).toThrow();
     expect(() => parseDocument('profile', { ...profile, schemaVersion: 1.5 })).toThrow();
   });
-  it.each(['profile', 'repo', 'manifest', 'config'] as const)(
+  it.each(['profile', 'repo', 'manifest', 'config', 'group', 'agent'] as const)(
     'exports a JSON Schema for %s',
     (kind) => {
       const schema = jsonSchema(kind);

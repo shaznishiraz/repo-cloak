@@ -107,6 +107,7 @@ test('create wizard browses folders, retains choices, saves defaults and runs se
   await screen.getByRole('button', { name: 'Continue', exact: true }).click();
   await screen.getByRole('button', { name: 'Continue', exact: true }).click();
   const root = await screen.getByLabel('Cloak workspaces folder', { exact: true }).inputValue();
+  await screen.getByLabel('Workspace name (optional)', { exact: true }).fill('browser-cloak');
   await screen.getByRole('button', { name: 'Browse workspace folder' }).click();
   await screen.getByLabel('Folder path', { exact: true }).fill(root);
   await screen.getByRole('button', { name: 'Use this folder', exact: true }).click();
@@ -143,7 +144,7 @@ test('restore and refresh use the shared commands from a workspace card', async 
   await expect(browser.locator('#wizard')).toBeHidden();
 });
 
-test('launch context selects the exact worktree when reusing the machine dashboard', async ({
+test('a new worktree opens setup even when another worktree has a workspace', async ({
   app,
   browser,
   screen,
@@ -162,13 +163,44 @@ test('launch context selects the exact worktree when reusing the machine dashboa
   await app.open(
     `/#token=browser-test-token&repo=${context.repoId}&worktree=${encodeURIComponent(context.path)}`,
   );
-  await screen
-    .getByRole('button', { name: 'Create cloak workspace · sample-source', exact: true })
-    .click();
+  await expect(browser.locator('#wizard')).toBeVisible();
+  await expect(screen.getByRole('tab', { name: 'Files & folders', exact: true })).toBeVisible();
   await expect(screen.getByLabel('Source worktree', { exact: true })).toBeHidden();
   await screen.getByText(/Change worktree/).click();
   await expect(screen.getByLabel('Source worktree', { exact: true })).toHaveValue(context.path);
   await screen.getByRole('button', { name: 'Cancel', exact: true }).click();
+  // Cancelled setup should still be available on a later launch from that worktree.
+  await browser.evaluate(() => {
+    sessionStorage.setItem(
+      'cloak-operation',
+      JSON.stringify({ operationId: 'expired', repoId: 'expired' }),
+    );
+    return null;
+  });
+  await browser.reload();
+  await expect(browser.locator('#wizard')).toBeVisible();
+  expect(await browser.evaluate(() => sessionStorage.getItem('cloak-operation'))).toBe(null);
+  await screen.getByRole('button', { name: 'Cancel', exact: true }).click();
+});
+
+test('launching from a configured worktree or cloak workspace keeps the workspace view', async ({
+  app,
+  browser,
+}) => {
+  await app.open(entry);
+  const context = await browser.evaluate(async () => {
+    const headers = { Authorization: 'Bearer ' + sessionStorage.getItem('cloak-token') };
+    const repos = await (await fetch('/api/repos', { headers })).json();
+    const repo = repos.find((repo: { name: string }) => repo.name === 'sample-source');
+    return { repoId: repo.id, path: repo.path, workspaceId: repo.workspaces[0].id };
+  });
+  const source = `/#token=browser-test-token&repo=${context.repoId}&worktree=${encodeURIComponent(context.path)}`;
+  await app.open(source);
+  await expect(browser.locator('#ws-view')).toContainText('sample-workspace');
+  await expect(browser.locator('#wizard')).toBeHidden();
+  await app.open(`${source}&workspace=${context.workspaceId}`);
+  await expect(browser.locator('#ws-view')).toContainText('sample-workspace');
+  await expect(browser.locator('#wizard')).toBeHidden();
 });
 
 test('reload recovers a completed apply after its original response is lost', async ({
@@ -511,4 +543,225 @@ test('workspace deletion can be cancelled and confirmed', async ({ app, browser,
   await card.getByRole('button', { name: 'Delete workspace delete-me', exact: true }).click();
   await expect(screen.getByText('Workspace deleted', { exact: true })).toBeVisible();
   await expect(card).toHaveCount(0);
+});
+
+test('repositories can be removed from the sidebar and added back with their workspace links', async ({
+  app,
+  browser,
+  screen,
+}) => {
+  await app.open(entry);
+  await browser.evaluate(async () => {
+    const headers = { Authorization: 'Bearer ' + sessionStorage.getItem('cloak-token') };
+    const repos = await (await fetch('/api/repos', { headers })).json();
+    const repo = repos.find((repo: { name: string }) => repo.name === 'sample-source');
+    sessionStorage.setItem('removed-source', repo.path);
+    const remove = document.querySelector<HTMLButtonElement>(
+      '[aria-label="Remove repository sample-source"]',
+    );
+    if (!remove) throw new Error('Repository remove action missing');
+    remove.focus();
+    return null;
+  });
+  await screen
+    .getByRole('button', { name: 'Remove repository sample-source', exact: true })
+    .click();
+  await expect(
+    screen.getByRole('button', { name: 'Remove repository sample-source', exact: true }),
+  ).toHaveCount(0);
+  await expect(browser.locator('#notice')).toContainText('Files are still on disk');
+  await browser.reload();
+  await expect(
+    screen.getByRole('button', { name: 'Remove repository sample-source', exact: true }),
+  ).toHaveCount(0);
+  const restored = await browser.evaluate(async () => {
+    const headers = {
+      Authorization: 'Bearer ' + sessionStorage.getItem('cloak-token'),
+      'Content-Type': 'application/json',
+    };
+    const response = await fetch('/api/repos', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ path: sessionStorage.getItem('removed-source') }),
+    });
+    if (!response.ok) throw new Error('Could not add source again');
+    sessionStorage.removeItem('removed-source');
+    const { repoId } = await response.json();
+    const repos = await (await fetch('/api/repos', { headers })).json();
+    return repos.find((repo: { id: string }) => repo.id === repoId);
+  });
+  expect(
+    restored.workspaces.some(
+      (workspace: { name: string }) => workspace.name === 'sample-workspace',
+    ),
+  ).toBe(true);
+  await browser.reload();
+  await browser.setViewport({ width: 390, height: 844 });
+  await expect(
+    screen.getByRole('button', { name: 'Remove repository sample-source', exact: true }),
+  ).toBeVisible();
+  expect(await browser.evaluate(() => document.documentElement.scrollWidth <= 390)).toBe(true);
+});
+
+test('launch repositories join an existing group with combined and individual sync controls', async ({
+  app,
+  browser,
+  screen,
+}) => {
+  await app.open(entry);
+  await browser.evaluate(async () => {
+    const headers = {
+      Authorization: 'Bearer ' + sessionStorage.getItem('cloak-token'),
+      'Content-Type': 'application/json',
+    };
+    const repos = await (await fetch('/api/repos', { headers })).json();
+    const frontend = repos.find((repo: { name: string }) => repo.name === 'z-new-source');
+    const profiles = await (await fetch('/api/profiles', { headers })).json();
+    const profile = profiles.find(
+      (profile: { profile: { name: string } }) => profile.profile.name === 'sample',
+    );
+    const preview = await (
+      await fetch('/api/sync/preview', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          intent: 'create',
+          repoId: frontend.id,
+          worktree: frontend.path,
+          destination: frontend.path + '/../group-frontend',
+          files: ['hello.txt'],
+          profiles: [{ id: profile.id, scope: profile.scope }],
+        }),
+      })
+    ).json();
+    await fetch(`/api/sync/${preview.operationId}/apply`, { method: 'POST', headers, body: '{}' });
+    for (let attempt = 0; attempt < 100; attempt++) {
+      const state = await (await fetch(`/api/sync/${preview.operationId}`, { headers })).json();
+      if (state.state === 'completed') return null;
+      if (state.state !== 'running') throw new Error(state.error ?? state.state);
+      await new Promise((resolve) => window.setTimeout(resolve, 50));
+    }
+    throw new Error('Frontend fixture timed out');
+  });
+  await browser.reload();
+  await screen.getByRole('button', { name: 'Add to group', exact: true }).click();
+  await screen.getByLabel('Group name', { exact: true }).fill('Storefront');
+  await browser.evaluate(async () => {
+    const headers = { Authorization: 'Bearer ' + sessionStorage.getItem('cloak-token') };
+    const repos = await (await fetch('/api/repos', { headers })).json();
+    const backend = repos.find((repo: { name: string }) => repo.name === 'sample-source');
+    const row = [...document.querySelectorAll('.group-member-editor')].find(
+      (row) => row.querySelector('.check-line span')?.textContent === 'sample-source',
+    );
+    const select = row?.querySelectorAll('select')[1];
+    if (!select) throw new Error('Backend worktree picker missing');
+    select.value = backend.path;
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    const workspace = row?.querySelectorAll('select')[0];
+    const option = [...(workspace?.options ?? [])].find(
+      (option) => option.textContent === 'sample-workspace',
+    );
+    if (!workspace || !option) throw new Error('Backend workspace picker missing');
+    workspace.value = option.value;
+    workspace.dispatchEvent(new Event('change', { bubbles: true }));
+    return null;
+  });
+  await screen.getByRole('button', { name: 'Save group', exact: true }).click();
+  await expect(browser.locator('#title')).toHaveText('Storefront');
+  await expect(browser.locator('.ws-card')).toHaveCount(1);
+  expect(
+    await browser.evaluate(async () => {
+      const headers = { Authorization: 'Bearer ' + sessionStorage.getItem('cloak-token') };
+      const groups = await (await fetch('/api/groups', { headers })).json();
+      return !!groups.find(
+        (group: { name: string; folder?: string }) => group.name === 'Storefront',
+      )?.folder;
+    }),
+  ).toBe(true);
+  await browser.locator('#group-open summary').click();
+  await expect(screen.getByRole('button', { name: 'Open in VS Code', exact: true })).toBeVisible();
+  await expect(screen.getByRole('button', { name: 'Open in Zed', exact: true })).toBeVisible();
+  await browser.locator('#group-open summary').click();
+  await browser.locator('.repo-item').filter({ hasText: 'z-new-source' }).click();
+  await screen.getByRole('button', { name: 'Add to group', exact: true }).click();
+  await browser.evaluate(() => {
+    const select = document.querySelector<HTMLSelectElement>('.group-editor > label select');
+    const group = [...(select?.options ?? [])].find(
+      (option) => option.textContent === 'Storefront',
+    );
+    if (!select || !group) throw new Error('Existing group missing');
+    select.value = group.value;
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    return null;
+  });
+  await screen.getByRole('button', { name: 'Save group', exact: true }).click();
+  await expect(browser.locator('.ws-card')).toHaveCount(2);
+  await expect(
+    browser.locator('.ws-card').getByRole('button', { name: 'Pull from source', exact: true }),
+  ).toHaveCount(2);
+  await expect(
+    browser.locator('.ws-card').getByRole('button', { name: 'Push to source', exact: true }),
+  ).toHaveCount(2);
+  await screen.getByRole('button', { name: 'Pull all', exact: true }).click();
+  await expect(browser.locator('#notice')).toContainText('Group sync complete · 2 repositories');
+  await screen.getByRole('button', { name: 'Push all', exact: true }).click();
+  await expect(screen.getByRole('button', { name: 'Push all', exact: true })).toBeEnabled();
+  await expect(browser.locator('#notice')).toContainText('Group sync complete · 2 repositories');
+  await browser.reload();
+  await expect(browser.locator('#title')).toHaveText('Storefront');
+  for (const width of [1280, 390]) {
+    await browser.setViewport({ width, height: 844 });
+    await screen.getByRole('button', { name: 'Edit group', exact: true }).click();
+    expect(
+      await browser.evaluate(() => {
+        const rect = document.querySelector('.group-editor')?.getBoundingClientRect();
+        return (
+          !!rect &&
+          rect.left >= 0 &&
+          rect.right <= window.innerWidth &&
+          document.documentElement.scrollWidth <= window.innerWidth
+        );
+      }),
+    ).toBe(true);
+    await screen.getByRole('button', { name: 'Cancel', exact: true }).click();
+  }
+  await screen.getByRole('button', { name: 'Edit group', exact: true }).click();
+  await browser.onDialog('accept');
+  await screen.getByRole('button', { name: 'Remove group', exact: true }).click();
+  await expect(browser.locator('#notice')).toContainText('Group removed');
+  await expect(browser.locator('.repo-group')).toHaveCount(0);
+});
+
+test('queued agent files require owner preview and expose scoped connection controls', async ({
+  app,
+  browser,
+  screen,
+}) => {
+  await app.open(entry);
+  const card = browser.locator('#ws-view article').filter({ hasText: 'sample-workspace' });
+  await card.getByRole('button', { name: /Requests/ }).click();
+  await expect(browser.locator('.agent-panel')).toBeVisible();
+  await expect(browser.locator('.agent-panel')).toContainText('Need the class definition');
+  await expect(browser.locator('.agent-request-file')).toContainText('src/Northwind.ts');
+  await screen.getByRole('button', { name: 'Preview selected', exact: true }).click();
+  await expect(
+    screen.getByRole('heading', { name: 'Review requested files', exact: true }),
+  ).toBeVisible();
+  await screen.getByRole('button', { name: 'Approve & pull', exact: true }).click();
+  await expect(browser.locator('#notice')).toContainText('Sync complete');
+  await card.getByRole('button', { name: /Requests/ }).click();
+  await expect(browser.locator('.agent-request-file')).toContainText('pulled');
+  await screen.getByRole('button', { name: 'Connection', exact: true }).click();
+  await expect(screen.getByRole('button', { name: 'Add to Codex', exact: true })).toBeVisible();
+  await expect(screen.getByLabel('MCP configuration', { exact: true })).toHaveValue(
+    /--workspace-id/,
+  );
+  await expect(screen.getByRole('button', { name: 'Policy', exact: true })).toHaveCount(0);
+  await screen.getByRole('button', { name: 'Requests', exact: true }).click();
+  await expect(browser.locator('.agent-panel')).toContainText(
+    'Uses selected profile and repository exclusions.',
+  );
+  await browser.setViewport({ width: 390, height: 844 });
+  expect(await browser.evaluate(() => document.documentElement.scrollWidth <= 390)).toBe(true);
+  await screen.getByRole('button', { name: 'Close', exact: true }).click();
 });

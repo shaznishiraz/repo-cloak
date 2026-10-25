@@ -1,6 +1,15 @@
 import { z } from 'zod';
+import { groupSchema } from './groups.js';
+import { agentDocument } from './agent-requests.js';
 
-export const schemaVersions = { profile: 1, repo: 1, manifest: 2, config: 1 } as const;
+export const schemaVersions = {
+  profile: 1,
+  repo: 1,
+  manifest: 2,
+  config: 1,
+  group: 1,
+  agent: 1,
+} as const;
 export type DocumentKind = keyof typeof schemaVersions;
 export const documentKinds = Object.keys(schemaVersions) as DocumentKind[];
 const text = z.string().min(1);
@@ -73,10 +82,13 @@ const workspace = z.looseObject({
   lastUsedAt: z.iso.datetime({ offset: true }),
   useCount: z.number().int().nonnegative(),
   lastProfiles: z.array(text),
+  groupId: z.uuid().optional(),
   origin: worktree.extend({ dirty: z.boolean() }).optional(),
   target: worktree.nullable().optional(),
 });
 export const documentSchema = {
+  agent: agentDocument,
+  group: groupSchema,
   profile: z.looseObject({
     ...base,
     kind: z.literal('profile'),
@@ -105,6 +117,7 @@ export const documentSchema = {
     path: text,
     workspaces: z.record(z.string(), workspace),
     exclude: z.array(text).optional(),
+    hidden: z.boolean().optional(),
   }),
   config: z.looseObject({
     ...base,

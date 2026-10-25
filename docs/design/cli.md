@@ -12,6 +12,8 @@ repo-cloak / cloak [--port N] [--no-open]
 
 - Bare invocation opens the dashboard without requiring a TTY.
 - `ui` remains an equivalent launcher alias.
+- `agent-mcp --workspace <path> --workspace-id <id>` runs only the scoped stdio
+  transport. It launches no dashboard and exposes no owner approval/sync tools.
 - `--port` accepts an integer from 1 through 65535; otherwise use a free port.
 - `--no-open` prints the local session URL without opening a browser.
 - `--help` and `--version` exit without creating a dashboard or touching storage.

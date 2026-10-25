@@ -8,7 +8,11 @@ import { z } from 'zod';
 import { createStore } from '../adapters/store.js';
 import { createSyncServices } from '../adapters/sync-services.js';
 import { createUiOperations, OperationError } from '../adapters/ui-operations.js';
-import type { OperationLimits, PreviewSummary } from '../adapters/ui-operations.js';
+import type {
+  OperationLimits,
+  PreviewSummary,
+  PreparedOperation,
+} from '../adapters/ui-operations.js';
 import { hashBytes, hashJson } from '../core/hash.js';
 import { ConflictError } from '../core/errors.js';
 import { checkPathCollisions, validateRelativePath } from '../core/paths.js';
@@ -17,6 +21,7 @@ import type { SyncOptions } from './pull-setup.js';
 import { createCommitDiff } from '../adapters/commit-diff.js';
 import { compilePatterns, patternProblem } from '../core/patterns.js';
 import { createReplacer } from '../core/replacer.js';
+import { readLimitedSourceFiles } from '../adapters/agent-files.js';
 
 const repoIdSchema = z.string().regex(/^[a-f0-9]{16}$/);
 const profileRef = z.object({
@@ -36,6 +41,7 @@ const inputSchema = z.discriminatedUnion('intent', [
   z
     .object({
       intent: z.literal('create'),
+      name: z.string().trim().min(1).max(80).optional(),
       repoId: repoIdSchema,
       worktree: z.string().min(1),
       destination: z.string().min(1).optional(),
@@ -84,7 +90,8 @@ export function createDashboardSync(
   const services = createSyncServices(process.cwd(), store);
   async function registered(repoId: string) {
     const repo = await services.store.readRepo(repoIdSchema.parse(repoId));
-    if (!repo) throw new OperationError('validation', 'Repository is not registered');
+    if (!repo || repo.hidden)
+      throw new OperationError('validation', 'Repository is not registered');
     return repo;
   }
   async function worktrees(repoId: string) {
@@ -121,7 +128,15 @@ export function createDashboardSync(
       );
     return { path: await services.files.canonicalPath(link.path), snapshot };
   }
-  async function prepare(value: unknown) {
+  async function prepare(
+    value: unknown,
+    internal?: {
+      exactFiles?: boolean;
+      requestId?: string;
+      requestPaths?: string[];
+      maxFileBytes?: number;
+    },
+  ): Promise<PreparedOperation> {
     const input = inputSchema.parse(value);
     const repo = await registered(input.repoId);
     const link =
@@ -131,8 +146,27 @@ export function createDashboardSync(
       throw new OperationError('validation', 'Choose an existing worktree or a new worktree');
     const cwd = input.intent === 'create' ? selected : link?.path;
     if (!cwd) throw new OperationError('validation', 'Select a worktree or workspace');
-    const local = { ...services, cwd };
+    const maxFileBytes = internal?.maxFileBytes;
+    const local = {
+      ...services,
+      cwd,
+      ...(maxFileBytes
+        ? {
+            files: {
+              ...services.files,
+              readSourceFiles: (root: string, paths: string[], concurrency: number) =>
+                readLimitedSourceFiles(root, paths, maxFileBytes, concurrency),
+            },
+          }
+        : {}),
+    };
     const options: SyncOptions = {};
+    if (internal?.exactFiles) options.exactFiles = true;
+    if (input.intent === 'create' && input.name) {
+      if (input.destination)
+        throw new Error('Choose a workspace name or an exact destination, not both');
+      options.name = input.name;
+    }
     if (input.intent !== 'restore') {
       if (input.profiles) {
         for (const ref of input.profiles)
@@ -142,9 +176,11 @@ export function createDashboardSync(
         options.profiles = input.profiles.map((ref) => `${ref.scope.kind}:${ref.id}`);
       }
       if (input.files)
-        options.files = input.files.map((path) =>
-          resolve(selected ?? cwd, path === '.' ? '.' : validateRelativePath(path)),
-        );
+        options.files = internal?.exactFiles
+          ? input.files
+          : input.files.map((path) =>
+              resolve(selected ?? cwd, path === '.' ? '.' : validateRelativePath(path)),
+            );
       if (input.commits !== undefined) options.commits = input.commits;
       if (input.working !== undefined) options.working = input.working;
       if (input.intent === 'create') {
@@ -207,10 +243,19 @@ export function createDashboardSync(
       };
     }
     const sourcePath = input.intent === 'restore' ? prepared.repository.path : prepared.source.path;
+    if (internal?.requestId) {
+      const pull = prepared.plan.plain.pulls.at(-1);
+      if (!pull || input.intent !== 'refresh') throw new Error('Invalid request pull');
+      pull.extensions = {
+        agentRequestId: internal.requestId,
+        agentRequestPaths: internal.requestPaths ?? [],
+      };
+    }
     const workspacePath = prepared.result.workspace;
     // Bind approval to identities, selected profiles, inventory and original destination.
     // Content baselines are also rechecked by the shared writers under their locks.
     const capture = async (underWriter = false) => {
+      await registered(input.repoId);
       const state = await services.git.repoState(sourcePath);
       const sourceInventory = await services.files.readWorkspace(sourcePath, [], 16);
       const workspaceInventory = await services.files.readWorkspace(workspacePath, [], 16);
@@ -288,6 +333,10 @@ export function createDashboardSync(
     return {
       summary,
       bytes: prepared.bytes,
+      async recheck() {
+        await recheck();
+        await prepared.recheck();
+      },
       async apply() {
         await recheck();
         await prepared.apply();
@@ -384,6 +433,9 @@ export function createDashboardSync(
     return { root, snapshot };
   }
   return {
+    operations,
+    prepareOperation: prepare,
+    workspaceTarget: workspace,
     worktrees,
     deleteWorkspace: (repoId: string, id: string, path: string) =>
       operations.exclusive(() => deleteWorkspace(store, repoId, id, path)),
@@ -393,7 +445,8 @@ export function createDashboardSync(
       const repo = await registered(repoId);
       return { patterns: repo.exclude ?? [] };
     },
-    saveExclusions,
+    saveExclusions: (repoId: string, value: unknown) =>
+      operations.exclusive(() => saveExclusions(repoId, value)),
     async commits(repoId: string, path: string, offset: unknown = 0, ref?: string) {
       return commitPage(await worktree(repoId, path), offset, ref);
     },

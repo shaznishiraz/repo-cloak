@@ -17,7 +17,7 @@ export async function prepareSync(
   const workspace = await services.store.findWorkspace(services.cwd);
   if ((direction === 'push' && workspace) || (direction === 'pull' && !workspace))
     return preparePushRun(services, options, workspace);
-  const { setup, io, postCommands } = await extraction(services, options, direction);
+  const { setup, io, postCommands, recheck } = await extraction(services, options, direction);
   const prepared = await preparePullRun(setup, io, version);
   return {
     plan: prepared.plan,
@@ -35,6 +35,7 @@ export async function prepareSync(
     ).length,
     postCreateCommands: setup.previous ? [] : (setup.config.postCreateCommands ?? []),
     result: { ...summary(prepared.plan, setup), postCommands },
+    recheck: () => recheck(prepared.files, prepared.workspace),
     apply: prepared.apply,
   };
 }
@@ -69,6 +70,24 @@ async function extraction(
   const concurrency = setup.config.concurrency ?? 16;
 
   const postCommands: PostCommandResult[] = [];
+  const recheck = async (
+    files: SourceFile[],
+    workspace: { paths: string[]; files: Record<string, Uint8Array> },
+  ) => {
+    const repo = await services.store.readRepo(setup.repo.repoId);
+    if (hashJson(repo?.exclude ?? []) !== hashJson(setup.repoExcludes ?? []))
+      throw new Error('Repository exclusions changed while preparing the pull; retry');
+    const source = await services.files.readSourceFiles(setup.repo.path, setup.paths, concurrency);
+    if (sourceHash(source.files) !== sourceHash(files))
+      throw new Error('Source files changed while preparing the pull; retry');
+    const current = await services.files.readWorkspace(
+      setup.destination,
+      Object.keys(workspace.files),
+      concurrency,
+    );
+    if (workspaceHash(current) !== workspaceHash(workspace))
+      throw new Error('Workspace files changed while preparing the pull; retry');
+  };
   const io: import('./pull.js').PullIO = {
     now: services.now,
     newId: services.newId,
@@ -89,25 +108,16 @@ async function extraction(
         },
         async recheck() {
           await services.beforeApply?.();
-          const repo = await services.store.readRepo(setup.repo.repoId);
-          if (hashJson(repo?.exclude ?? []) !== hashJson(setup.repoExcludes ?? []))
-            throw new Error('Repository exclusions changed while preparing the pull; retry');
-          const source = await services.files.readSourceFiles(
-            setup.repo.path,
-            setup.paths,
-            concurrency,
-          );
-          if (sourceHash(source.files) !== sourceHash(files))
-            throw new Error('Source files changed while preparing the pull; retry');
-          const current = await services.files.readWorkspace(
-            setup.destination,
-            Object.keys(workspace.files),
-            concurrency,
-          );
-          if (workspaceHash(current) !== workspaceHash(workspace))
-            throw new Error('Workspace files changed while preparing the pull; retry');
+          await recheck(files, workspace);
         },
       });
+      if (!setup.previous?.data.guidance)
+        await services.agentAccess.ensure({
+          workspaceId: setup.workspaceId,
+          repoId: setup.repo.repoId,
+          path: setup.destination,
+          worktree: setup.repo.path,
+        });
       if (!setup.previous && setup.config.postCreateCommands?.length)
         postCommands.push(
           ...(await services.runPostCreateCommands(
@@ -117,7 +127,7 @@ async function extraction(
         );
     },
   };
-  return { setup, io, postCommands };
+  return { setup, io, postCommands, recheck };
 }
 
 function sourceHash(files: SourceFile[]): string {

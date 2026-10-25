@@ -29,7 +29,9 @@ Without linking, run `node /path/to/repo-cloak/dist/cli.js`.
 Once v2 is published, install with `npm install -g repo-cloak-cli@2`.
 
 The launcher detects your exact source worktree or cloak workspace and opens the
-dashboard on that context. A new source is registered automatically. Outside Git,
+dashboard on that context. A source worktree without its own available cloak
+workspace opens the file picker and setup automatically, even if other worktrees
+already have workspaces. A new source is registered automatically. Outside Git,
 use **Add source repository** in the dashboard to select an existing Git folder.
 
 ```bash
@@ -69,6 +71,55 @@ of profile, disappear from the file picker, and block both Pull and Push.
 source commits, check affected files, and copy an anonymized patch in commit order.
 An explicit export-only toggle can include repository-excluded files. Pull/Push
 exclusions are unaffected. Binary contents are omitted from exported patches.
+
+**Repository groups** keep related backend/frontend workspaces together. Use the
+folder icon beside Repositories to create a group, or **Add to group** from a
+repository to join an existing one. Create a cloak workspace first if needed;
+groups can start with one member and grow to eight. Choose each member's exact
+workspace and source worktree. The group view has **Pull all / Push all** and
+individual Pull/Push controls, with separate profiles, exclusions and history.
+Combined sync previews every member before writing and requests any needed
+confirmations. If a member fails, completed members stay synced and **Retry
+unfinished** prepares only the remaining members. Removing a group preserves
+all repository and workspace files.
+
+New dashboard groups create a real folder containing independent **copies of
+the selected cloak workspaces**. Originals stay in place; each copy keeps its
+profiles, mappings, edits and Git history, with a fresh workspace ID and agent
+credential. Group Pull/Push targets those copies. Existing groups can use
+**Create group folder**, or **Edit group → Save group**, to create theirs.
+Use the **Open** menu to reveal the folder in Finder/Explorer or open it in
+VS Code or Zed. Workspace cards have the same menu. Start your agent in the group
+folder; root instructions and scoped MCP connections cover its members.
+
+Hover a repository in the sidebar to reveal **Remove repository** (always visible
+on touch devices). Removal takes it out of the dashboard and groups while keeping
+its files, profiles, exclusions and workspace links. Add the source again, or run
+`repo-cloak` from it, to restore its saved setup.
+
+New workspaces can use a custom **Workspace name** or keep the automatic neutral
+name. Multiple workspaces for the same source/worktree remain supported. Every
+creation installs `AGENTS.md` / `CLAUDE.md` guidance and a repo-cloak skill,
+preserving selected original instructions and stripping the added block on Push.
+
+**Requests** lets agents probe exact anonymized paths and queue missing files.
+You select files, preview, then **Approve & pull**; agents cannot approve or
+trigger sync. Queues are encrypted locally. Requests inherit the workspace's
+selected profile exclusions (global or repository scoped) and repository-wide
+exclusions, with no separate request policy to manage. Exclusions are checked
+again at approval. Requests accept text files up to 1 MiB each.
+
+Under **Requests → Connection**, enable/disable or rotate scoped access, copy MCP
+configuration, or add it directly to [Codex's project configuration](https://developers.openai.com/codex/mcp/)
+or [Claude Code's local scope](https://code.claude.com/docs/en/mcp). Existing entries
+are preserved. Trust/reload the client to load the new tools. Local `.codex/`
+settings and credentials never sync back to source. Existing workspaces install
+guidance with their next Pull. MCP tools can probe, request and poll; approval
+always stays in the dashboard. HTTP usage works without MCP setup.
+
+The broker restricts API access; it does not sandbox an agent with unrestricted
+filesystem permissions. Approved workspace files can be sent to the chosen
+agent's model provider during normal use.
 
 File-tree discovery uses Git's fresh path inventory and respects Git ignore rules
 by default. Turning off Git ignore does not bypass repo-cloak exclusions. Files
