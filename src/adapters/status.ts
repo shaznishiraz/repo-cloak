@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { StatusIO } from '../commands/status.js';
+import type { StatusIO } from '../application/status.js';
 import { parseDocument } from '../core/schemas.js';
 import { validateRelativePath } from '../core/paths.js';
 import { checkDestinationPath, readWorkspace } from './files.js';

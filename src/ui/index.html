@@ -48,6 +48,14 @@
           <aside class="repo-col">
             <div class="section">
               <h2>Repositories</h2>
+              <button
+                id="add-repo"
+                class="quiet icon-pill"
+                type="button"
+                data-icon="plus"
+                aria-label="Add source repository"
+                title="Add source repository"
+              ></button>
               <span id="repository-count" class="muted"></span>
             </div>
             <nav id="repos" aria-label="Repositories"></nav>
@@ -81,6 +89,8 @@
             </div>
             <div class="actions">
               <button id="check-profiles" class="quiet" type="button">Check selected</button>
+              <button id="import-profile" class="quiet" type="button">Import JSON</button>
+              <input id="import-profile-file" type="file" accept=".json,application/json" hidden />
               <button id="new-profile" type="button">New profile</button>
             </div>
           </div>
@@ -131,6 +141,14 @@
               </label>
               <div class="toolbar">
                 <button type="submit">Save profile</button>
+                <button
+                  id="export-profile"
+                  class="quiet"
+                  type="button"
+                  title="Download decrypted profile JSON, including original names"
+                >
+                  Export JSON
+                </button>
                 <button id="delete-profile" class="danger quiet" type="button" hidden>
                   Delete profile
                 </button>

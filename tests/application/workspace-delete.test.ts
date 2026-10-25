@@ -3,10 +3,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { lock } from 'proper-lockfile';
 import { afterEach, expect, it } from 'vitest';
-import { createDashboard } from '../../src/commands/dashboard.js';
+import { createDashboard } from '../../src/application/dashboard.js';
 import { createStore } from '../../src/adapters/store.js';
 import { createSyncServices } from '../../src/adapters/sync-services.js';
-import { createSyncCommand } from '../../src/commands/sync.js';
+import { createTestSync } from '../support/sync.js';
 import { hashJson } from '../../src/core/hash.js';
 
 const roots: string[] = [];
@@ -37,11 +37,10 @@ async function fixture() {
       rules: [{ id: 'name', type: 'literal', match: 'Acme', replace: 'Northwind' }],
     },
   );
-  const result = await createSyncCommand(services, '2.0.0')('push', {
+  const result = await createTestSync(services, '2.0.0')('push', {
     files: ['Acme.ts'],
     profiles: ['names'],
     to: destination,
-    yes: true,
   });
   const repoId = (await services.git.repoState(source)).repoId;
   const dashboard = createDashboard(store, source);

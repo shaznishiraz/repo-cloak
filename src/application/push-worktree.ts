@@ -2,7 +2,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import type { SyncServices } from '../adapters/sync-services.js';
 import type { Snapshot } from '../core/manifest.js';
 import type { RepoState } from '../core/pull.js';
-import type { PullOptions } from './pull-setup.js';
+import type { SyncOptions } from './pull-setup.js';
 import type { Document } from '../core/schemas.js';
 import { isPortableName } from '../core/path-names.js';
 
@@ -11,18 +11,18 @@ export async function prepareNewWorktree(
   repo: RepoState,
   previous: Snapshot,
   workspace: string,
-  options: PullOptions,
+  options: SyncOptions,
   config: Document<'config'>,
 ) {
   const branch = options.newWorktree ?? '';
-  if (!branch) throw new Error('Specify --new-worktree <branch>');
+  if (!branch) throw new Error('Enter a name for the new branch');
   const baseRef = options.base ?? previous.data.origin.commit;
   if (!baseRef)
-    throw new Error('The workspace was extracted before the first commit; specify --base <commit>');
+    throw new Error('The workspace was extracted before the first commit; choose a base commit');
   const base = await services.worktree.resolveBase(repo.path, baseRef);
   const name = `${basename(repo.path)}-${branch.replaceAll('/', '-')}`;
   if (!options.path && !isPortableName(name))
-    throw new Error('The default worktree name is not portable; specify --path <directory>');
+    throw new Error('Choose an explicit destination directory for this branch name');
   const parent = config.worktreePath
     ? resolve(services.cwd, config.worktreePath)
     : dirname(repo.path);

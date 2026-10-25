@@ -1,11 +1,10 @@
-import type { Command } from 'commander';
-import { createDashboard } from './commands/dashboard.js';
-import { createStore } from './adapters/store.js';
-import { startUiSession } from './adapters/ui-session.js';
+import { createDashboard } from '../application/dashboard.js';
+import { createStore } from './store.js';
+import { startUiSession } from './ui-session.js';
 
 export async function runUi(
   write: (text: string) => void,
-  options: { port?: number; open?: boolean; json?: boolean; cwd?: string } = {},
+  options: { port?: number; open?: boolean; cwd?: string } = {},
 ) {
   const store = createStore();
   const dashboard = createDashboard(store, options.cwd);
@@ -34,11 +33,8 @@ export async function runUi(
     process.once('SIGINT', stop);
     process.once('SIGTERM', stop);
   }
-  if (options.json) write(`${JSON.stringify({ url, reused: session.reused })}\n`);
-  else {
-    write(`${session.reused ? 'Using the running dashboard' : 'Dashboard running'} at ${url}\n`);
-    if (!session.reused) write('Press Ctrl+C to stop.\n');
-  }
+  write(`${session.reused ? 'Using the running dashboard' : 'Dashboard running'} at ${url}\n`);
+  if (!session.reused) write('Press Ctrl+C to stop.\n');
   if (options.open !== false) {
     try {
       const { default: openBrowser } = await import('open');
@@ -47,21 +43,4 @@ export async function runUi(
       process.stderr.write('Could not open a browser automatically. Open the address above.\n');
     }
   }
-}
-
-export function addUiCommand(program: Command, run = runUi): void {
-  const command = program
-    .command('ui')
-    .description('Open the machine-wide local dashboard')
-    .option('--port <number>', 'listen on this port (default: a free port)', (value: string) => {
-      if (!/^\d+$/.test(value) || Number(value) < 1 || Number(value) > 65535)
-        throw new Error('Port must be an integer from 1 to 65535');
-      return Number(value);
-    })
-    .option('--no-open', 'print the address without opening a browser');
-  command.action(async () => {
-    const write =
-      program.configureOutput().writeOut ?? ((text: string) => process.stdout.write(text));
-    await run(write, command.optsWithGlobals<{ port?: number; open: boolean; json?: boolean }>());
-  });
 }

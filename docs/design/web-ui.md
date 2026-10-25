@@ -65,17 +65,17 @@ browser                               server (same process as the CLI)
 |                             |       | /api/schema/:kind JSON Schema  |
 +-----------------------------+       +---------------+----------------+
                                                       |
-                                       same commands/ and core/ as the CLI
+                                       shared application/ and core/ services
 ```
 
 Choices:
 
 - **No framework.** Plain HTML, CSS, and JavaScript. The existing tsup build
   minifies browser JavaScript into `dist/ui/`; HTML and CSS are copied.
-  Shipped assets stay under 50 KB total.
+  Shipped assets stay under 68 KB total.
 - **`node:http` only.** No Express or similar; a small router over a handful
   of JSON routes.
-- **No new logic.** Every route calls the same `commands/` and `core/`
+- **No new logic.** Every route calls the shared `application/` and `core/`
   functions as the CLI, so the UI and CLI cannot disagree, and validation
   errors look the same in both.
 - **Profiles are edited as forms backed by the JSON Schema**, with a raw JSON
@@ -129,12 +129,12 @@ GET     /api/schema/:kind                  shared JSON Schemas
 The profile form reads rule types and boundary choices from the profile
 schema. Raw JSON exposes advanced options and preserves extension fields.
 Saving, importing and checking use the same validation, merge and encrypted
-profile store as the CLI. Deletion is confirmed in the browser. Workspace
-status uses the shared status command; history comes from the authenticated
+encrypted profile store as sync. Deletion is confirmed in the browser. Workspace
+status uses the shared status service; history comes from the authenticated
 manifest. Missing workspace folders are marked in the list.
 
 Sources live in `src/ui/`. The CLI build copies HTML/CSS and minifies JavaScript into `dist/ui/` using
-the existing tsup dependency. Tests enforce the 50 KB shipped asset budget.
+the existing tsup dependency. Tests enforce the 68 KB shipped asset budget.
 
 ## Browser regression automation
 

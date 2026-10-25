@@ -1,4 +1,4 @@
-/* global document, window, sessionStorage, history, location, URLSearchParams, fetch, crypto, structuredClone, localStorage, matchMedia */
+/* global document, window, sessionStorage, history, location, URLSearchParams, fetch, crypto, structuredClone, localStorage, matchMedia, TextEncoder, Blob, URL */
 const $ = (id) => document.getElementById(id);
 const on = (el, ev, fn) => el.addEventListener(ev, fn);
 const attr = (el, k, v) => el.setAttribute(k, v);
@@ -23,6 +23,8 @@ function icon(name) {
       sun: 'M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1 1m12 12 1 1M5 19l1-1M18 6l1-1',
       history: 'M3 4v5h5M3 9a9 9 0 1 1 0 6M12 7v5l3 2',
       trash: 'M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6m4-6v6',
+      sparkle:
+        'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3zm7 11 .9 2.1L22 17l-2.1.9L19 20l-.9-2.1L16 17l2.1-.9L19 14z',
     }[name],
   );
   svg.append(path);
@@ -172,6 +174,24 @@ function renderNavigation() {
   attr($('new-ws'), 'aria-label', `Create cloak workspace · ${selected?.name ?? ''}`);
   $('new-ws').onclick = () => safely(() => startWizard(selected, null, 'create'));
 }
+on($('add-repo'), 'click', () =>
+  safely(async () => {
+    if (wizard?.running || !canLeaveEditor()) return;
+    await pickFolder(repos.find((repo) => repo.id === repoId)?.path ?? '', async (path) => {
+      await safely(async () => {
+        const result = await api('repos', 'POST', { path });
+        if (wizard) await closeWizard();
+        repoId = result.repoId;
+        launchWorktree = result.worktree;
+        workspaceId = null;
+        remember();
+        await reload();
+        await selectRepo(repoId);
+        await maybeStartSetup();
+      });
+    });
+  }),
+);
 async function selectRepo(id) {
   if (!canLeaveEditor()) return;
   if (wizard && !(await closeWizard())) return;
@@ -195,7 +215,7 @@ async function renderWorkspaces() {
       empty(
         'Your cloak workspaces',
         'Create a workspace to start syncing.',
-        repoId ? undefined : 'Run repo-cloak ui in your source repository.',
+        repoId ? undefined : 'Add a source repository to begin.',
       ),
     );
     return;
@@ -315,9 +335,17 @@ async function renderWorkspaces() {
           return b;
         };
         const actions = node('div', undefined, 'toolbar card-tools');
+        const exportButton = button(
+          'Export diff',
+          () => openExport(repo, workspace),
+          'quiet export-btn',
+        );
+        exportButton.prepend(icon('sparkle'));
+        exportButton.title = 'Preview an anonymized commit diff';
         actions.append(
           syncBtn('pull', 'Pull from source', 'refresh', 'pull-btn'),
           syncBtn('push', 'Push to source', 'restore', 'push-btn'),
+          exportButton,
           show,
         );
         card.append(actions, detailBox);
@@ -336,6 +364,369 @@ async function renderWorkspaces() {
         }
       }
     }
+  }
+}
+
+async function openExport(repo, workspace) {
+  const dialog = node('dialog', undefined, 'panel export-dialog');
+  attr(dialog, 'aria-label', 'Export commit changes');
+  const endpoint = `repos/${repo.id}/workspaces/${encodeURIComponent(workspace.id)}`;
+  const close = button(
+    '',
+    () => {
+      dialog.close();
+      dialog.remove();
+    },
+    'quiet export-close',
+  );
+  close.textContent = '×';
+  attr(close, 'aria-label', 'Close export');
+  const title = node('div', undefined, 'export-heading');
+  title.append(
+    icon('sparkle'),
+    node('h2', 'Export changes'),
+    node('span', repo.name, 'muted'),
+    close,
+  );
+  const layout = node('div', undefined, 'export-layout');
+  const commitPane = node('section', undefined, 'export-pane');
+  const filePane = node('section', undefined, 'export-pane');
+  const diffPane = node('section', undefined, 'export-review');
+  const search = node('input');
+  search.type = 'search';
+  search.placeholder = 'Find a commit…';
+  attr(search, 'aria-label', 'Search commits');
+  const commitList = node('div', undefined, 'export-scroll');
+  const fileList = node('div', undefined, 'export-scroll');
+  const fileTitle = node('strong', 'Changed files');
+  const diffTitle = node('div', 'Select a file to review', 'export-pane-heading');
+  const diff = node('div', undefined, 'export-review-content');
+  const moreCommits = button('Load older commits', async () => {
+    moreCommits.disabled = true;
+    try {
+      const page = await api(`${endpoint}/export-commits?offset=${commitOffset}`);
+      commitOffset += page.length;
+      for (const commit of page)
+        if (!commits.some((item) => item.id === commit.id)) commits.push(commit);
+      moreCommits.hidden = page.length < 20;
+      drawCommits();
+    } finally {
+      moreCommits.disabled = false;
+    }
+  });
+  const findRef = button('Find reference', async () => {
+    const found = await api(
+      `${endpoint}/export-commits?ref=${encodeURIComponent(search.value.trim())}`,
+    );
+    for (const commit of found) {
+      if (!commits.some((item) => item.id === commit.id)) commits.push(commit);
+      selectedCommits.add(commit.id);
+    }
+    search.value = '';
+    drawCommits();
+    await loadFiles();
+  });
+  findRef.title = 'Find a commit SHA, branch or tag';
+  commitPane.append(
+    node('div', 'Commits', 'export-pane-heading'),
+    search,
+    findRef,
+    commitList,
+    moreCommits,
+  );
+  filePane.append(node('div', undefined, 'export-pane-heading'), fileList);
+  filePane.firstChild.append(fileTitle);
+  diffPane.append(diffTitle, diff);
+  layout.append(commitPane, filePane, diffPane);
+  const overrideLabel = node('label', undefined, 'export-toggle');
+  const override = node('input');
+  override.type = 'checkbox';
+  overrideLabel.append(override, node('span', 'Include excluded files'));
+  overrideLabel.title = 'Export only. Pull and Push exclusions remain enforced.';
+  const status = node('span', 'Loading commits…', 'export-status muted');
+  attr(status, 'role', 'status');
+  const copy = button('Copy diff', copySelected, 'primary');
+  copy.prepend(icon('sparkle'));
+  copy.disabled = true;
+  const footer = node('div', undefined, 'export-footer');
+  footer.append(overrideLabel, status, copy);
+  dialog.append(title, layout, footer);
+  on(dialog, 'cancel', () => dialog.remove());
+  document.body.append(dialog);
+  dialog.showModal();
+  let commits = [];
+  let commitOffset = 0;
+  const selectedCommits = new Set();
+  const selectedFiles = new Set();
+  const inventories = new Map();
+  let groups = [];
+  let active = '';
+  let revision = 0;
+  let previewRevision = 0;
+  let selectionRevision = 0;
+  let loading = false;
+  let copying = false;
+  const chronological = () => commits.filter((commit) => selectedCommits.has(commit.id)).reverse();
+  function updateStatus() {
+    const count = groups.filter(
+      (file) => selectedFiles.has(file.path) && (!file.excluded || override.checked),
+    ).length;
+    status.textContent = loading
+      ? 'Loading files…'
+      : `${selectedCommits.size} commits · ${count} files`;
+    copy.disabled = copying || loading || !count;
+    override.disabled = loading;
+  }
+  function drawCommits() {
+    commitList.replaceChildren();
+    for (const commit of commits.filter((item) =>
+      `${item.subject} ${item.id}`.toLowerCase().includes(search.value.toLowerCase()),
+    )) {
+      const row = node('label', undefined, 'export-commit-row');
+      row.title = commit.subject;
+      row.classList.toggle('selected', selectedCommits.has(commit.id));
+      const check = node('input');
+      check.type = 'checkbox';
+      check.checked = selectedCommits.has(commit.id);
+      on(check, 'change', () => {
+        if (check.checked) selectedCommits.add(commit.id);
+        else selectedCommits.delete(commit.id);
+        drawCommits();
+        void loadFiles();
+      });
+      const text = node('span', undefined, 'export-commit-text');
+      text.append(
+        node('span', commit.subject || '(no subject)'),
+        node('code', commit.id.slice(0, 8)),
+      );
+      row.append(check, text);
+      commitList.append(row);
+    }
+  }
+  async function loadFiles() {
+    const request = ++revision;
+    ++selectionRevision;
+    ++previewRevision;
+    loading = true;
+    updateStatus();
+    diff.replaceChildren();
+    diffTitle.textContent = 'Select a file to review';
+    fileList.replaceChildren(node('p', 'Loading files…', 'muted'));
+    try {
+      const chosen = chronological();
+      await Promise.all(
+        chosen.map(async (commit) => {
+          if (!inventories.has(commit.id)) {
+            const result = await api(`${endpoint}/export-files`, 'POST', { commit: commit.id });
+            inventories.set(commit.id, result.files);
+          }
+        }),
+      );
+      if (request !== revision || !dialog.isConnected) return;
+      const combined = new Map();
+      for (const commit of chosen) {
+        for (const file of inventories.get(commit.id)) {
+          let group = combined.get(file.path);
+          if (!group) {
+            group = {
+              path: file.path,
+              excluded: false,
+              added: 0,
+              removed: 0,
+              entries: [],
+            };
+            combined.set(file.path, group);
+          }
+          group.excluded ||= file.excluded;
+          group.added += file.added ?? 0;
+          group.removed += file.removed ?? 0;
+          group.entries.push({ commit, index: file.index });
+        }
+      }
+      const oldPaths = new Set(groups.map((file) => file.path));
+      groups = [...combined.values()].sort((a, b) => a.path.localeCompare(b.path));
+      for (const file of groups) {
+        if (!oldPaths.has(file.path) && (!file.excluded || override.checked))
+          selectedFiles.add(file.path);
+      }
+      active = groups.some((file) => file.path === active)
+        ? active
+        : (groups.find((file) => !file.excluded || override.checked)?.path ?? '');
+      loading = false;
+      drawFiles();
+      updateStatus();
+      if (active) void showFile(active);
+    } catch (error) {
+      if (request !== revision) return;
+      loading = false;
+      override.disabled = false;
+      groups = [];
+      fileList.replaceChildren();
+      status.textContent = error.message;
+      copy.disabled = true;
+    }
+  }
+  function stats(file) {
+    const counts = node('span', undefined, 'export-stat');
+    counts.append(
+      node('span', `+${file.added}`, 'export-added'),
+      node('span', `−${file.removed}`, 'export-removed'),
+    );
+    return counts;
+  }
+  function drawFiles() {
+    fileTitle.textContent = `Changed files · ${groups.length}`;
+    fileList.replaceChildren();
+    for (const file of groups) {
+      const row = node('div', undefined, 'export-file-row');
+      row.classList.toggle('active', active === file.path);
+      const check = node('input');
+      check.type = 'checkbox';
+      check.disabled = file.excluded && !override.checked;
+      check.checked = !check.disabled && selectedFiles.has(file.path);
+      attr(check, 'aria-label', `Include ${file.path}`);
+      on(check, 'change', () => {
+        if (check.checked) selectedFiles.add(file.path);
+        else selectedFiles.delete(file.path);
+        ++selectionRevision;
+        updateStatus();
+      });
+      const name = button(
+        file.path,
+        () => {
+          active = file.path;
+          drawFiles();
+          void showFile(file.path);
+        },
+        'export-file-name',
+      );
+      name.title = file.path;
+      row.append(check, name, stats(file));
+      if (file.excluded) row.title = 'Repository exclusion · use the export toggle to include';
+      fileList.append(row);
+    }
+    if (!groups.length)
+      fileList.append(node('p', 'Select one or more commits.', 'export-empty muted'));
+  }
+  async function showFile(path) {
+    const request = ++previewRevision;
+    const file = groups.find((item) => item.path === path);
+    diffTitle.replaceChildren(node('code', path));
+    diff.replaceChildren();
+    if (!file) return;
+    if (file.excluded && !override.checked) {
+      diff.append(
+        node(
+          'p',
+          'Excluded file. Enable the toggle to preview it for this export.',
+          'export-empty muted',
+        ),
+      );
+      return;
+    }
+    diffTitle.append(stats(file));
+    diff.append(node('p', 'Preparing anonymized diff…', 'export-empty muted'));
+    try {
+      const results = await Promise.all(
+        file.entries.map(async ({ commit, index }) => ({
+          commit,
+          result: await api(`${endpoint}/export`, 'POST', {
+            commit: commit.id,
+            indexes: [index],
+            includeExcluded: override.checked,
+          }),
+        })),
+      );
+      if (request !== previewRevision || !dialog.isConnected) return;
+      diff.replaceChildren();
+      for (const { commit, result } of results) {
+        if (results.length > 1) diff.append(node('div', commit.subject, 'export-pane-heading'));
+        for (const item of result.files) {
+          const patch = node('pre', undefined, 'export-diff');
+          for (const line of item.patch.split('\n')) {
+            const type = /^(diff --git|\+\+\+ |--- )/.test(line)
+              ? 'meta'
+              : line.startsWith('@@')
+                ? 'hunk'
+                : line.startsWith('+')
+                  ? 'add'
+                  : line.startsWith('-')
+                    ? 'del'
+                    : 'context';
+            patch.append(node('span', line || ' ', `diff-line diff-${type}`));
+          }
+          diff.append(patch);
+        }
+      }
+    } catch (error) {
+      if (request === previewRevision)
+        diff.replaceChildren(node('p', error.message, 'export-empty error'));
+    }
+  }
+  async function copySelected() {
+    if (copy.disabled) return;
+    copying = true;
+    const request = selectionRevision;
+    const includeExcluded = override.checked;
+    const selection = groups.filter(
+      (file) => selectedFiles.has(file.path) && (!file.excluded || includeExcluded),
+    );
+    const chosen = chronological();
+    updateStatus();
+    status.textContent = 'Preparing copy…';
+    try {
+      const patches = [];
+      for (const commit of chosen) {
+        const indexes = selection.flatMap((file) =>
+          file.entries.filter((entry) => entry.commit.id === commit.id).map((entry) => entry.index),
+        );
+        for (let start = 0; start < indexes.length; start += 100) {
+          const result = await api(`${endpoint}/export`, 'POST', {
+            commit: commit.id,
+            indexes: indexes.slice(start, start + 100),
+            includeExcluded,
+          });
+          patches.push(result.patch);
+        }
+      }
+      if (request !== selectionRevision || !dialog.isConnected)
+        throw new Error('Selection changed. Copy again.');
+      const patch = patches.filter(Boolean).join('\n');
+      if (new TextEncoder().encode(patch).length > 1024 * 1024)
+        throw new Error('Selected diff exceeds 1 MiB. Select fewer files.');
+      await window.navigator.clipboard.writeText(patch);
+      status.textContent = 'Anonymized diff copied';
+    } catch (error) {
+      status.textContent = error.message;
+    } finally {
+      copying = false;
+      const message = status.textContent;
+      updateStatus();
+      status.textContent = message;
+    }
+  }
+  on(search, 'input', drawCommits);
+  on(override, 'change', () => {
+    ++selectionRevision;
+    for (const file of groups) {
+      if (file.excluded) {
+        if (override.checked) selectedFiles.add(file.path);
+        else selectedFiles.delete(file.path);
+      }
+    }
+    drawFiles();
+    updateStatus();
+    if (active) void showFile(active);
+  });
+  try {
+    commits = await api(`${endpoint}/export-commits`);
+    commitOffset = commits.length;
+    moreCommits.hidden = commits.length < 20;
+    if (commits[0]) selectedCommits.add(commits[0].id);
+    drawCommits();
+    await loadFiles();
+  } catch (error) {
+    status.textContent = error.message;
   }
 }
 function renderWorkspaceDetail(content, detail) {
@@ -441,6 +832,42 @@ function openEditor(saved) {
   setEditorMode(false);
   $('profile-name').focus();
 }
+on($('import-profile'), 'click', () => $('import-profile-file').click());
+on($('import-profile-file'), 'change', () =>
+  safely(async () => {
+    const input = $('import-profile-file');
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+    if (file.size > 1024 * 1024) throw new Error('Profile exceeds 1 MiB');
+    const profile = await api(
+      'profiles/validate',
+      'POST',
+      JSON.parse((await file.text()).replace(/^\uFEFF/, '')),
+    );
+    if (!canLeaveEditor()) return;
+    openEditor();
+    editing.profile = profile;
+    setEditorMode(false);
+    notice('Review the imported profile, choose its scope, then save.');
+  }),
+);
+on($('export-profile'), 'click', () =>
+  safely(async () => {
+    readForm();
+    const profile = await api('profiles/validate', 'POST', editing.profile);
+    const url = URL.createObjectURL(
+      new Blob([JSON.stringify(profile, null, 2) + '\n'], { type: 'application/json' }),
+    );
+    const link = node('a');
+    link.href = url;
+    link.download = `${profile.name.replace(/[^a-z0-9_-]/gi, '_') || 'profile'}.json`;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }),
+);
 function readForm() {
   if (raw) editing.profile = JSON.parse($('profile-json').value);
   else {
@@ -687,7 +1114,7 @@ on(window, 'beforeunload', (event) => {
   if (!$('editor').hidden) event.preventDefault();
 });
 void safely(async () => {
-  if (!token) throw new Error('Run repo-cloak ui to start an authenticated session.');
+  if (!token) throw new Error('Run repo-cloak to open an authenticated dashboard.');
   schema = await api('schema/profile');
   await reload();
   if (!sessionStorage.getItem('cloak-operation')) await maybeStartSetup();
@@ -761,7 +1188,13 @@ async function quickSync(repo, workspace, intent, trigger) {
       workspaceId: workspace.id,
       worktree,
     });
-    if (!preview.canApply) {
+    if (
+      !preview.canApply ||
+      preview.deletes.length ||
+      preview.profileChanges.length ||
+      preview.conflicts.length ||
+      preview.forced
+    ) {
       await api(`sync/${preview.operationId}`, 'DELETE');
       await startWizard(repo, workspace, intent);
       notice('Review changes before syncing.');
@@ -1063,6 +1496,35 @@ async function renderSelection(body, current, generation) {
         count.textContent = `${draft.size} selected`;
       };
       on(filter, 'input', render);
+      let commitOffset = current.commitOffset ?? recentCommits.length;
+      const historyQuery = () => new URLSearchParams({ worktree: current.worktree });
+      const more = button('Load older commits', async () => {
+        more.disabled = true;
+        try {
+          const query = historyQuery();
+          query.set('offset', String(commitOffset));
+          const page = await api(`repos/${current.repo.id}/commits?${query}`);
+          commitOffset += page.length;
+          current.commitOffset = commitOffset;
+          for (const commit of page)
+            if (!recentCommits.some((item) => item.id === commit.id)) recentCommits.push(commit);
+          more.hidden = page.length < 20;
+          render();
+        } finally {
+          more.disabled = false;
+        }
+      });
+      const find = button('Find SHA, branch or tag', async () => {
+        const query = historyQuery();
+        query.set('ref', filter.value.trim());
+        const found = await api(`repos/${current.repo.id}/commits?${query}`);
+        for (const commit of found) {
+          if (!recentCommits.some((item) => item.id === commit.id)) recentCommits.push(commit);
+          draft.add(commit.id);
+        }
+        filter.value = '';
+        render();
+      });
       const close = () => {
         dialog.close();
         dialog.remove();
@@ -1081,7 +1543,7 @@ async function renderSelection(body, current, generation) {
         ),
         button('Cancel commit selection', close),
       );
-      dialog.append(count, rows, actions);
+      dialog.append(find, count, rows, more, actions);
       on(dialog, 'cancel', () => dialog.remove());
       document.body.append(dialog);
       dialog.showModal();
@@ -1190,6 +1652,7 @@ async function renderSelection(body, current, generation) {
     const result = await api(`repos/${current.repo.id}/selection-context?${requestQuery()}`);
     if (!active()) return;
     recentCommits = result.commits;
+    current.commitOffset = recentCommits.length;
     chooseCommits.disabled = false;
     workingList.replaceChildren(node('p', `${result.workingCount} uncommitted files`, 'muted'));
     for (const path of result.working) addPath(workingList, path);
@@ -1347,8 +1810,29 @@ async function showWizard() {
       ['skip', 'Skip conflicting files'],
       ['force', 'Force overwrites (requires confirmation)'],
     ]);
+    const advanced = node('details');
+    advanced.append(node('summary', 'Restore into a new branch'));
+    const branch = labeled(advanced, 'New branch (optional)', 'input', current.newWorktree ?? '');
+    const base = labeled(
+      advanced,
+      'Base commit or reference (optional)',
+      'input',
+      current.base ?? '',
+    );
+    const path = labeled(
+      advanced,
+      'New worktree directory (optional)',
+      'input',
+      current.restorePath ?? '',
+    );
+    body.append(advanced);
     collect = () => {
       current.policy = policy.value;
+      current.newWorktree = branch.value.trim();
+      current.base = base.value.trim();
+      current.restorePath = path.value.trim();
+      if (!current.newWorktree && (current.base || current.restorePath))
+        throw new Error('Enter a new branch name to use a base or destination override');
     };
   } else if (current.intent === 'create' && current.step === 2) {
     body.append(node('p', 'Create the anonymized repository in this folder.'));
@@ -1523,8 +2007,15 @@ async function showWizard() {
 function wizardInput(current) {
   const request = { intent: current.intent, repoId: current.repo.id, worktree: current.worktree };
   if (current.workspace) request.workspaceId = current.workspace.id;
-  if (current.intent === 'restore') request.policy = current.policy;
-  else {
+  if (current.intent === 'restore') {
+    request.policy = current.policy;
+    if (current.newWorktree) {
+      delete request.worktree;
+      request.newWorktree = current.newWorktree;
+      if (current.base) request.base = current.base;
+      if (current.restorePath) request.path = current.restorePath;
+    }
+  } else {
     const selected = profiles
       .filter((profile) => current.selectedProfiles.has(key(profile)))
       .map(reference);
@@ -1651,7 +2142,44 @@ async function showSettings() {
   setTab('settings-button');
   const view = $('settings-view');
   view.hidden = false;
-  view.replaceChildren(node('h2', 'Workspace defaults'));
+  view.replaceChildren();
+  if (repoId) {
+    const exclusionSection = node('section', undefined, 'repo-exclusions');
+    exclusionSection.append(
+      node('h2', 'Repository-wide file exclusions'),
+      node(
+        'p',
+        'Excluded paths stay out of the file picker and cannot be pulled or pushed, regardless of profile.',
+        'muted',
+      ),
+    );
+    const exclusionField = labeled(exclusionSection, 'Patterns (one per line)', 'textarea');
+    exclusionField.rows = 6;
+    exclusionField.spellcheck = false;
+    exclusionField.placeholder = '*.env\nsecrets/\n/private-config.json';
+    try {
+      const saved = await api(`repos/${repoId}/exclusions`);
+      exclusionField.value = saved.patterns.join('\n');
+    } catch (error) {
+      exclusionSection.append(node('p', error.message, 'error'));
+    }
+    exclusionSection.append(
+      node(
+        'p',
+        'Patterns are stored encrypted in this device’s repo-cloak repository record.',
+        'muted',
+      ),
+      button('Save exclusions', async () => {
+        const saved = await api(`repos/${repoId}/exclusions`, 'PUT', {
+          patterns: splitLines(exclusionField.value),
+        });
+        exclusionField.value = saved.patterns.join('\n');
+        notice('Repository exclusions saved');
+      }),
+    );
+    view.append(exclusionSection);
+  }
+  view.append(node('h2', 'Workspace defaults'));
   const root = labeled(view, 'Default cloak workspaces folder', 'input', settings.workspacesRoot);
   view.append(
     button('Browse default folder', () =>

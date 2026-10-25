@@ -4,8 +4,8 @@ import { join, resolve } from 'node:path';
 import { createStore } from '../src/adapters/store.js';
 import { runGit } from '../src/adapters/git.js';
 import { createSyncServices } from '../src/adapters/sync-services.js';
-import { createSyncCommand } from '../src/commands/sync.js';
-import { createDashboard } from '../src/commands/dashboard.js';
+import { prepareSync } from '../src/application/sync.js';
+import { createDashboard } from '../src/application/dashboard.js';
 import { createDashboardServer } from '../src/adapters/server.js';
 
 // Only synthetic data lives here. Never use the user's machine store.
@@ -57,7 +57,6 @@ try {
   await mkdir(join(source, 'src', 'nested'));
   await writeFile(join(source, 'src', 'nested', 'extra.ts'), 'export const extra = true;');
   const services = createSyncServices(source, store);
-  services.interactive = false;
   await services.store.saveConfig({
     kind: 'config',
     schemaVersion: 1,
@@ -73,12 +72,12 @@ try {
       rules: [{ id: 'company', type: 'literal', match: 'Acme', replace: 'Northwind' }],
     },
   );
-  await createSyncCommand(services, '2.0.0')('push', {
+  const prepared = await prepareSync(services, '2.0.0', 'push', {
     profiles: ['sample'],
     files: ['Acme.txt'],
     to: workspace,
-    yes: true,
   });
+  await prepared.apply();
   await writeFile(join(workspace, 'Northwind.txt'), 'Edited Northwind\n');
   await runGit(source, ['worktree', 'add', '-b', 'secondary', join(root, 'secondary')]);
   const fresh = join(root, 'z-new-source');

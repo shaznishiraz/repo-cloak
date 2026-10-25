@@ -21,20 +21,19 @@ requirements.md  -->  design/  -->  plan.md  -->  code  -->  openwiki/
 | [design/web-ui.md](design/web-ui.md)         | Work on the local web UI                                       |
 | [plan.md](plan.md)                           | Find the next step to build and how it is accepted             |
 
-## The CLI at a glance
+## Launch the dashboard
 
-```
-repo-cloak                       interactive mode (detects where it is run)
-repo-cloak pull                  bring changes HERE from the other side
-repo-cloak push                  send changes from here to the OTHER side
-repo-cloak status                what changed in this workspace since the last pull
-repo-cloak profile <sub>         list | show | create | edit | delete | export | import | check
-repo-cloak workspaces            list cloak workspaces linked to this source repo
-repo-cloak ui                    start the local web UI
-repo-cloak schema <kind>         print a JSON Schema (profile, repo, manifest, config)
+```bash
+repo-cloak                 # open on the current source/worktree/workspace
+cloak                      # equivalent alias
+repo-cloak --no-open       # print a local session URL
+repo-cloak --port 4321     # choose a port
 ```
 
-`cloak` is an alias for `repo-cloak`. Flags and details: [design/cli.md](design/cli.md).
+All file selection, profile management, workspace creation, Pull/Push, review and
+export run in the dashboard. See [dashboard-first](design/dashboard-first.md).
+The `ui` alias, help/version and launcher options remain; terminal workflow
+subcommands have been removed.
 
 ## Terms
 

@@ -5,7 +5,7 @@ how the code works in the wiki, not here.
 
 ## Project
 
-`repo-cloak` is a CLI that pulls selected files out of a repository, anonymizes
+`repo-cloak` is a local dashboard with a small launcher. It pulls selected files out of a repository, anonymizes
 proprietary names and secrets, and pushes changes back with the original names
 restored. It is published to npm as **`repo-cloak-cli`**.
 
@@ -33,11 +33,11 @@ Before calling work done: `npm run typecheck && npm run lint && npm test`.
 - Dependencies point inward:
 
   ```
-  cli.ts  -->  commands/  -->  core/  <--  adapters/
-  (args)      (orchestrate)   (pure logic) (fs, git, prompts)
+  cli.ts  -->  application/  -->  core/  <--  adapters/
+  (launcher)  (orchestrate)      (pure logic) (fs, git, server)
   ```
 
-  `core/` does no I/O and imports nothing from `commands/` or `adapters/`.
+  `core/` does no I/O and imports nothing from `application/` or `adapters/`.
 
 - Tests live in `tests/`, mirroring `src/`. Test `core/` directly; test commands
   with fake adapters.

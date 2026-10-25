@@ -6,7 +6,7 @@ import { lock } from 'proper-lockfile';
 import { z } from 'zod';
 import { errorCode, writeAtomic } from './atomic.js';
 import { createDashboardServer } from './server.js';
-import type { Dashboard } from '../commands/dashboard.js';
+import type { Dashboard } from '../application/dashboard.js';
 
 const sessionSchema = z.object({
   port: z.number().int().min(1).max(65535),

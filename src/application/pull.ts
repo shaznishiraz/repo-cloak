@@ -1,12 +1,10 @@
 import { planPull, pullTargetPaths } from '../core/pull.js';
 import type { PullInput, PullPlan, SourceFile } from '../core/pull.js';
-import type { PullOptions, PullSetup } from './pull-setup.js';
+import type { PullSetup } from './pull-setup.js';
 
 export interface PullIO {
   readSource(): Promise<{ files: SourceFile[]; warnings: string[] }>;
   readWorkspace(paths: string[]): Promise<{ files: Record<string, Uint8Array>; paths: string[] }>;
-  confirmProfiles(plan: PullPlan): Promise<boolean>;
-  confirmPull(plan: PullPlan, destination: string): Promise<boolean>;
   save(
     plan: PullPlan,
     files: SourceFile[],
@@ -47,18 +45,4 @@ export async function preparePullRun(setup: PullSetup, io: PullIO, version: stri
     workspace,
     apply: () => io.save(plan, source.files, workspace),
   };
-}
-
-export async function runPull(setup: PullSetup, options: PullOptions, io: PullIO, version: string) {
-  const prepared = await preparePullRun(setup, io, version);
-  const { plan } = prepared;
-  if (options.dryRun) return { status: 'dry-run' as const, plan };
-  if (!options.yes) {
-    if (plan.profileChanges.length && !(await io.confirmProfiles(plan)))
-      return { status: 'cancelled' as const, plan };
-    if (!(await io.confirmPull(plan, setup.destination)))
-      return { status: 'cancelled' as const, plan };
-  }
-  await prepared.apply();
-  return { status: 'written' as const, plan };
 }

@@ -140,7 +140,7 @@ operation state during apply; no WebSocket or background daemon is needed.
 
 ## Scope and delivery
 
-Keep the existing vanilla UI and dependencies. Measure the existing 50 KB asset
+Keep the existing vanilla UI and dependencies. Measure the existing 68 KB asset
 budget before implementing; split modules if useful, but retain the budget unless
 a separately agreed design change raises it. Use step 7a in [plan.md](../plan.md)
 for implementation order and acceptance scenarios. Update README usage once the
@@ -184,7 +184,7 @@ or included in previews. CLI and dashboard use the same creation hook.
 
 Add `GET /api/folders`, `GET /api/settings`, and `PUT /api/settings`. The selection
 API takes a repo-relative directory and returns immediate subdirectories plus
-paginated eligible files. Keep shipped UI assets under the existing 50 KB budget by minifying browser JavaScript with the existing tsup build tool; no frontend framework or new dependency is added. Source remains formatted for maintenance.
+paginated eligible files. Keep shipped UI assets under the existing 68 KB budget by minifying browser JavaScript with the existing tsup build tool; no frontend framework or new dependency is added. Source remains formatted for maintenance.
 
 ## Selection-first workflow refinement
 
@@ -305,7 +305,7 @@ work, an orange scanner line moves along the frame and the active button's icon
 animates. Stop on completion, preview handoff, or error; retain readable error
 text. Respect reduced motion, and prevent duplicate sync clicks while running.
 No new API or sync semantics are introduced. Build-time JavaScript compression
-keeps assets within the existing 50 KB limit without runtime dependencies.
+keeps assets within the existing 68 KB limit without runtime dependencies.
 
 Preview budget estimation counts binary backing buffers directly, shared references
 once, and estimated JavaScript metadata overhead. It does not stringify selected
@@ -335,3 +335,24 @@ Use the same workspace lock as sync writers, then the repo-record lock. A busy
 workspace rejects deletion. Registration failure after renaming restores the
 original directory. If final removal fails, report the remaining deletion path;
 never report success while files remain. No deletion is performed by GET routes.
+
+## Export a selected commit diff
+
+```text
+Workspace card -> Export diff -> choose source commit
+  -> list every changed source path with Git insertion/deletion counts
+  -> anonymize paths for display; mark repository-excluded paths
+  -> optionally override excludes for this export -> check files to include
+  -> read only selected commit blobs locally -> apply saved workspace rules
+  -> preview per-file red/green diffs -> copy selected anonymized patch
+```
+
+Export is read-only. It can inspect any changed file in a source commit, even if
+that path is not in the workspace manifest. Repository exclusions stay enabled
+by default and are never changed by Export; a separate explicit override permits
+including those paths in this export only. The file list allows individual
+selection, and only selected blobs are read for the preview. Diff metadata and
+clipboard output contain anonymized paths and content, not commit IDs, subjects,
+or blob hashes. Binary files are identified and omitted. Cap each file and the
+combined preview size, and validate selected file indexes against the requested
+commit on the server. The dashboard never sends source data to an AI service.

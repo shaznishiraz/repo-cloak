@@ -4,8 +4,8 @@ import { tmpdir } from 'node:os';
 import { expect, it } from 'vitest';
 import { createStore } from '../../src/adapters/store.js';
 import { createSyncServices } from '../../src/adapters/sync-services.js';
-import { createSyncCommand } from '../../src/commands/sync.js';
-import { createDashboard } from '../../src/commands/dashboard.js';
+import { createTestSync } from '../support/sync.js';
+import { createDashboard } from '../../src/application/dashboard.js';
 
 it('opens on the current repo or workspace and exposes real status and pull history', async () => {
   const root = await realpath(await mkdtemp(join(tmpdir(), 'cloak dashboard data ')));
@@ -33,11 +33,10 @@ it('opens on the current repo or workspace and exposes real status and pull hist
     });
     expect(profile.profile.extensions).toEqual({ custom: true });
     await services.store.saveConfig({ kind: 'config', schemaVersion: 1, initGit: false });
-    const result = await createSyncCommand(services, '2.0.0')('push', {
+    const result = await createTestSync(services, '2.0.0')('push', {
       profiles: ['names'],
       files: ['Acme.ts'],
       to: destination,
-      yes: true,
     });
     await writeFile(join(destination, 'Northwind.ts'), 'class Northwind { edited = true }');
     const repoId = context.repoId ?? '';

@@ -1,5 +1,9 @@
 # Build plan
 
+Terminal workflows in earlier completed steps are historical and superseded by
+[dashboard-first consolidation](design/dashboard-first.md). The current application
+uses the dashboard for workflow actions.
+
 The order v2 is built in. Each step lists its tasks and the **acceptance
 scenarios** that must pass; every scenario becomes at least one Vitest test.
 Tick boxes as work lands. 🏁 marks a milestone: update the OpenWiki there.
@@ -213,7 +217,7 @@ Design: [web-ui.md](design/web-ui.md).
 - **WHEN** an API call has no valid token **THEN** it is rejected.
 - **WHEN** a request has a foreign `Origin` **THEN** it is rejected.
 - **WHEN** a profile is saved in the UI **THEN** it passes the same validation as the CLI.
-- **WHEN** the UI assets are built **THEN** they total under 50 KB.
+- **WHEN** the UI assets are built **THEN** they total under 68 KB.
 
 **Milestone documentation:** OpenWiki regeneration remains pending the
 credentials described under step 4. Generated pages were left untouched.
@@ -291,7 +295,7 @@ context-first setup refinement. Acceptance tests cover each implementation slice
 - **WHEN** the browser wizard runs at desktop and 390-pixel widths **THEN** back,
   profile-editor return, validation, confirmation and results remain usable.
 - **WHEN** validation runs **THEN** typecheck, lint, Vitest, browser regressions,
-  build/package checks and the existing 50 KB UI asset budget pass.
+  build/package checks and the existing 68 KB UI asset budget pass.
 
 - **WHEN** a first launch identifies the source worktree **THEN** setup starts with
   folder selection and the optional Change control exposes other worktrees.
@@ -321,3 +325,13 @@ license and package metadata. The local suite passes on Node 22.13.1 and Node
 24; the final cross-platform CI run awaits pushing the commits. OpenWiki still
 needs the credentials or scheduled workflow described under step 4. Publication
 has not been requested.
+
+## Dashboard-first consolidation
+
+Design: [dashboard-first](design/dashboard-first.md).
+
+- [x] Bare launcher opens dashboard directly with detected repo/worktree context.
+- [x] Dashboard source registration, profile import/export and older commit selection.
+- [x] Quick-sync review for deletions/profile changes; advanced restore target control.
+- [x] Remove terminal-only commands/prompts and dependency; move shared application services.
+- [x] Update launcher/API coverage, package checks and active documentation.

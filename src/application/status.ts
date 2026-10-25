@@ -10,7 +10,7 @@ export type StatusIO = {
 
 export async function runStatus(io: StatusIO) {
   const root = await io.findWorkspace(io.cwd);
-  if (!root) throw new Error('Run status inside a repo-cloak workspace');
+  if (!root) throw new Error('Select a repo-cloak workspace to view its status');
   const manifest = await io.readManifest(root);
   const files = await io.readFiles(root, Object.keys(manifest.files));
   return { workspaceId: manifest.workspaceId, ...workspaceStatus(manifest.files, files) };

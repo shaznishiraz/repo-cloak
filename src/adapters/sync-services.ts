@@ -1,8 +1,6 @@
 import { runPostCreateCommands } from './post-create.js';
 import { randomUUID } from 'node:crypto';
-import { dirname, resolve } from 'node:path';
-import type { SavedProfile } from '../core/profiles.js';
-import type { PullPlan } from '../core/pull.js';
+import { resolve } from 'node:path';
 import * as files from './files.js';
 import * as git from './git.js';
 import * as worktree from './worktree.js';
@@ -11,9 +9,6 @@ import { createStore } from './store.js';
 import { createSyncStore } from './sync-store.js';
 import { createWorkspaceWriter } from './workspace.js';
 import { createSourceWriter } from './source-writer.js';
-import type { PushPlan } from '../core/push.js';
-
-const loadPrompts = () => import('@inquirer/prompts');
 
 export function createSyncServices(cwd = process.cwd(), store = createStore()) {
   return {
@@ -27,76 +22,8 @@ export function createSyncServices(cwd = process.cwd(), store = createStore()) {
     worktree,
     writeWorkspace: createWorkspaceWriter(),
     writeSource: createSourceWriter(),
-    interactive: Boolean(process.stdin.isTTY && process.stdout.isTTY),
     now: () => new Date().toISOString(),
     newId: randomUUID,
-    async chooseProfiles(profiles: SavedProfile[]): Promise<SavedProfile[]> {
-      const { checkbox } = await loadPrompts();
-      return checkbox({
-        message: 'Profiles to use',
-        required: true,
-        choices: profiles.map((profile) => ({
-          name: `${profile.profile.name} (${profile.scope.kind})`,
-          value: profile,
-        })),
-      });
-    },
-    async chooseWorkspace(paths: string[]): Promise<string> {
-      const { select } = await loadPrompts();
-      return select({
-        message: 'Which workspace?',
-        choices: paths.map((path) => ({ name: path, value: path })),
-      });
-    },
-    async chooseProfile(profiles: SavedProfile[]): Promise<SavedProfile> {
-      const { select } = await loadPrompts();
-      return select({
-        message: 'Which profile?',
-        choices: profiles.map((profile) => ({
-          name: `${profile.profile.name} (${profile.scope.kind})`,
-          value: profile,
-        })),
-      });
-    },
-    /** Suggest the launch directory, or the folder holding its repo (a workspace can't live inside it). */
-    async workspacesRoot(): Promise<string> {
-      const { input } = await loadPrompts();
-      const here = resolve(cwd);
-      const repo = await git.findRepo(here).catch(() => undefined);
-      const answer = await input({
-        message: 'Where should cloak workspaces live?',
-        default: repo ? dirname(repo.topLevel) : here,
-        prefill: 'editable',
-        required: true,
-      });
-      return resolve(here, answer.trim());
-    },
-    async confirmProfiles(plan: PullPlan): Promise<boolean> {
-      const { confirm } = await loadPrompts();
-      process.stderr.write(
-        `Changed profiles: ${plan.profileChanges.join(', ')}\nRules before:\n${JSON.stringify(plan.previousRules, null, 2)}\nRules now:\n${JSON.stringify(plan.data.rules, null, 2)}\n`,
-      );
-      return confirm({ message: 'Refresh using these changed profiles?', default: false });
-    },
-    async confirmPull(plan: PullPlan, destination?: string): Promise<boolean> {
-      const { confirm } = await loadPrompts();
-      const matches = plan.preview.filter((match) => match.status === 'replaced');
-      if (destination) process.stderr.write(`Workspace: ${destination}\n`);
-      process.stderr.write(
-        `${plan.writes.length} files to write, ${plan.deletes.length} files to remove\n${matches.length} replacements, ${matches.filter((match) => match.kind === 'secret').length} secrets redacted\n${plan.warnings.join('\n')}\n`,
-      );
-      return confirm({ message: 'Apply this pull?', default: true });
-    },
-    async confirmPush(plan: PushPlan): Promise<boolean> {
-      const { confirm } = await loadPrompts();
-      for (const warning of plan.warnings) process.stderr.write(`${warning}\n`);
-      process.stderr.write(
-        `${plan.writes.length} files to write, ${plan.deletes.length} files to delete in the source\n`,
-      );
-      for (const path of plan.deletes) process.stderr.write(`Delete: ${path}\n`);
-      for (const path of plan.conflicts) process.stderr.write(`Skip conflict: ${path}\n`);
-      return confirm({ message: 'Restore these changes to the source?', default: false });
-    },
   };
 }
 export type SyncServices = ReturnType<typeof createSyncServices>;

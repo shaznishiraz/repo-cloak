@@ -2,11 +2,11 @@ import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promi
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { afterEach, expect, it } from 'vitest';
-import { createDashboard } from '../../src/commands/dashboard.js';
+import { createDashboard } from '../../src/application/dashboard.js';
 import { createStore } from '../../src/adapters/store.js';
 import { createSyncServices } from '../../src/adapters/sync-services.js';
 import { browseFolders } from '../../src/adapters/folders.js';
-import { createSyncCommand } from '../../src/commands/sync.js';
+import { createTestSync } from '../support/sync.js';
 
 const roots: string[] = [];
 afterEach(async () => {
@@ -121,12 +121,11 @@ it('reports a failed command, keeps the created workspace and stops the remainin
       "node -e \"require('node:fs').writeFileSync('not-run.txt','bad')\"",
     ],
   });
-  const run = createSyncCommand(f.services, '2.0.0');
+  const run = createTestSync(f.services, '2.0.0');
   const result = await run('push', {
     profiles: ['names'],
     files: ['src'],
     newWorkspace: true,
-    yes: true,
   });
   expect(result.status).toBe('written');
   expect('postCommands' in result && result.postCommands).toEqual([

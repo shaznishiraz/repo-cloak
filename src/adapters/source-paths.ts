@@ -11,10 +11,17 @@ export async function listSourcePaths(
   root: string,
   profiles: Profile[] = [],
   respectGitIgnore = true,
+  repoExcludes: string[] = [],
 ): Promise<string[]> {
   if (!respectGitIgnore)
     return [
-      ...new Set(filterPaths(await expandPaths(root, root, ['.'], profiles), profiles)),
+      ...new Set(
+        filterPaths(
+          await expandPaths(root, root, ['.'], profiles, repoExcludes),
+          profiles,
+          repoExcludes,
+        ),
+      ),
     ].sort();
   const output = await runGit(root, [
     'ls-files',
@@ -27,6 +34,7 @@ export async function listSourcePaths(
   const paths = filterPaths(
     [...new Set(output.split('\0').filter((path) => path && !path.endsWith('/')))],
     profiles,
+    repoExcludes,
   );
   const limit = pLimit(32);
   // Per-request ancestor checks prevent tracked paths inside newly nested repos leaking in.

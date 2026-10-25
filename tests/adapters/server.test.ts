@@ -5,7 +5,7 @@ import { request } from 'node:http';
 import { afterEach, expect, it } from 'vitest';
 import { runGit } from '../../src/adapters/git.js';
 import { createStore } from '../../src/adapters/store.js';
-import { createDashboard } from '../../src/commands/dashboard.js';
+import { createDashboard } from '../../src/application/dashboard.js';
 import { createDashboardServer } from '../../src/adapters/server.js';
 
 const cleanups: (() => Promise<void>)[] = [];
@@ -392,4 +392,62 @@ it('validates inventory ignore preferences and serves only fresh path metadata',
   await writeFile(join(source, 'fresh.ts'), 'fresh');
   expect(await (await call(url)).json()).toEqual({ files: ['.gitignore', 'fresh.ts'] });
   expect((await call(`/api/repos/${repoId}/selection-context?${query}`)).status).toBe(200);
+});
+
+it('registers an existing source from the dashboard and validates imported profile JSON', async () => {
+  const { store, call } = await fixture();
+  const source = join(store.root, '..', 'added source');
+  await mkdir(source);
+  await runGit(source, ['init', '-b', 'main']);
+  const registered = await call('/api/repos', 'POST', { path: source });
+  expect(registered.status).toBe(200);
+  const context = (await registered.json()) as { repoId: string; worktree: string };
+  expect(context.repoId).toMatch(/^[a-f0-9]{16}$/);
+  const repos = (await (await call('/api/repos')).json()) as { id: string }[];
+  expect(repos.map((repo) => repo.id)).toContain(context.repoId);
+  const profile = { kind: 'profile', schemaVersion: 1, name: 'imported', rules: [] };
+  expect(await (await call('/api/profiles/validate', 'POST', profile)).json()).toEqual(profile);
+  expect(
+    (
+      await call('/api/profiles/validate', 'POST', {
+        ...profile,
+        rules: [{ type: 'regex', id: 'bad', match: '(', replace: '' }],
+      })
+    ).status,
+  ).toBe(400);
+  expect((await call('/api/repos', 'POST', { path: store.root })).status).toBe(400);
+  const cloak = join(store.root, '..', 'cloak');
+  await mkdir(join(cloak, '.repo-cloak'), { recursive: true });
+  await writeFile(join(cloak, '.repo-cloak', 'manifest.json'), '{}');
+  expect((await call('/api/repos', 'POST', { path: cloak })).status).toBe(400);
+  for (const subject of ['first', 'second']) {
+    await runGit(source, [
+      '-c',
+      'user.name=Test',
+      '-c',
+      'user.email=test@example.com',
+      'commit',
+      '--allow-empty',
+      '-m',
+      subject,
+    ]);
+  }
+  const query = `worktree=${encodeURIComponent(context.worktree)}`;
+  const recent = (await (await call(`/api/repos/${context.repoId}/commits?${query}`)).json()) as {
+    id: string;
+    subject: string;
+  }[];
+  expect(recent.map((commit) => commit.subject)).toEqual(['second', 'first']);
+  const older = (await (
+    await call(`/api/repos/${context.repoId}/commits?${query}&offset=1`)
+  ).json()) as { subject: string }[];
+  expect(older.map((commit) => commit.subject)).toEqual(['first']);
+  const found = (await (
+    await call(`/api/repos/${context.repoId}/commits?${query}&ref=HEAD~1`)
+  ).json()) as { id: string }[];
+  expect(found[0]?.id).toBe(recent[1]?.id);
+  expect((await call(`/api/repos/${context.repoId}/commits?${query}&offset=-1`)).status).toBe(400);
+  expect((await call(`/api/repos/${context.repoId}/commits?${query}&ref=missing`)).status).toBe(
+    400,
+  );
 });

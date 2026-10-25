@@ -40,6 +40,7 @@ export async function expandPaths(
   cwd: string,
   paths: string[],
   profiles: Profile[] = [],
+  repoExcludes: string[] = [],
 ): Promise<string[]> {
   const result: string[] = [];
   for (const path of paths) {
@@ -54,6 +55,7 @@ export async function expandPaths(
         ...metadata,
         ...(profiles.some((profile) => profile.include?.length) ? [] : excluded),
         ...profiles.flatMap((profile) => profile.exclude ?? []),
+        ...repoExcludes,
       ]);
       const base = relative(root, absolute);
       const fromRoot = (path: string) => join(base, path).replaceAll('\\', '/');
@@ -81,13 +83,22 @@ export async function expandPaths(
  * Final selection filter for repository-relative paths. Metadata is never copied; a profile
  * exclude always wins; profile includes bring back files skipped by the default exclusions.
  */
-export function filterPaths(paths: string[], profiles: Profile[]): string[] {
+export function filterPaths(
+  paths: string[],
+  profiles: Profile[],
+  repoExcludes: string[] = [],
+): string[] {
   const isMetadata = compilePatterns(metadata);
   const isDefault = compilePatterns(excluded);
   const isExcluded = compilePatterns(profiles.flatMap((profile) => profile.exclude ?? []));
   const isIncluded = compilePatterns(profiles.flatMap((profile) => profile.include ?? []));
+  const isRepoExcluded = compilePatterns(repoExcludes);
   return paths.filter(
-    (path) => !isMetadata(path) && !isExcluded(path) && (!isDefault(path) || isIncluded(path)),
+    (path) =>
+      !isMetadata(path) &&
+      !isExcluded(path) &&
+      !isRepoExcluded(path) &&
+      (!isDefault(path) || isIncluded(path)),
   );
 }
 async function nestedRepo(root: string, path: string): Promise<boolean> {

@@ -6,7 +6,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
-import type { Dashboard } from '../commands/dashboard.js';
+import type { Dashboard } from '../application/dashboard.js';
 import { documentKinds, jsonSchema } from '../core/schemas.js';
 
 const assets = new Map([
@@ -129,9 +129,24 @@ export function createDashboardServer(
       result = await browseFolders(url.searchParams.get('path') ?? undefined, offset);
     } else if (method === 'GET' && url.pathname === '/api/repos')
       result = await dashboard.overview();
+    else if (method === 'POST' && url.pathname === '/api/repos')
+      result = await dashboard.addRepository(await readBody(request));
     else if (method === 'GET' && /^\/api\/repos\/[^/]+\/worktrees$/.test(url.pathname))
       result = await dashboard.sync.worktrees(decodeURIComponent(url.pathname.split('/')[3] ?? ''));
-    else if (method === 'GET' && /^\/api\/repos\/[^/]+\/inventory$/.test(url.pathname)) {
+    else if (method === 'GET' && /^\/api\/repos\/[^/]+\/commits$/.test(url.pathname))
+      result = await dashboard.sync.commits(
+        decodeURIComponent(url.pathname.split('/')[3] ?? ''),
+        url.searchParams.get('worktree') ?? '',
+        url.searchParams.get('offset') ?? 0,
+        url.searchParams.get('ref') ?? undefined,
+      );
+    else if (/^\/api\/repos\/[^/]+\/exclusions$/.test(url.pathname)) {
+      const id = decodeURIComponent(url.pathname.split('/')[3] ?? '');
+      if (method === 'GET') result = await dashboard.sync.exclusions(id);
+      else if (method === 'PUT')
+        result = await dashboard.sync.saveExclusions(id, await readBody(request));
+      else throw new RequestError(404, 'Not found');
+    } else if (method === 'GET' && /^\/api\/repos\/[^/]+\/inventory$/.test(url.pathname)) {
       const respect = url.searchParams.get('respectGitIgnore') ?? 'true';
       if (respect !== 'true' && respect !== 'false')
         throw new RequestError(400, 'Invalid Git ignore preference');
@@ -140,6 +155,31 @@ export function createDashboardServer(
         url.searchParams.get('worktree') ?? '',
         JSON.parse(url.searchParams.get('profiles') ?? '[]') as unknown,
         respect === 'true',
+      );
+    } else if (/^\/api\/repos\/[^/]+\/workspaces\/[^/]+\/export-commits$/.test(url.pathname)) {
+      if (method !== 'GET') throw new RequestError(404, 'Not found');
+      const parts = url.pathname.split('/');
+      result = await dashboard.sync.exportCommits(
+        decodeURIComponent(parts[3] ?? ''),
+        decodeURIComponent(parts[5] ?? ''),
+        url.searchParams.get('offset') ?? 0,
+        url.searchParams.get('ref') ?? undefined,
+      );
+    } else if (/^\/api\/repos\/[^/]+\/workspaces\/[^/]+\/export$/.test(url.pathname)) {
+      if (method !== 'POST') throw new RequestError(404, 'Not found');
+      const parts = url.pathname.split('/');
+      result = await dashboard.sync.exportDiff(
+        decodeURIComponent(parts[3] ?? ''),
+        decodeURIComponent(parts[5] ?? ''),
+        await readBody(request),
+      );
+    } else if (/^\/api\/repos\/[^/]+\/workspaces\/[^/]+\/export-files$/.test(url.pathname)) {
+      if (method !== 'POST') throw new RequestError(404, 'Not found');
+      const parts = url.pathname.split('/');
+      result = await dashboard.sync.exportFiles(
+        decodeURIComponent(parts[3] ?? ''),
+        decodeURIComponent(parts[5] ?? ''),
+        await readBody(request),
       );
     } else if (method === 'GET' && /^\/api\/repos\/[^/]+\/selection-context$/.test(url.pathname))
       result = await dashboard.sync.selectionContext(
@@ -173,6 +213,8 @@ export function createDashboardServer(
       result = await dashboard.saveProfile(await readBody(request));
     else if (method === 'DELETE' && url.pathname === '/api/profiles')
       result = await dashboard.deleteProfile(await readBody(request));
+    else if (method === 'POST' && url.pathname === '/api/profiles/validate')
+      result = dashboard.validateProfile(await readBody(request));
     else if (method === 'POST' && url.pathname === '/api/profiles/check')
       result = await dashboard.checkProfiles(await readBody(request));
     else if (

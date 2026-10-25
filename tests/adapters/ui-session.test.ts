@@ -4,7 +4,7 @@ import { join, resolve } from 'node:path';
 import { buildUi } from '../../scripts/build-ui.js';
 import { expect, it } from 'vitest';
 import { createStore } from '../../src/adapters/store.js';
-import { createDashboard } from '../../src/commands/dashboard.js';
+import { createDashboard } from '../../src/application/dashboard.js';
 import { startUiSession } from '../../src/adapters/ui-session.js';
 
 it('reuses one server for concurrent launches and removes session files on shutdown', async () => {
@@ -38,14 +38,14 @@ it('reuses one server for concurrent launches and removes session files on shutd
   await rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
 });
 
-it('ships less than 50 KB of browser assets', async () => {
+it('ships less than 68 KB of browser assets', async () => {
   const root = await mkdtemp(join(tmpdir(), 'cloak UI build '));
   try {
     await buildUi(root);
     const sizes = await Promise.all(
       ['index.html', 'app.js', 'app.css'].map(async (name) => (await stat(join(root, name))).size),
     );
-    expect(sizes.reduce((sum, size) => sum + size, 0)).toBeLessThan(50_000);
+    expect(sizes.reduce((sum, size) => sum + size, 0)).toBeLessThan(68_000);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

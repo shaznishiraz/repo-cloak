@@ -7,7 +7,7 @@ import { createSyncStore } from '../adapters/sync-store.js';
 import { createProfileStore } from '../adapters/profiles.js';
 import { createStatusIO } from '../adapters/status.js';
 import { findRepo, repoState } from '../adapters/git.js';
-import { exists } from '../adapters/files.js';
+import { canonicalPath, exists } from '../adapters/files.js';
 import { runStatus } from './status.js';
 import { documentSchema } from '../core/schemas.js';
 import { validateProfile } from '../core/rules.js';
@@ -53,6 +53,22 @@ export function createDashboard(store = createStore(), cwd = process.cwd()) {
         z.string().min(1).parse(id),
         input.path,
       );
+    },
+    async addRepository(value: unknown) {
+      const { path } = z
+        .object({ path: z.string().min(1) })
+        .strict()
+        .parse(value);
+      const canonical = await canonicalPath(path);
+      if (await syncStore.findWorkspace(canonical))
+        throw new Error('Choose a source repository, not a cloak workspace');
+      const repo = await findRepo(canonical);
+      if (!repo) throw new Error('The selected folder is not a Git repository');
+      await syncStore.registerRepo(await repoState(repo.topLevel));
+      return { repoId: repo.repoId, worktree: repo.topLevel };
+    },
+    validateProfile(value: unknown) {
+      return validateProfile(value);
     },
     async context() {
       const workspace = await syncStore.findWorkspace(cwd);

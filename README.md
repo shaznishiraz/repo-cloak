@@ -1,243 +1,124 @@
 # repo-cloak
 
-Select files from a private repository, anonymize names and secrets in a separate
-workspace, then restore changes with the original names intact.
+Select files from a private Git repository, anonymize names and secrets in a
+separate workspace, then restore changes with the original names intact.
 
-This checkout contains **v2**, a ground-up rewrite. Both `repo-cloak` and `cloak`
-run the same CLI.
+repo-cloak is a local dashboard with a small launcher. Both `repo-cloak` and
+`cloak` open the same application. Published package name: **repo-cloak-cli**.
 
-> **Upgrading from v1:** use your existing v1 installation to push changes back
-> from every v1 workspace before upgrading. v2 cannot restore v1 workspaces.
-> Create fresh workspaces with v2 after restoring your old ones. The v1 source
-> remains in [`archive/`](archive/) for reference.
+> **Upgrading from v1:** restore changes from every v1 workspace with your v1
+> installation before upgrading. v2 cannot restore v1 workspaces. Create fresh
+> workspaces afterward. `archive/` contains v1 for reference only.
 
-## Requirements and installation
+## Install and launch
 
-- macOS, Windows, or Linux
-- Node.js 22.13 or later in the 22.x series, or Node.js 23.5 or later
-- Git on your PATH
+Requires Git and Node.js 22.13+ on the 22.x line, or 23.5+.
+Supports macOS, Windows, and Linux.
 
-For this unreleased checkout, build and link locally:
+For this unreleased checkout:
 
 ```bash
 npm ci
 npm run build
 npm link
-repo-cloak --help
-```
-
-Without linking, use `node dist/cli.js` instead of `repo-cloak`.
-Once v2 is published, install it with `npm install -g repo-cloak-cli@2`.
-
-## Start with the guided CLI
-
-From anywhere:
-
-```bash
+cd /path/to/your/source-repository
 repo-cloak
 ```
 
-It first asks for the source repository (the current one is the default, or
-type a path) and, if the repository has several Git worktrees, which one to use
-(the main worktree is the default). The menu then guides you through profiles,
-file selection, destination, and a preview.
-In an existing workspace, it offers refresh, restore, status, and the dashboard.
-Selection can combine files, recent commits, commits you type by ID, branch or tag,
-working changes, and extra paths.
+Without linking, run `node /path/to/repo-cloak/dist/cli.js`.
+Once v2 is published, install with `npm install -g repo-cloak-cli@2`.
 
-## Use explicit commands
-
-Create a profile from your source repository:
+The launcher detects your exact source worktree or cloak workspace and opens the
+dashboard on that context. A new source is registered automatically. Outside Git,
+use **Add source repository** in the dashboard to select an existing Git folder.
 
 ```bash
-repo-cloak profile create company
+repo-cloak --port 4321
+repo-cloak --no-open
+repo-cloak --help
+repo-cloak --version
 ```
 
-This opens a validated JSON editor. A minimal profile looks like this:
+`repo-cloak ui` remains a launcher alias. Terminal sync, profile, status,
+workspaces, and schema subcommands have been removed; manage those workflows in
+the dashboard. The launcher does not require an interactive terminal.
 
-```json
-{
-  "kind": "profile",
-  "schemaVersion": 1,
-  "name": "company",
-  "rules": [
-    {
-      "id": "company-name",
-      "type": "literal",
-      "match": "Acme",
-      "replace": "Northwind"
-    }
-  ]
-}
-```
+## Create and use a workspace
 
-You can also save that JSON to a file and import it with
-`repo-cloak profile import company.json`. Profiles default to the current repo;
-use `--global` to share one across repositories. Literal rules handle name
-variants and paths. Regex and built-in secret detectors are also supported.
+1. Select files from the searchable nested checklist, working changes, commits,
+   or a combination. Browse older commits or find a SHA, branch, or tag.
+2. Select reusable global and repository profiles. Create/edit profiles through
+   forms or JSON; import a JSON file or export a validated profile locally.
+3. Choose a destination folder and optional post-create commands. Save defaults
+   for future workspaces.
+4. Review the plan and create the anonymized workspace. Post-create commands run
+   once after creation; failures leave the created workspace available.
+5. Use **Pull files** to refresh source changes into the cloak workspace, and
+   **Push changes** to restore workspace edits into the source repository.
 
-Preview and create a workspace:
+Quick sync opens review when deletions, changed profiles, or conflicts need
+attention. Conflicts block writes unless you explicitly choose skip or force.
+The restore review also supports a new branch/worktree with an optional base
+reference and target directory. Restored source changes remain uncommitted.
 
-```bash
-repo-cloak push --profile repo:company --files src README.md --to ../cloak-work --dry-run
-repo-cloak push --profile repo:company --files src README.md --to ../cloak-work --yes
-```
+The dashboard includes workspace status/history, workspace deletion, theme
+switching, and encrypted repository-wide exclusions. Exclusions apply regardless
+of profile, disappear from the file picker, and block both Pull and Push.
 
-Make changes inside `../cloak-work`, then inspect and restore them:
+**Export diff** opens a three-pane commit/file/diff review. Select one or multiple
+source commits, check affected files, and copy an anonymized patch in commit order.
+An explicit export-only toggle can include repository-excluded files. Pull/Push
+exclusions are unaffected. Binary contents are omitted from exported patches.
 
-```bash
-cd ../cloak-work
-repo-cloak status
-repo-cloak push --dry-run
-repo-cloak push
-```
+File-tree discovery uses Git's fresh path inventory and respects Git ignore rules
+by default. Turning off Git ignore does not bypass repo-cloak exclusions. Files
+are loaded for syncing or diff preview when requested; there is no persistent
+file-tree cache.
 
-Restore checks every affected file before writing. Source changes cause a
-conflict and exit code 2. Review conflicts before choosing `--skip-conflicts`
-or `--force`. Deletions require confirmation; `--yes` accepts them for scripts.
-Restored changes remain uncommitted in the source repository.
+## Local operation and storage
 
-### Direction depends on your location
+The dashboard binds to `127.0.0.1` and requires a session token. A second launcher
+invocation reuses the running server. Press Ctrl+C in its original terminal to
+stop it. After rebuilding backend changes, restart that server; refreshing only
+reloads frontend assets.
 
-| Run from          | `push`                                  | `pull`                                    |
-| ----------------- | --------------------------------------- | ----------------------------------------- |
-| Source repository | Anonymize source files into a workspace | Restore workspace changes into the source |
-| Cloak workspace   | Restore changes into the source         | Refresh anonymized files from the source  |
+File discovery, anonymization, and sync stay on your machine. They do not upload
+code to an AI service or run a remote Git push. User-configured post-create shell
+commands can access the network.
 
-With no selection flags, refresh uses the files and profiles recorded in the
-workspace. If both sides changed the same tracked file, refresh stops with a
-conflict. Use `repo-cloak workspaces` in the source to list linked workspaces.
-Choose one explicitly with `push --to <workspace>` or `pull --from <workspace>`.
+Profiles, original paths, repository records, and replacement ledgers use
+AES-256-GCM encryption with a local key at `~/.repo-cloak/key`. Keep the private
+store and key backed up; losing the key prevents restoration. This is application
+encryption with user-only file permissions, not native Keychain/DPAPI integration.
+Profile JSON downloads are intentionally decrypted.
 
-### Restore into a feature worktree
+Git/tool metadata and common generated/dependency files are skipped by default.
+Profiles can add `.gitignore`-style includes and excludes; repository-wide
+exclusions always win during sync. Binary files are copied unchanged during sync
+and reported. External symlinks, submodules, and nested repositories are skipped
+on extraction; restore rejects unsafe paths. Normal write failures roll back
+files; a process or power failure is not an atomic multi-file transaction.
 
-From a cloak workspace:
-
-```bash
-repo-cloak push --new-worktree feature/review --dry-run
-repo-cloak push --new-worktree feature/review --path ../review --yes
-```
-
-The new branch defaults to the commit used during extraction. Override it with
-`--base <ref>`. The full tracked workspace is restored, including captured
-uncommitted source changes. Future restores and refreshes remember the target
-branch, even if its Git worktree moves. To use an existing worktree, pass
-`--worktree <path>` instead.
-
-## Open the dashboard
-
-```bash
-repo-cloak ui
-repo-cloak ui --port 4321
-repo-cloak ui --no-open
-```
-
-One dashboard manages all registered repositories and workspaces on your machine.
-It shows status and pull history, and provides profile forms, a JSON editor, and
-profile conflict checks. Run it inside your existing project or Git worktree to
-open on that context. The repository and worktree are inferred; **Change worktree**
-is available when needed. First-time setup opens directly on **Select code**. Search file paths live across
-the repository or expand the nested file checklist. Folder checkboxes select their
-files and show partial selections. Select individual uncommitted files or all working
-changes, and choose commits in a searchable popup. Selections combine and survive
-searches and navigation. **Respect Git ignore rules** is on by default; turn it
-off to include ignored files, subject to repo-cloak’s separate exclusions. Tracked
-files remain visible even when ignore patterns match them. **Refresh file tree**
-reads a fresh inventory; no persistent inventory cache is used. Only file paths
-are loaded for the tree, and collapsed children are rendered when expanded.
-Then choose profiles and a destination, review the
-anonymization preview, and confirm.
-
-**Settings** stores a global cloak-workspaces folder. New anonymized repositories
-are created underneath it automatically. A folder browser is available for choosing
-locations, and creation can override or save the defaults. Optional **post-create
-commands** run in the new workspace after creation, never on refresh/restore or
-preview. Commands run in order with a two-minute limit each; failures are reported
-and keep the created workspace.
-
-The workspace overview shows real registered-workspace counts beside a compact
-repository panel. Cards show their name and **Last used** date; **Details**
-reveals the full path, saved profiles, tracked-file/change counts and history.
-Use **Pull from source** (source → cloak) or **Push to source** (cloak → source).
-Restore can target an existing worktree or
-create a new branch/worktree. Deletions, changed profiles, and forced overwrites
-require explicit confirmation. Source changes remain uncommitted for review.
-
-**Delete** on a workspace card permanently removes its cloak directory, including
-Git history and unsynced files, plus its local registration and stored manifest.
-Confirm the exact path before deleting. Source repositories and saved profiles
-are kept. Missing workspace directories can also be removed from the list.
-
-Previews expire after ten minutes. If files, profiles, or Git context change,
-create another preview. Applies run once even if a request is retried; reloading
-the same tab recovers operation status while the server is running.
-
-Use the header’s **Dark mode / Light mode** toggle to switch appearance. Your
-choice is remembered in this browser; the initial theme follows your system.
-
-File discovery and normal cloak sync stay on your machine; they do not upload
-repository contents to a cloud service or run a remote Git push. User-configured
-post-create shell commands can access the network.
-
-The server binds only to `127.0.0.1`, prints an authenticated URL, and normally
-opens your browser. A second invocation reuses the running dashboard. Press
-Ctrl+C in the original terminal to stop it.
-
-## Profiles, storage, and file handling
-
-- Global and repo profiles can be combined using repeated `--profile` flags.
-  Use `global:<name>` or `repo:<name>` when names overlap.
-- Profile settings, original paths, and replacement pairs are encrypted using
-  a machine-local key in `~/.repo-cloak/key`. Keep the key and machine store
-  private and backed up; losing the key prevents restoration.
-- Workspace manifests expose anonymized paths and baseline hashes. Original
-  names and source details stay in the authenticated encrypted portion.
-- Binary files and invalid UTF-8 are copied unchanged and reported as warnings.
-  They can still contain proprietary information; exclude them when needed.
-- Git/tool metadata, dependencies, common generated output, and lockfiles are
-  excluded by default. Profiles can add `.gitignore`-style patterns: `exclude`
-  (for example `"*.schema.json"` in every folder, `"generated/"` for a folder,
-  `"/config/local.yml"` only at the root) and `include` to bring back files the
-  defaults skip. Exclude always wins. Both are in the profile JSON and in the
-  dashboard's profile form.
-- External symlinks, submodules, and nested repositories are skipped during
-  extraction. Restore refuses unsafe paths and symlink destinations.
-- Ordinary write failures roll back affected files. Process or power loss is
-  not an atomic multi-file transaction.
-
-Profiles support `list`, `show`, `create`, `edit`, `delete`, `export`, `import`,
-and `check`. Show/export intentionally print decrypted profile JSON.
-
-For scripts, use explicit commands with `--yes`, `--json`, or `--dry-run`.
-Schemas are available with `repo-cloak schema profile` (also `repo`, `manifest`,
-and `config`). Run `repo-cloak <command> --help` for command options.
+JSON Schemas ship under `schemas/` and the dashboard uses the same validators as
+the sync engine. Existing v2 stores and workspaces remain compatible.
 
 ## Development
 
 ```bash
 npm ci
-npm run build
 npm run typecheck
 npm run lint
 npm test
-npm run test:coverage
-npm run test:package  # after building
-npm run dev
+npm run build
+npm run test:package
 ```
 
-Tests cover the replacement engine, encrypted store, Git workflows, rollback,
-CLI routing, and dashboard API. CI runs on macOS, Windows, and Linux with
-Node.js 22 and 24. See [`docs/plan.md`](docs/plan.md) for progress and
-[`docs/design/`](docs/design/) for the design. Coverage floors, important failure
-scenarios, and the release gates are described in [`docs/testing.md`](docs/testing.md).
-
-Dashboard browser automation: `npm ci --prefix e2e && npm run test:browser`.
-See [testing requirements and coverage](docs/testing.md) for Node/WSL requirements
-and the complete release checks.
-
-Shell shortcuts: `./scripts/setup.sh` once, then `./scripts/test-all.sh` for
-all checks. Use `./scripts/check.sh` or `./scripts/test-browser.sh` to run either
-suite separately. On Windows use WSL; on Linux/WSL setup accepts `--with-deps`.
+Shared orchestration lives in `src/application/`, pure logic in `src/core/`,
+filesystem/Git/server I/O in `src/adapters/`, and browser assets in `src/ui/`.
+See [design](docs/design/dashboard-first.md), [plan](docs/plan.md), and
+[testing](docs/testing.md). Browser regression tooling is in `e2e/` and has its
+own locked dependencies. `npm run dev` rebuilds changes; backend changes require
+a server restart.
 
 ## License
 

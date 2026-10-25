@@ -7,8 +7,9 @@ import { mergeProfiles } from '../core/merge.js';
 import { validateRelativePath } from '../core/paths.js';
 import { createReplacer } from '../core/replacer.js';
 import { selectFiles } from '../core/selection.js';
+import { compilePatterns } from '../core/patterns.js';
 
-export type PullOptions = {
+export type SyncOptions = {
   workspacesRoot?: string;
   postCreateCommands?: string[];
   saveDefaults?: boolean;
@@ -18,13 +19,9 @@ export type PullOptions = {
   working?: boolean;
   to?: string;
   worktree?: string;
-  yes?: boolean;
-  dryRun?: boolean;
-  from?: string;
   force?: boolean;
   skipConflicts?: boolean;
   newWorkspace?: boolean;
-  includeTracked?: boolean;
   newWorktree?: string;
   base?: string;
   path?: string;
@@ -33,17 +30,18 @@ export type PullOptions = {
 export async function preparePull(
   services: SyncServices,
   direction: 'pull' | 'push',
-  options: PullOptions,
+  options: SyncOptions,
 ) {
   services = { ...services, cwd: await services.files.canonicalPath(services.cwd) };
   const currentWorkspace = await services.store.findWorkspace(services.cwd);
   if ((direction === 'push' && currentWorkspace) || (direction === 'pull' && !currentWorkspace))
     throw new Error(
-      'Restore is the next implementation step; use push in a source repo or pull in a cloak workspace to extract files',
+      'Choose a source repository to create a workspace, or a cloak workspace to refresh',
     );
-  if (currentWorkspace && options.to) throw new Error('--to is only valid in a source repository');
+  if (currentWorkspace && options.to)
+    throw new Error('A new destination is only valid when creating from a source repository');
   if (!currentWorkspace && options.worktree)
-    throw new Error('--worktree is only valid when pulling in a cloak workspace');
+    throw new Error('Source worktree overrides apply to existing cloak workspaces');
   const config = {
     ...(await services.store.readConfig()),
     ...(options.workspacesRoot ? { workspacesRoot: options.workspacesRoot } : {}),
@@ -56,52 +54,37 @@ export async function preparePull(
   const repo = previous
     ? await sourceForWorkspace(services, previous, options)
     : await services.git.repoState(services.cwd);
-  if (!destination) {
-    const record = await services.store.readRepo(repo.repoId);
-    const linked = Object.entries(record?.workspaces ?? {});
-    if (options.to) {
-      const matches = linked.filter(
-        ([id, workspace]) => id === options.to || basename(workspace.path) === options.to,
-      );
-      if (matches.length > 1)
-        throw new Error('Workspace name is ambiguous; use its id or full path');
-      destination = await services.files.canonicalPath(
-        matches[0]?.[1].path ?? resolve(services.cwd, options.to),
-      );
-    } else if (!options.newWorkspace) {
-      const valid = [];
-      for (const [id, workspace] of linked)
-        if (await services.files.exists(join(workspace.path, '.repo-cloak', 'manifest.json')))
-          valid.push({ id, ...workspace });
-      const matches = valid.filter(
-        (workspace) =>
-          repo.branch !== null &&
-          (workspace.target?.branch === repo.branch || workspace.origin?.branch === repo.branch),
-      );
-      const choices = matches.length ? matches : valid;
-      if (choices.length === 1) destination = choices[0]?.path;
-      else if (choices.length > 1) {
-        if (options.yes || !services.interactive)
-          throw new Error('Several workspaces are linked; specify --to <workspace>');
-        destination = await services.chooseWorkspace(choices.map((workspace) => workspace.path));
-      }
-    }
-    if (destination) previous = await services.store.readSnapshot(destination);
+  const repoRecord = await services.store.readRepo(repo.repoId);
+  const isRepoExcluded = compilePatterns(repoRecord?.exclude ?? []);
+  if (!destination && options.to) {
+    destination = await services.files.canonicalPath(resolve(services.cwd, options.to));
+    previous = await services.store.readSnapshot(destination);
+  }
+  if (options.newWorkspace && previous)
+    throw new Error('Choose an empty destination for a new workspace');
+  if (previous) {
+    const files = Object.fromEntries(
+      Object.entries(previous.data.files).filter(([, file]) => !isRepoExcluded(file.path)),
+    );
+    previous = {
+      ...previous,
+      plain: {
+        ...previous.plain,
+        files: Object.fromEntries(
+          Object.entries(previous.plain.files).filter(([path]) => Object.hasOwn(files, path)),
+        ),
+      },
+      data: { ...previous.data, files },
+    };
   }
   if (previous && previous.plain.source.repoId !== repo.repoId)
     throw new Error('Destination workspace belongs to another source repository');
   const profiles = await selectPullProfiles(services, repo, options, previous);
   const workspaceId = previous?.plain.workspaceId ?? services.newId();
-  let saveConfig = Boolean(options.saveDefaults);
+  const saveConfig = Boolean(options.saveDefaults);
   if (!destination) {
-    let root = config.workspacesRoot;
-    if (!root) {
-      if (options.yes || options.dryRun || !services.interactive)
-        throw new Error('Pass --to <directory> or set workspacesRoot in the config');
-      root = resolve(services.cwd, await services.workspacesRoot());
-      config.workspacesRoot = root;
-      saveConfig = true;
-    }
+    const root = config.workspacesRoot;
+    if (!root) throw new Error('Choose a destination folder for cloak workspaces');
     let name = 'workspace';
     try {
       const original = basename(repo.path);
@@ -142,13 +125,17 @@ export async function preparePull(
   )
     throw new Error('A new workspace destination must be empty');
   const explicit = Boolean(options.files?.length || options.commits?.length || options.working);
-  if (!explicit && !previous) throw new Error('Choose files with --files, --commit, or --working');
+  if (!explicit && !previous)
+    throw new Error('Select files, commits, or working changes in the dashboard');
   const files = await services.files.expandPaths(
     repo.path,
     currentWorkspace ? repo.path : services.cwd,
     options.files ?? [],
     profiles.map((profile) => profile.profile),
+    repoRecord?.exclude ?? [],
   );
+  if (options.files?.length && files.some(isRepoExcluded))
+    throw new Error('Explicit file selection includes a path excluded for this repository');
   const commits = await Promise.all(
     (options.commits ?? []).map((ref) => services.git.commitFiles(repo.path, ref)),
   );
@@ -156,11 +143,14 @@ export async function preparePull(
   const selected = services.files.filterPaths(
     selectFiles({ files, commits, working }),
     profiles.map((profile) => profile.profile),
+    repoRecord?.exclude ?? [],
   );
-  const recorded = Object.values(previous?.data.files ?? {}).map((file) => file.path);
+  const recorded = Object.values(previous?.data.files ?? {})
+    .map((file) => file.path)
+    .filter((path) => !isRepoExcluded(path));
   const paths = selectFiles({
     files: explicit ? selected : recorded,
-    extra: changedProfiles(profiles, previous).length || options.includeTracked ? recorded : [],
+    extra: changedProfiles(profiles, previous).length ? recorded : [],
   });
   return {
     repo,
@@ -168,6 +158,7 @@ export async function preparePull(
     previous,
     profiles,
     paths,
+    repoExcludes: repoRecord?.exclude ?? [],
     workspaceId,
     config,
     saveConfig,
@@ -179,4 +170,6 @@ export async function preparePull(
     },
   };
 }
-export type PullSetup = Awaited<ReturnType<typeof preparePull>>;
+export type PullSetup = Omit<Awaited<ReturnType<typeof preparePull>>, 'repoExcludes'> & {
+  repoExcludes?: string[];
+};

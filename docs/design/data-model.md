@@ -194,11 +194,9 @@ file lives, so moving a file changes its scope and nothing can disagree.
 ## Profile operations
 
 ```
-CLI arguments -> commands/profile -> core/rules + core/merge
-                       |
-                       +-> adapters/profiles -> sealed store files
-                       +-> adapters/prompts  -> Inquirer (editor, choice, confirm)
-                       +-> adapters/input    -> JSON file or stdin
+dashboard forms / JSON import -> application/dashboard -> core/rules + core/merge
+                                     |
+                                     +-> adapters/profiles -> sealed store files
 
 save -> validate -> lock scope directory -> check unique name -> seal -> atomic write
 ```
@@ -213,22 +211,12 @@ save -> validate -> lock scope directory -> check unique name -> seal -> atomic 
 - `SavedProfile` carries `{ id, scope, profile }`. Scope is either
   `{ kind: 'global' }` or `{ kind: 'repo', repoId }`, never an editable
   profile field. Names are case-sensitive and unique within their scope.
-- Inquirer opens create/edit JSON in `$VISUAL` or `$EDITOR`, using a `0600`
-  temporary file and removing it afterwards. Its platform defaults are Vim
-  on macOS/Linux and Notepad on Windows. Invalid edits stay in the prompt
-  for correction; the stored profile is unchanged until validation passes.
-- `proper-lockfile` protects scope updates, including the duplicate-name
-  check. Import creates a new opaque id and never overwrites an existing
-  name. Edit retains the id, including when the profile is renamed.
-- Create/import default to the current repo; `--global` selects global
-  storage, including outside Git. Reads list both scopes unless filtered.
-  Ambiguous names prompt only with a terminal and without `--yes`.
-- Delete asks for confirmation unless `--yes` is given. Create/edit require
-  a terminal; scripts create profiles with `profile import <file|->`.
-- Runtime libraries are Commander, Zod, Inquirer, proper-lockfile,
-  Lodash (word splitting), ahocorasick (literal matching), Glob/minimatch
-  (selection), p-limit (I/O concurrency), and isbinaryfile v5 (Node 22 support).
-  Inquirer requires Node 22.13+ on the 22.x line, or Node 23.5+.
+- Forms and JSON import are validated through the authenticated dashboard API.
+  Scope is selected explicitly. JSON download intentionally exports decrypted data.
+- `proper-lockfile` protects scope updates, including the duplicate-name check.
+  Import creates a new id; edit retains the saved id, including profile renaming.
+- Delete requires an explicit dashboard confirmation. No terminal editor, stdin
+  profile import, prompt adapter, or Inquirer dependency remains.
 
 ## How regex and secrets stay reversible
 
@@ -449,8 +437,8 @@ Every error names the file, profile, and rule id involved.
   JSON Schema output from one definition.
 - `npm run build` also writes `schemas/*.schema.json`; `files` in
   `package.json` gains `schemas` so they ship.
-- `repo-cloak schema <kind>` prints a schema, so an LLM can be handed it
-  directly.
+- Schemas ship as JSON files and are available to the dashboard through its
+  authenticated schema API.
 
 ## Decided
 

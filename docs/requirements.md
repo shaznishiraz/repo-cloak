@@ -20,10 +20,11 @@ agent), and bring the changes back with the original names restored.
 
 ## Invocation
 
-- `repo-cloak` (alias `cloak`). Running it with no arguments starts
-  **interactive mode**.
-- Every interactive choice can also be given as a flag, so the same flows work
-  non-interactively (scripts, agents).
+- `repo-cloak` (alias `cloak`) opens the local dashboard directly.
+- Detect the exact source worktree or cloak workspace without terminal prompts.
+- Outside Git, sources can be added through the dashboard folder picker.
+- Keep help/version, port selection, browser suppression and the `ui` alias.
+- Workflow actions live in the dashboard; terminal workflow subcommands are retired.
 
 ## R1. Machine-local store
 
@@ -54,8 +55,7 @@ agent), and bring the changes back with the original names restored.
 
 ## R3. Cloak (source repo -> cloak workspace)
 
-Run as `repo-cloak push` in a source worktree or `repo-cloak pull` in a cloak
-workspace (see `docs/design/cli.md`, Direction).
+Create a workspace or choose **Pull files** in the dashboard.
 
 - Choose what to pull, in any combination:
   - files picked from the repo (tree selector);
@@ -75,13 +75,8 @@ workspace (see `docs/design/cli.md`, Direction).
 
 ## R4. Restore (cloak workspace -> source repo)
 
-Run as `repo-cloak push` in a cloak workspace or `repo-cloak pull` in a source
-worktree.
+Choose **Push changes** for the selected cloak workspace in the dashboard.
 
-- `repo-cloak push` from a **cloak workspace** writes its changes back to the
-  source repo, restoring original names in contents and paths.
-- `repo-cloak pull` from a **source worktree** brings in changes from the
-  workspace linked to its branch, or asks which one when there are several.
 - Only changed, added, or deleted files are processed.
 - Never silently overwrite source files that changed since the last cloak. If
   any have, the restore stops without writing anything, lists them, and explains how to
@@ -102,11 +97,11 @@ worktree.
 
 ## R7. Web UI
 
-- `repo-cloak ui` opens one machine-wide local dashboard, using the launch repo,
+- `repo-cloak` opens one machine-wide local dashboard, using the launch repo,
   worktree or cloak workspace as context without asking for the same location again.
 - First-run setup starts at a source folder/file picker. Users can browse local
   destination folders and save a global cloak-workspaces root.
-- Create, refresh and restore use the same sync commands as the CLI, with previews,
+- Create, refresh and restore use the shared application services, with previews,
   explicit confirmation, conflict handling and existing/new worktree targets.
 - Optional globally configured post-create commands run once in the new workspace;
   a failed command stops the sequence and leaves the workspace available.

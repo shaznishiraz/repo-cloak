@@ -104,6 +104,38 @@ export async function commitFiles(root: string, ref: string): Promise<string[]> 
     .split('\0')
     .filter(Boolean);
 }
+export async function commitFileStats(root: string, ref: string) {
+  const sha = await resolveCommit(root, ref);
+  const fields = (
+    await runGit(root, [
+      'diff-tree',
+      '--root',
+      '-m',
+      '--no-commit-id',
+      '--numstat',
+      '-r',
+      '-z',
+      '--no-renames',
+      sha,
+      '--',
+    ])
+  ).split('\0');
+  const stats = new Map<string, { added: number | null; removed: number | null }>();
+  for (const field of fields) {
+    const first = field.indexOf('\t');
+    const second = field.indexOf('\t', first + 1);
+    if (first < 0 || second < 0) continue;
+    const added = field.slice(0, first);
+    const removed = field.slice(first + 1, second);
+    const path = field.slice(second + 1);
+    if (!path || stats.has(path)) continue;
+    stats.set(path, {
+      added: added === '-' ? null : Number(added),
+      removed: removed === '-' ? null : Number(removed),
+    });
+  }
+  return stats;
+}
 export async function workingFiles(root: string): Promise<string[]> {
   const fields = (
     await runGit(root, ['status', '--porcelain=v1', '-z', '--untracked-files=all'])
@@ -133,9 +165,11 @@ export async function worktrees(root: string) {
   return trees;
 }
 
-export async function recentCommits(root: string) {
+export async function recentCommits(root: string, offset = 0) {
   if (!(await repoState(root)).commit) return [];
-  const fields = (await runGit(root, ['log', '-20', '--format=%H%x00%s%x00'])).split('\0');
+  const fields = (
+    await runGit(root, ['log', '-20', `--skip=${offset}`, '--format=%H%x00%s%x00'])
+  ).split('\0');
   const commits: { id: string; subject: string }[] = [];
   for (let i = 0; i + 1 < fields.length; i += 2) {
     const id = fields[i]?.trim();

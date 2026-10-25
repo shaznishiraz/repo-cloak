@@ -11,9 +11,12 @@ import { createUiOperations, OperationError } from '../adapters/ui-operations.js
 import type { OperationLimits, PreviewSummary } from '../adapters/ui-operations.js';
 import { hashBytes, hashJson } from '../core/hash.js';
 import { ConflictError } from '../core/errors.js';
-import { validateRelativePath } from '../core/paths.js';
-import { prepareSyncCommand } from './sync.js';
-import type { PullOptions } from './pull-setup.js';
+import { checkPathCollisions, validateRelativePath } from '../core/paths.js';
+import { prepareSync } from './sync.js';
+import type { SyncOptions } from './pull-setup.js';
+import { createCommitDiff } from '../adapters/commit-diff.js';
+import { compilePatterns, patternProblem } from '../core/patterns.js';
+import { createReplacer } from '../core/replacer.js';
 
 const repoIdSchema = z.string().regex(/^[a-f0-9]{16}$/);
 const profileRef = z.object({
@@ -79,7 +82,6 @@ export function createDashboardSync(
 ) {
   const operations = createUiOperations(limits);
   const services = createSyncServices(process.cwd(), store);
-  services.interactive = false;
   async function registered(repoId: string) {
     const repo = await services.store.readRepo(repoIdSchema.parse(repoId));
     if (!repo) throw new OperationError('validation', 'Repository is not registered');
@@ -130,7 +132,7 @@ export function createDashboardSync(
     const cwd = input.intent === 'create' ? selected : link?.path;
     if (!cwd) throw new OperationError('validation', 'Select a worktree or workspace');
     const local = { ...services, cwd };
-    const options: PullOptions = {};
+    const options: SyncOptions = {};
     if (input.intent !== 'restore') {
       if (input.profiles) {
         for (const ref of input.profiles)
@@ -167,10 +169,10 @@ export function createDashboardSync(
     const direction =
       input.intent === 'create' ? 'push' : input.intent === 'refresh' ? 'pull' : 'push';
     const initialState = await services.git.repoState(selected ?? repo.path);
-    let prepared: Awaited<ReturnType<typeof prepareSyncCommand>>;
+    let prepared: Awaited<ReturnType<typeof prepareSync>>;
     let forceConflicts: string[] = [];
     if (input.intent === 'restore' && input.policy === 'force') {
-      const conflicts = await prepareSyncCommand(local, version, direction, {
+      const conflicts = await prepareSync(local, version, direction, {
         ...options,
         force: false,
         skipConflicts: true,
@@ -178,7 +180,7 @@ export function createDashboardSync(
       if ('conflicts' in conflicts.plan) forceConflicts = conflicts.plan.conflicts;
     }
     try {
-      prepared = await prepareSyncCommand(local, version, direction, options);
+      prepared = await prepareSync(local, version, direction, options);
     } catch (error) {
       if (!(error instanceof ConflictError)) throw error;
       const summary: PreviewSummary = {
@@ -236,6 +238,7 @@ export function createDashboardSync(
         manifest: snapshot ? hashBytes(snapshot.bytes) : null,
         profiles: profileStates,
         config: await services.store.readConfig(),
+        repoExclusions: (await services.store.readRepo(input.repoId))?.exclude ?? [],
         commits:
           input.intent === 'restore'
             ? input.base
@@ -320,16 +323,25 @@ export function createDashboardSync(
   ) {
     const root = await worktree(repoId, path);
     const available = await selectionProfiles(repoId, refs);
-    return { files: await listSourcePaths(root, available, z.boolean().parse(respectGitIgnore)) };
+    const repo = await registered(repoId);
+    return {
+      files: await listSourcePaths(
+        root,
+        available,
+        z.boolean().parse(respectGitIgnore),
+        repo.exclude ?? [],
+      ),
+    };
   }
   async function selectionContext(repoId: string, path: string, refs: unknown = []) {
     const root = await worktree(repoId, path);
     const available = await selectionProfiles(repoId, refs);
+    const repo = await registered(repoId);
     const [working, commits] = await Promise.all([
       services.git.workingFiles(root),
       services.git.recentCommits(root),
     ]);
-    const paths = services.files.filterPaths(working, available).sort();
+    const paths = services.files.filterPaths(working, available, repo.exclude ?? []).sort();
     return {
       working: paths.slice(0, 200),
       workingCount: paths.length,
@@ -337,12 +349,142 @@ export function createDashboardSync(
       commits,
     };
   }
+  async function saveExclusions(repoId: string, value: unknown) {
+    await registered(repoId);
+    const input = z
+      .object({ patterns: z.array(z.string().max(500)).max(200) })
+      .strict()
+      .parse(value);
+    const patterns = [...new Set(input.patterns)];
+    for (const pattern of patterns) {
+      const problem = patternProblem(pattern);
+      if (problem) throw new OperationError('validation', `${pattern}: ${problem}`);
+    }
+    await services.store.saveRepoExclusions(repoId, patterns);
+    return { patterns };
+  }
+  async function commitPage(root: string, offset: unknown = 0, ref?: string) {
+    const start = z.coerce.number().int().min(0).max(100000).parse(offset);
+    if (ref !== undefined) {
+      const value = z.string().trim().min(1).max(500).parse(ref);
+      const id = await services.git.resolveCommit(root, value);
+      const subject = (
+        await services.git.runGit(root, ['log', '-1', '--format=%s', id, '--'])
+      ).trim();
+      return [{ id, subject }];
+    }
+    return services.git.recentCommits(root, start);
+  }
+  async function exportContext(repoId: string, id: string) {
+    const { snapshot } = await workspace(repoId, id);
+    const repo = await registered(repoId);
+    if (snapshot.plain.source.repoId !== repo.repoId)
+      throw new OperationError('validation', 'Workspace belongs to another source repository');
+    const root = await worktree(repoId, repo.path);
+    return { root, snapshot };
+  }
   return {
     worktrees,
     deleteWorkspace: (repoId: string, id: string, path: string) =>
       operations.exclusive(() => deleteWorkspace(store, repoId, id, path)),
     inventory,
     selectionContext,
+    async exclusions(repoId: string) {
+      const repo = await registered(repoId);
+      return { patterns: repo.exclude ?? [] };
+    },
+    saveExclusions,
+    async commits(repoId: string, path: string, offset: unknown = 0, ref?: string) {
+      return commitPage(await worktree(repoId, path), offset, ref);
+    },
+    async exportCommits(repoId: string, id: string, offset: unknown = 0, ref?: string) {
+      const { root } = await exportContext(repoId, id);
+      return commitPage(root, offset, ref);
+    },
+    async exportFiles(repoId: string, id: string, value: unknown) {
+      const { root, snapshot } = await exportContext(repoId, id);
+      const repo = await registered(repoId);
+      const input = z
+        .object({ commit: z.string().regex(/^[a-f0-9]{40,64}$/) })
+        .strict()
+        .parse(value);
+      const commit = await services.git.resolveCommit(root, input.commit);
+      if (commit !== input.commit) throw new OperationError('validation', 'Invalid source commit');
+      const paths = [...new Set(await services.git.commitFiles(root, commit))].sort();
+      if (paths.length > 5000)
+        throw new OperationError('limit', 'This commit changes more than 5,000 files');
+      const [stats, isExcluded] = await Promise.all([
+        services.git.commitFileStats(root, commit),
+        Promise.resolve(compilePatterns(repo.exclude ?? [])),
+      ]);
+      const replacer = createReplacer(snapshot.data.rules);
+      let ledger = structuredClone(snapshot.data.ledger);
+      const files = paths.map((path, index) => {
+        const result = replacer.anonymize(path, { file: path, scope: 'paths' }, ledger);
+        ledger = result.ledger;
+        const stat = stats.get(path);
+        return {
+          index,
+          path: result.text,
+          added: stat?.added ?? null,
+          removed: stat?.removed ?? null,
+          excluded: isExcluded(path),
+        };
+      });
+      checkPathCollisions(
+        files.map((file, index) => ({ original: paths[index] ?? '', anonymized: file.path })),
+        false,
+      );
+      return { files };
+    },
+    async exportDiff(repoId: string, id: string, value: unknown) {
+      const { root, snapshot } = await exportContext(repoId, id);
+      const repo = await registered(repoId);
+      const isExcluded = compilePatterns(repo.exclude ?? []);
+      const input = z
+        .object({
+          commit: z.string().regex(/^[a-f0-9]{40,64}$/),
+          indexes: z.array(z.number().int().min(0).max(4999)).max(100),
+          includeExcluded: z.boolean().default(false),
+        })
+        .strict()
+        .parse(value);
+      const commit = await services.git.resolveCommit(root, input.commit);
+      if (commit !== input.commit) throw new OperationError('validation', 'Invalid source commit');
+      const changed = [...new Set(await services.git.commitFiles(root, commit))].sort();
+      const indexes = [...new Set(input.indexes)];
+      const paths = indexes.map((index) => {
+        const path = changed[index];
+        if (!path) throw new OperationError('validation', 'A selected file is not in this commit');
+        if (!input.includeExcluded && isExcluded(path))
+          throw new OperationError(
+            'validation',
+            'Enable the repository-exclusion override to export this file',
+          );
+        return path;
+      });
+      const parentLine = (
+        await services.git.runGit(root, ['rev-list', '--parents', '-n', '1', commit])
+      )
+        .trim()
+        .split(/\s+/);
+      const parent = parentLine[1];
+      const [before, after] = await Promise.all([
+        parent
+          ? services.worktree.readCommit(root, parent, paths, 4).then((result) => result.files)
+          : Promise.resolve(paths.map((path) => ({ path, binary: false, executable: false }))),
+        services.worktree.readCommit(root, commit, paths, 4).then((result) => result.files),
+      ]);
+      const result = await createCommitDiff({
+        root,
+        before,
+        after,
+        paths,
+        rules: snapshot.data.rules,
+        ledger: snapshot.data.ledger,
+      });
+      return result;
+    },
     async selection(
       repoId: string,
       path: string,
@@ -353,8 +495,10 @@ export function createDashboardSync(
     ) {
       const root = await worktree(repoId, path);
       const available = await selectionProfiles(repoId, refs);
-      const paths = (await listSourcePaths(root, available)).filter((path) =>
-        path.toLowerCase().includes(query.toLowerCase()),
+      const repo = await registered(repoId);
+      const isExcluded = compilePatterns(repo.exclude ?? []);
+      const paths = (await listSourcePaths(root, available, true, repo.exclude ?? [])).filter(
+        (path) => path.toLowerCase().includes(query.toLowerCase()) && !isExcluded(path),
       );
       const start = z.number().int().min(0).parse(offset);
       const prefix = directory ? `${validateRelativePath(directory)}/` : '';
@@ -371,7 +515,7 @@ export function createDashboardSync(
               return false;
             });
       const working = services.files
-        .filterPaths(await services.git.workingFiles(root), available)
+        .filterPaths(await services.git.workingFiles(root), available, repo.exclude ?? [])
         .sort();
       return {
         directories: [...folders].sort(),

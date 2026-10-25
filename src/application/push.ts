@@ -1,4 +1,3 @@
-import { basename, resolve } from 'node:path';
 import type { SyncServices } from '../adapters/sync-services.js';
 import { estimateRetainedBytes } from '../core/retained-size.js';
 import { hashBytes, hashJson } from '../core/hash.js';
@@ -6,22 +5,21 @@ import { planPush } from '../core/push.js';
 import { restorePaths, checkPathCollisions } from '../core/paths.js';
 import { createReplacer } from '../core/replacer.js';
 import { sourceForWorkspace } from './pull-source.js';
-import type { PullOptions } from './pull-setup.js';
-import { listWorkspaces } from './workspaces.js';
-import type { RepoState } from '../core/pull.js';
+import type { SyncOptions } from './pull-setup.js';
 import { prepareNewWorktree } from './push-worktree.js';
+import { compilePatterns } from '../core/patterns.js';
 
 export async function preparePushRun(
   services: SyncServices,
-  options: PullOptions,
+  options: SyncOptions,
   currentWorkspace?: string,
 ) {
   if ((options.base || options.path) && !options.newWorktree)
-    throw new Error('--base and --path require --new-worktree');
+    throw new Error('Base and directory overrides require a new branch');
   if (options.newWorktree && options.worktree)
-    throw new Error('--new-worktree and --worktree cannot be combined');
+    throw new Error('A new branch and an existing worktree cannot be combined');
   if (options.newWorktree && !currentWorkspace)
-    throw new Error('--new-worktree is only valid in a cloak workspace');
+    throw new Error('New worktree targets require a cloak workspace');
   if (
     options.to ||
     options.profiles?.length ||
@@ -29,52 +27,19 @@ export async function preparePushRun(
     options.commits?.length ||
     options.working
   )
-    throw new Error('Selection and --to flags apply only when extracting source files');
+    throw new Error(
+      'File selection and destinations apply only when creating or refreshing a cloak workspace',
+    );
   if (options.force && options.skipConflicts)
-    throw new Error('--force and --skip-conflicts cannot be combined');
-  if (currentWorkspace && options.from)
-    throw new Error('--from is only valid in a source repository');
+    throw new Error('Force and skip-conflict policies cannot be combined');
+  if (!currentWorkspace) throw new Error('Select a cloak workspace to restore');
   let workspace = currentWorkspace;
-  let sourceRepo: RepoState | undefined;
-  if (!workspace) {
-    if (options.worktree) throw new Error('--worktree is only valid in a cloak workspace');
-    sourceRepo = await services.git.repoState(services.cwd);
-    const linked = await listWorkspaces(services);
-    if (options.from) {
-      const matches = linked.filter(
-        (item) => item.id === options.from || basename(item.path) === options.from,
-      );
-      if (matches.length > 1)
-        throw new Error('Workspace name is ambiguous; use its id or full path');
-      workspace = matches[0]?.path ?? resolve(services.cwd, options.from);
-    } else {
-      const sourceBranch = sourceRepo.branch;
-      const branch = linked.filter(
-        (item) =>
-          sourceBranch !== null &&
-          (item.target?.branch === sourceBranch || item.origin?.branch === sourceBranch),
-      );
-      const choices = branch.length ? branch : linked;
-      if (choices.length === 1) workspace = choices[0]?.path;
-      else if (choices.length > 1) {
-        if (options.yes || !services.interactive)
-          throw new Error('Several workspaces are linked; specify --from <workspace>');
-        workspace = await services.chooseWorkspace(choices.map((item) => item.path));
-      }
-    }
-  }
-  if (!workspace) throw new Error('No linked workspace found; specify --from <workspace>');
   workspace = await services.files.canonicalPath(workspace);
   const previous = await services.store.readSnapshot(workspace);
   if (!previous) throw new Error('The selected directory is not a repo-cloak workspace');
-  if (
-    !sourceRepo &&
-    !options.worktree &&
-    !options.newWorktree &&
-    previous.data.target.branch === null
-  )
-    throw new Error('This workspace has no target branch; specify --worktree <path>');
-  const repo = sourceRepo ?? (await sourceForWorkspace(services, previous, options));
+  if (!options.worktree && !options.newWorktree && previous.data.target.branch === null)
+    throw new Error('This workspace has no target branch; choose a source worktree');
+  const repo = await sourceForWorkspace(services, previous, options);
   if (repo.repoId !== previous.plain.source.repoId)
     throw new Error('Workspace belongs to another source repository');
   if (
@@ -82,8 +47,6 @@ export async function preparePushRun(
     services.files.isWithin(workspace, repo.path)
   )
     throw new Error('Workspace and source repository must be separate directories');
-  if (!options.yes && !options.dryRun && !services.interactive)
-    throw new Error('Pass --yes to restore without an interactive terminal, or use --dry-run');
   const config = await services.store.readConfig();
   const newTree = options.newWorktree
     ? await prepareNewWorktree(services, repo, previous, workspace, options, config)
@@ -92,31 +55,45 @@ export async function preparePushRun(
     ? { ...repo, path: newTree.path, branch: newTree.branch, commit: newTree.base }
     : repo;
   const concurrency = config.concurrency ?? 16;
+  const repoRecord = await services.store.readRepo(repo.repoId);
+  const isRepoExcluded = compilePatterns(repoRecord?.exclude ?? []);
   const inventory = await services.files.readWorkspace(workspace, [], concurrency);
-  const tracked = Object.keys(previous.plain.files);
-  const workspaceBytes = await services.files.readWorkspace(
-    workspace,
-    [...new Set([...tracked, ...inventory.paths])],
-    concurrency,
+  const allowedTracked = Object.entries(previous.data.files).filter(
+    ([, file]) => !isRepoExcluded(file.path),
   );
+  const tracked = allowedTracked.map(([path]) => path);
+  const trackedSet = new Set(tracked);
+  const activePrevious = {
+    ...previous,
+    plain: {
+      ...previous.plain,
+      files: Object.fromEntries(
+        Object.entries(previous.plain.files).filter(([path]) => trackedSet.has(path)),
+      ),
+    },
+    data: { ...previous.data, files: Object.fromEntries(allowedTracked) },
+  };
+  const untracked = inventory.paths.filter(
+    (path) => !Object.hasOwn(activePrevious.plain.files, path),
+  );
+  const restored = restorePaths(
+    untracked,
+    createReplacer(previous.data.rules),
+    previous.data.ledger,
+  );
+  const allowedNew = restored.paths.filter((path) => !isRepoExcluded(path.original));
+  const workspacePaths = [...new Set([...tracked, ...allowedNew.map((path) => path.anonymized)])];
+  const workspaceBytes = await services.files.readWorkspace(workspace, workspacePaths, concurrency);
   const current = await services.files.readSourceFiles(
     workspace,
     Object.keys(workspaceBytes.files),
     concurrency,
   );
   if (current.warnings.length) throw new Error(current.warnings.join('\n'));
-  const newPaths = Object.keys(workspaceBytes.files).filter(
-    (path) => !Object.hasOwn(previous.plain.files, path),
-  );
-  const restored = restorePaths(
-    newPaths,
-    createReplacer(previous.data.rules),
-    previous.data.ledger,
-  );
   const paths = [
     ...new Set([
-      ...Object.values(previous.data.files).map((file) => file.path),
-      ...restored.paths.map((path) => path.original),
+      ...allowedTracked.map(([, file]) => file.path),
+      ...allowedNew.map((path) => path.original),
     ]),
   ];
   // Refuse symlinks even when they would otherwise resolve inside the source.
@@ -128,7 +105,7 @@ export async function preparePushRun(
   const source =
     commitSource ?? (await services.files.readSourceFiles(repo.path, paths, concurrency));
   if (source.warnings.length) throw new Error(source.warnings.join('\n'));
-  const plan = planPush(previous, current.files, source.files, {
+  const plan = planPush(activePrevious, current.files, source.files, {
     ...options,
     fullSnapshot: Boolean(newTree),
   });
@@ -175,14 +152,13 @@ export async function preparePushRun(
         : {}),
       async recheck() {
         await services.beforeApply?.();
+        const currentRepo = await services.store.readRepo(repo.repoId);
+        if (hashJson(currentRepo?.exclude ?? []) !== hashJson(repoRecord?.exclude ?? []))
+          throw new Error('Repository exclusions changed while preparing restore; retry');
         const snapshot = await services.store.readSnapshot(workspace);
         if (!snapshot || hashBytes(snapshot.bytes) !== hashBytes(previous.bytes))
           throw new Error('Workspace manifest changed while preparing restore; retry');
-        const check = await services.files.readWorkspace(
-          workspace,
-          [...new Set([...tracked, ...inventory.paths])],
-          concurrency,
-        );
+        const check = await services.files.readWorkspace(workspace, workspacePaths, concurrency);
         if (hashJson(check) !== hashJson(workspaceBytes))
           throw new Error('Workspace files changed while preparing restore; retry');
         if (newTree) {
@@ -212,7 +188,7 @@ export async function preparePushRun(
     });
   };
   const result = {
-    status: 'written' as 'written' | 'dry-run' | 'cancelled',
+    status: 'written' as const,
     workspace,
     workspaceId: previous.plain.workspaceId,
     writes: plan.writes.map((file) => file.path),
@@ -236,19 +212,4 @@ export async function preparePushRun(
     result,
     apply,
   };
-}
-
-export async function runPush(
-  services: SyncServices,
-  options: PullOptions,
-  currentWorkspace?: string,
-) {
-  const prepared = await preparePushRun(services, options, currentWorkspace);
-  const status = options.dryRun
-    ? 'dry-run'
-    : !options.yes && !(await services.confirmPush(prepared.plan))
-      ? 'cancelled'
-      : 'written';
-  if (status === 'written') await prepared.apply();
-  return { ...prepared.result, status };
 }

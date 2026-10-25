@@ -37,8 +37,8 @@ npm run test:package
 coverage report is generated at `coverage/index.html`; a machine-readable
 summary is at `coverage/coverage-summary.json`. Reports are ignored by Git.
 
-Coverage includes **all backend TypeScript under `src/`**, including CLI and
-prompt adapters. It does not measure the browser JavaScript. The dashboard's
+Coverage includes **all backend TypeScript under `src/`**, including launcher and
+application services. It does not measure the browser JavaScript. The dashboard's
 API and main browser interactions have automated tests; layout and form
 interactions have also been checked in BrowserOS neo. A browser smoke check remains part of release review.
 
@@ -71,12 +71,12 @@ inspect the missing behavior or resource contention first.
   of newly created branches and worktrees.
 - Simultaneous dashboard launches, stale locks, busy-port cleanup, API tokens,
   foreign Host/Origin rejection and unauthorized mutations leaving data intact.
-- CLI error and conflict exit codes, quiet cancellation and JSON output.
+- Direct dashboard launch without a TTY, launcher options and rejection of removed subcommands.
 
-The package smoke check executes the built CLI in a temporary workspace,
-compares its schemas to shipped files, checks status without a private key,
-checks malformed-import failure, and inspects the npm package file list and
-UI asset budget. It does not read or write the user's private machine store.
+The package smoke check verifies launcher help/version, rejects removed workflow
+commands without starting a server, validates shipped schema presence, and inspects
+the npm package file list and the 68 KB browser asset budget. It does not access
+the user's private machine store.
 
 ## Release gates
 

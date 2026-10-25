@@ -1,64 +1,28 @@
-import { addSyncCommands } from './sync-program.js';
-import type { LoadSync } from './sync-program.js';
-import { addStatusCommand } from './status-program.js';
-import type { LoadStatus } from './status-program.js';
+import { Command, InvalidArgumentError } from 'commander';
 import { version, description } from './package.js';
-import { Argument, Command } from 'commander';
-import { printSchema } from './commands/schema.js';
-import { documentKinds } from './core/schemas.js';
-import type { DocumentKind } from './core/schemas.js';
-import { addProfileCommands } from './profile-program.js';
-import type { LoadProfiles } from './profile-program.js';
-import { runInteractive } from './commands/interactive.js';
-import { createInteractiveIO } from './adapters/interactive.js';
-import type { InteractiveIO } from './commands/interactive.js';
-import { addUiCommand, runUi } from './ui-program.js';
+import { runUi } from './adapters/launcher.js';
 
-export type LoadInteractive = () => Promise<InteractiveIO>;
-
-export function createProgram(
-  loadProfiles?: LoadProfiles,
-  loadSync?: LoadSync,
-  loadStatus?: LoadStatus,
-  loadInteractive?: LoadInteractive,
-): Command {
+export function createProgram(launch: typeof runUi = runUi): Command {
   const program = new Command()
     .name('repo-cloak')
     .description(description)
-    .version(version, '-v, --version')
-    .option('--json', 'output JSON for scripts')
-    .option('-y, --yes', 'skip confirmations');
-  program
-    .command('schema')
-    .description('Print a JSON Schema')
-    .addArgument(new Argument('<kind>', 'document kind').choices(documentKinds))
-    .action((kind: DocumentKind) => {
-      printSchema(kind, (text) =>
-        (program.configureOutput().writeOut ?? ((value) => process.stdout.write(value)))(text),
-      );
-    });
-  addProfileCommands(program, loadProfiles);
-  addSyncCommands(program, version, loadSync);
-  addStatusCommand(program, loadStatus);
-  addUiCommand(program);
-  program.action(async () => {
-    const { json, yes } = program.opts<{ json?: boolean; yes?: boolean }>();
-    if (json || yes)
-      throw new Error(
-        'Interactive mode needs prompts; use an explicit command with --json or --yes',
-      );
-    if (!loadInteractive && (!process.stdin.isTTY || !process.stdout.isTTY)) {
-      program.outputHelp();
-      return;
-    }
+    .version(version, '-v, --version');
+  const options = (command: Command) =>
+    command
+      .option('--port <number>', 'dashboard port (default: a free port)', (value: string) => {
+        if (!/^\d+$/.test(value) || Number(value) < 1 || Number(value) > 65535)
+          throw new InvalidArgumentError('Port must be an integer from 1 to 65535');
+        return Number(value);
+      })
+      .option('--no-open', 'print the dashboard address without opening a browser');
+  const start = async (command: Command) => {
+    const flags = command.optsWithGlobals<{ port?: number; open?: boolean }>();
     const write =
       program.configureOutput().writeOut ?? ((text: string) => process.stdout.write(text));
-    await runInteractive(
-      loadInteractive
-        ? await loadInteractive()
-        : createInteractiveIO(write, (cwd) => runUi(write, { cwd })),
-      version,
-    );
-  });
+    await launch(write, flags);
+  };
+  options(program).action(() => start(program));
+  const alias = options(program.command('ui').description('Open the local dashboard'));
+  alias.action(() => start(alias));
   return program;
 }

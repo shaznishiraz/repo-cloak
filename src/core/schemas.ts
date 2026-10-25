@@ -104,6 +104,7 @@ export const documentSchema = {
     repoId: z.string().regex(/^[a-f0-9]{16}$/),
     path: text,
     workspaces: z.record(z.string(), workspace),
+    exclude: z.array(text).optional(),
   }),
   config: z.looseObject({
     ...base,

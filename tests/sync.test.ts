@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { createSyncServices } from '../src/adapters/sync-services.js';
 import { createStore } from '../src/adapters/store.js';
 import { runGit } from '../src/adapters/git.js';
-import { createSyncCommand } from '../src/commands/sync.js';
+import { createTestSync } from './support/sync.js';
 import { validateProfile } from '../src/core/rules.js';
 
 const roots: string[] = [];
@@ -40,7 +40,6 @@ async function fixture(initGit = false) {
   await mkdir(join(source, 'src'));
   await writeFile(join(source, 'src', 'Acme.ts'), '\uFEFFexport class Acme {}\r\n');
   const services = createSyncServices(source, store);
-  services.interactive = false;
   const profile = await services.profiles.save(
     { kind: 'global' },
     validateProfile({
@@ -51,8 +50,8 @@ async function fixture(initGit = false) {
     }),
   );
   await services.store.saveConfig({ kind: 'config', schemaVersion: 1, initGit });
-  const push = createSyncCommand(services, '2.0.0');
-  const options = { profiles: ['acme'], files: ['src'], to: destination, yes: true };
+  const push = createTestSync(services, '2.0.0');
+  const options = { profiles: ['acme'], files: ['src'], to: destination };
   return { root, source, destination, store, services, profile, push, options };
 }
 describe('extraction commands with real adapters', () => {
@@ -85,8 +84,8 @@ describe('extraction commands with real adapters', () => {
     const { destination, store, push, options } = await fixture();
     const before = await readdir(store.root, { recursive: true });
     const keyChanged = (await stat(join(store.root, 'key'))).ctimeMs;
-    const result = await push('push', { ...options, dryRun: true });
-    expect(result.status).toBe('dry-run');
+    const result = await push('push', { ...options, preview: true });
+    expect(result.status).toBe('preview');
     await expect(readFile(join(destination, '.repo-cloak', 'manifest.json'))).rejects.toThrow();
     expect(await readdir(store.root, { recursive: true })).toEqual(before);
     expect((await stat(join(store.root, 'key'))).ctimeMs).toBe(keyChanged);
@@ -98,8 +97,8 @@ describe('extraction commands with real adapters', () => {
     const { destination, source, store, push, options } = await fixture();
     await push('push', options);
     await writeFile(join(source, 'src', 'Acme.ts'), 'class Acme { changed = true }');
-    const pull = createSyncCommand(createSyncServices(join(destination, 'src'), store), '2.0.0');
-    await pull('pull', { yes: true });
+    const pull = createTestSync(createSyncServices(join(destination, 'src'), store), '2.0.0');
+    await pull('pull', {});
     expect(await readFile(join(destination, 'src', 'Northwind.ts'), 'utf8')).toBe(
       'class Northwind { changed = true }',
     );
@@ -109,12 +108,12 @@ describe('extraction commands with real adapters', () => {
     await push('push', options);
     const file = join(destination, 'src', 'Northwind.ts');
     await writeFile(file, 'workspace edit');
-    const pull = createSyncCommand(createSyncServices(destination, store), '2.0.0');
-    await pull('pull', { yes: true });
+    const pull = createTestSync(createSyncServices(destination, store), '2.0.0');
+    await pull('pull', {});
     expect(await readFile(file, 'utf8')).toBe('workspace edit');
     const before = await readFile(join(destination, '.repo-cloak', 'manifest.json'));
     await writeFile(join(source, 'src', 'Acme.ts'), 'source edit');
-    await expect(pull('pull', { yes: true })).rejects.toThrow(/both/);
+    await expect(pull('pull', {})).rejects.toThrow(/both/);
     expect(await readFile(file, 'utf8')).toBe('workspace edit');
     expect(await readFile(join(destination, '.repo-cloak', 'manifest.json'))).toEqual(before);
   });
@@ -126,8 +125,8 @@ describe('extraction commands with real adapters', () => {
     expect(first.warnings).toEqual(expect.arrayContaining([expect.stringContaining('binary')]));
     expect(await readFile(join(destination, 'src', 'Northwind.bin'))).toEqual(bytes);
     await rm(join(source, 'src', 'Acme.ts'));
-    const pull = createSyncCommand(createSyncServices(destination, store), '2.0.0');
-    await pull('pull', { yes: true });
+    const pull = createTestSync(createSyncServices(destination, store), '2.0.0');
+    await pull('pull', {});
     expect(await readdir(join(destination, 'src'))).toEqual(['Northwind.bin']);
   });
   it('uses its own Git branch and commits only extraction changes', async () => {
@@ -138,8 +137,8 @@ describe('extraction commands with real adapters', () => {
     await writeFile(join(destination, 'notes.txt'), 'agent notes');
     await runGit(destination, ['add', '--', 'notes.txt']);
     await writeFile(join(source, 'src', 'Acme.ts'), 'class Acme { source = true }');
-    const pull = createSyncCommand(createSyncServices(destination, store), '2.0.0');
-    await pull('pull', { yes: true });
+    const pull = createTestSync(createSyncServices(destination, store), '2.0.0');
+    await pull('pull', {});
     expect(await runGit(destination, ['diff', '--cached', '--name-only'])).toContain('notes.txt');
     expect(await runGit(destination, ['show', '--format=', '--name-only', 'HEAD'])).not.toContain(
       'notes.txt',
@@ -172,9 +171,7 @@ it('rolls workspace files and manifest back after a write failure', async () => 
     if (path.endsWith('manifest.json')) throw new Error('Simulated write failure');
     await writeAtomic(path, bytes);
   });
-  await expect(createSyncCommand(pullServices, '2.0.0')('pull', { yes: true })).rejects.toThrow(
-    /Simulated/,
-  );
+  await expect(createTestSync(pullServices, '2.0.0')('pull', {})).rejects.toThrow(/Simulated/);
   expect(await readFile(join(destination, 'src', 'Northwind.ts'))).toEqual(beforeFile);
   expect(await readFile(join(destination, '.repo-cloak', 'manifest.json'))).toEqual(beforeManifest);
   expect((await services.store.readSnapshot(destination))?.plain.pulls).toHaveLength(1);
@@ -182,14 +179,12 @@ it('rolls workspace files and manifest back after a write failure', async () => 
 
 it('detects source edits between preview and applying the plan', async () => {
   const { source, destination, services, options } = await fixture();
-  services.interactive = true;
-  services.confirmPull = async () => {
+  services.beforeApply = async () => {
     await writeFile(join(source, 'src', 'Acme.ts'), 'changed during preview');
-    return true;
   };
-  await expect(
-    createSyncCommand(services, '2.0.0')('push', { ...options, yes: false }),
-  ).rejects.toThrow(/Source files changed/);
+  await expect(createTestSync(services, '2.0.0')('push', { ...options })).rejects.toThrow(
+    /Source files changed/,
+  );
   await expect(readdir(destination)).rejects.toThrow();
 });
 
@@ -216,7 +211,7 @@ it('selects a union of explicit, committed, and working files once', async () =>
   expect(result.writes).toEqual(['committed.ts', 'src/Northwind.ts', 'working.ts']);
 });
 
-it('uses an anonymized default directory and requires --to when several workspaces match', async () => {
+it('uses an anonymized default directory and an explicit destination to refresh from a source', async () => {
   const { root, destination, services, push, options } = await fixture();
   await services.store.saveConfig({
     kind: 'config',
@@ -229,8 +224,7 @@ it('uses an anonymized default directory and requires --to when several workspac
   const first = await push('push', withoutDestination);
   expect(first.workspace).toContain('northwind-source-');
   await push('push', options);
-  await expect(push('push', { yes: true })).rejects.toThrow(/Several.*--to/);
-  expect((await push('push', { to: destination, yes: true })).status).toBe('written');
+  expect((await push('push', { to: destination })).status).toBe('written');
 });
 
 it('refreshes a linked worktree after git worktree move', async () => {
@@ -248,10 +242,10 @@ it('refreshes a linked worktree after git worktree move', async () => {
   const linked = join(root, 'acme-feature');
   const moved = join(root, 'acme-moved');
   await runGit(source, ['worktree', 'add', '-b', 'feature', linked]);
-  await createSyncCommand(createSyncServices(linked, store), '2.0.0')('push', options);
+  await createTestSync(createSyncServices(linked, store), '2.0.0')('push', options);
   await runGit(source, ['worktree', 'move', linked, moved]);
   await writeFile(join(moved, 'src', 'Acme.ts'), 'class Acme { moved = true }');
-  await createSyncCommand(createSyncServices(destination, store), '2.0.0')('pull', { yes: true });
+  await createTestSync(createSyncServices(destination, store), '2.0.0')('pull', {});
   expect(await readFile(join(destination, 'src', 'Northwind.ts'), 'utf8')).toBe(
     'class Northwind { moved = true }',
   );
@@ -276,8 +270,8 @@ it('holds the workspace lock until its private record and backup are saved', asy
   const first = push('push', options);
   await saving;
   try {
-    const second = createSyncCommand(createSyncServices(destination, store), '2.0.0');
-    await expect(second('pull', { yes: true })).rejects.toThrow(/lock/i);
+    const second = createTestSync(createSyncServices(destination, store), '2.0.0');
+    await expect(second('pull', {})).rejects.toThrow(/lock/i);
   } finally {
     release();
     await first;
@@ -288,7 +282,7 @@ it('commits source deletions in the workspace Git snapshot', async () => {
   const { source, destination, store, push, options } = await fixture(true);
   await push('push', options);
   await rm(join(source, 'src', 'Acme.ts'));
-  await createSyncCommand(createSyncServices(destination, store), '2.0.0')('pull', { yes: true });
+  await createTestSync(createSyncServices(destination, store), '2.0.0')('pull', {});
   expect((await runGit(destination, ['status', '--porcelain'])).trim()).toBe('');
   expect(await runGit(destination, ['show', '--format=', '--name-status', 'HEAD'])).toContain(
     'D\tsrc/Northwind.ts',
@@ -300,8 +294,7 @@ describe('restoring workspace changes', () => {
     const setup = await fixture();
     await setup.push('push', setup.options);
     const services = createSyncServices(setup.destination, setup.store);
-    services.interactive = false;
-    return { ...setup, restoreServices: services, restore: createSyncCommand(services, '2.0.0') };
+    return { ...setup, restoreServices: services, restore: createTestSync(services, '2.0.0') };
   }
   it('restores edits and new names, preserves BOM/CRLF, and skips a repeated restore', async () => {
     const { destination, source, restore, services, push, options } = await restoredFixture();
@@ -310,7 +303,7 @@ describe('restoring workspace changes', () => {
       '\uFEFFexport class Northwind { newValue = true }\r\n',
     );
     await writeFile(join(destination, 'src', 'NorthwindClient.ts'), 'class NorthwindClient {}');
-    const result = await restore('push', { yes: true });
+    const result = await restore('push', {});
     expect(result.writes).toEqual(['src/Acme.ts', 'src/AcmeClient.ts']);
     expect(await readFile(join(source, 'src', 'Acme.ts'), 'utf8')).toBe(
       '\uFEFFexport class Acme { newValue = true }\r\n',
@@ -318,7 +311,7 @@ describe('restoring workspace changes', () => {
     expect(await readFile(join(source, 'src', 'AcmeClient.ts'), 'utf8')).toBe(
       'class AcmeClient {}',
     );
-    expect((await restore('push', { yes: true })).writes).toEqual([]);
+    expect((await restore('push', {})).writes).toEqual([]);
     expect(
       Object.keys((await services.store.readSnapshot(destination))?.plain.files ?? {}),
     ).toContain('src/NorthwindClient.ts');
@@ -331,14 +324,14 @@ describe('restoring workspace changes', () => {
     await writeFile(join(destination, 'src', 'Northwind.ts'), 'class Northwind { edited = true }');
     await writeFile(join(destination, 'new.txt'), 'new file');
     const manifest = await readFile(join(destination, '.repo-cloak', 'manifest.json'));
-    await expect(restore('push', { yes: true })).rejects.toMatchObject({ exitCode: 2 });
+    await expect(restore('push', {})).rejects.toMatchObject({ exitCode: 2 });
     await expect(readFile(join(source, 'new.txt'))).rejects.toThrow();
     expect(await readFile(join(destination, '.repo-cloak', 'manifest.json'))).toEqual(manifest);
-    const skipped = await restore('push', { yes: true, skipConflicts: true });
+    const skipped = await restore('push', { skipConflicts: true });
     expect(skipped.writes).toEqual(['new.txt']);
     expect(skipped.skipped).toBe(1);
     expect(await readFile(join(source, 'src', 'Acme.ts'), 'utf8')).toBe('source changed');
-    await restore('push', { yes: true, force: true });
+    await restore('push', { force: true });
     expect(await readFile(join(source, 'src', 'Acme.ts'), 'utf8')).toBe(
       'class Acme { edited = true }',
     );
@@ -346,24 +339,8 @@ describe('restoring workspace changes', () => {
   it('does not touch an unchanged workspace file even if its source changed', async () => {
     const { source, restore } = await restoredFixture();
     await writeFile(join(source, 'src', 'Acme.ts'), 'source changed');
-    expect((await restore('push', { yes: true })).writes).toEqual([]);
+    expect((await restore('push', {})).writes).toEqual([]);
     expect(await readFile(join(source, 'src', 'Acme.ts'), 'utf8')).toBe('source changed');
-  });
-  it('confirms source deletions and supports cancellation', async () => {
-    const { source, destination, restoreServices, restore } = await restoredFixture();
-    await rm(join(destination, 'src', 'Northwind.ts'));
-    restoreServices.interactive = true;
-    let deletions: string[] = [];
-    restoreServices.confirmPush = async (plan) => {
-      deletions = plan.deletes;
-      return false;
-    };
-    expect((await restore('push', {})).status).toBe('cancelled');
-    expect(deletions).toEqual(['src/Acme.ts']);
-    expect(await readFile(join(source, 'src', 'Acme.ts'), 'utf8')).toContain('Acme');
-    await restore('push', { yes: true });
-    await expect(readFile(join(source, 'src', 'Acme.ts'))).rejects.toThrow();
-    expect((await restore('push', { yes: true })).deletes).toEqual([]);
   });
   it('dry-runs without changing files, manifest, key permissions, or records', async () => {
     const { source, destination, restore, store } = await restoredFixture();
@@ -372,7 +349,7 @@ describe('restoring workspace changes', () => {
     const before = await readFile(join(source, 'src', 'Acme.ts'));
     const key = await stat(join(store.root, 'key'));
     const entries = await readdir(store.root, { recursive: true });
-    expect((await restore('push', { dryRun: true })).status).toBe('dry-run');
+    expect((await restore('push', { preview: true })).status).toBe('preview');
     expect(await readFile(join(source, 'src', 'Acme.ts'))).toEqual(before);
     expect(await readFile(join(destination, '.repo-cloak', 'manifest.json'))).toEqual(manifest);
     expect((await stat(join(store.root, 'key'))).ctimeMs).toBe(key.ctimeMs);
@@ -390,9 +367,7 @@ describe('restoring workspace changes', () => {
       if (path.endsWith('manifest.json')) throw new Error('Simulated manifest failure');
       await writeAtomic(path, bytes);
     });
-    await expect(
-      createSyncCommand(restoreServices, '2.0.0')('push', { yes: true }),
-    ).rejects.toThrow('Simulated');
+    await expect(createTestSync(restoreServices, '2.0.0')('push', {})).rejects.toThrow('Simulated');
     expect(await readFile(join(source, 'src', 'Acme.ts'))).toEqual(before);
     expect(await readFile(join(destination, '.repo-cloak', 'manifest.json'))).toEqual(manifest);
     await expect(readFile(join(source, 'new.txt'))).rejects.toThrow();
@@ -400,54 +375,24 @@ describe('restoring workspace changes', () => {
   it('rejects source changes made during confirmation', async () => {
     const { source, destination, restoreServices, restore } = await restoredFixture();
     await writeFile(join(destination, 'src', 'Northwind.ts'), 'class Northwind { edited = true }');
-    restoreServices.interactive = true;
-    restoreServices.confirmPush = async () => {
+    restoreServices.beforeApply = async () => {
       await writeFile(join(source, 'src', 'Acme.ts'), 'changed during confirmation');
-      return true;
     };
     await expect(restore('push', {})).rejects.toThrow('Source files changed');
     expect(await readFile(join(source, 'src', 'Acme.ts'), 'utf8')).toBe(
       'changed during confirmation',
     );
   });
-  it('asks which linked workspace to restore and requires --from without a terminal', async () => {
-    const { destination, root, services, push, options } = await restoredFixture();
-    await push('push', { ...options, to: join(root, 'second') });
-    await expect(push('pull', { yes: true })).rejects.toThrow(/Several.*--from/);
-    services.interactive = true;
-    let choices: string[] = [];
-    services.chooseWorkspace = async (paths) => {
-      choices = paths;
-      return destination;
-    };
-    services.confirmPush = async () => true;
-    expect((await push('pull', {})).workspace).toBe(destination);
-    expect(choices).toHaveLength(2);
-    expect((await push('pull', { from: destination, yes: true })).workspace).toBe(destination);
-  });
   it('refuses residue and existing source files before writing anything', async () => {
     const { source, destination, restore } = await restoredFixture();
     await writeFile(join(destination, 'src', 'Northwind.ts'), 'NORTHWindology');
-    await expect(restore('push', { yes: true })).rejects.toThrow(/anonymized|residue/i);
+    await expect(restore('push', {})).rejects.toThrow(/anonymized|residue/i);
     await writeFile(join(destination, 'src', 'Northwind.ts'), 'class Northwind {}');
     await writeFile(join(destination, 'new.txt'), 'workspace');
     await writeFile(join(source, 'new.txt'), 'source');
-    await expect(restore('push', { yes: true })).rejects.toMatchObject({ exitCode: 2 });
+    await expect(restore('push', {})).rejects.toMatchObject({ exitCode: 2 });
     expect(await readFile(join(source, 'new.txt'), 'utf8')).toBe('source');
   });
-});
-
-it('lists workspaces by recency and hides missing directories', async () => {
-  const { destination, root, services, push, options } = await fixture();
-  const { listWorkspaces } = await import('../src/commands/workspaces.js');
-  services.now = () => '2026-10-16T00:00:00Z';
-  await push('push', options);
-  const second = join(root, 'second');
-  services.now = () => '2026-10-17T00:00:00Z';
-  await push('push', { ...options, to: second });
-  expect((await listWorkspaces(services)).map((item) => item.path)).toEqual([second, destination]);
-  await rm(second, { recursive: true });
-  expect((await listWorkspaces(services)).map((item) => item.path)).toEqual([destination]);
 });
 
 it('refuses new restore files inside nested source repositories', async () => {
@@ -457,8 +402,8 @@ it('refuses new restore files inside nested source repositories', async () => {
   await runGit(join(source, 'nested'), ['init', '-b', 'main']);
   await mkdir(join(destination, 'nested'));
   await writeFile(join(destination, 'nested', 'new.txt'), 'new file');
-  const restore = createSyncCommand(createSyncServices(destination, store), '2.0.0');
-  await expect(restore('push', { yes: true })).rejects.toThrow('nested repository');
+  const restore = createTestSync(createSyncServices(destination, store), '2.0.0');
+  await expect(restore('push', {})).rejects.toThrow('nested repository');
   await expect(readFile(join(source, 'nested', 'new.txt'))).rejects.toThrow();
 });
 
@@ -477,10 +422,10 @@ it('dry-runs a new worktree without creating its branch or directory, then resto
   ]);
   await push('push', options); // Acme.ts is uncommitted, so it is absent from the base.
   const target = join(root, 'new feature');
-  const restore = createSyncCommand(createSyncServices(destination, store), '2.0.0');
+  const restore = createTestSync(createSyncServices(destination, store), '2.0.0');
   const manifest = await readFile(join(destination, '.repo-cloak', 'manifest.json'));
-  const request = { newWorktree: 'feature/new', path: target, yes: true };
-  const preview = await restore('push', { ...request, dryRun: true });
+  const request = { newWorktree: 'feature/new', path: target };
+  const preview = await restore('push', { ...request, preview: true });
   expect(preview.writes).toContain('src/Acme.ts');
   await expect(readdir(target)).rejects.toThrow();
   expect((await runGit(source, ['branch', '--list', 'feature/new'])).trim()).toBe('');
@@ -493,7 +438,7 @@ it('dry-runs a new worktree without creating its branch or directory, then resto
   expect((await runGit(source, ['branch', '--show-current'])).trim()).toBe('main');
   expect((await services.store.readSnapshot(destination))?.data.target.branch).toBe('feature/new');
   await writeFile(join(destination, 'src', 'Northwind.ts'), 'class Northwind { next = true }');
-  await restore('push', { yes: true });
+  await restore('push', {});
   expect(await readFile(join(target, 'src', 'Acme.ts'), 'utf8')).toBe('class Acme { next = true }');
   expect(await readFile(join(source, 'src', 'Acme.ts'), 'utf8')).toContain('export class Acme {}');
 });
@@ -512,8 +457,7 @@ async function worktreeFixture() {
   ]);
   await setup.push('push', setup.options);
   const restoreServices = createSyncServices(setup.destination, setup.store);
-  restoreServices.interactive = false;
-  return { ...setup, restoreServices, restore: createSyncCommand(restoreServices, '2.0.0') };
+  return { ...setup, restoreServices, restore: createTestSync(restoreServices, '2.0.0') };
 }
 
 it('defaults a new worktree to the extracted commit even after the source branch advances', async () => {
@@ -532,7 +476,7 @@ it('defaults a new worktree to the extracted commit even after the source branch
   ]);
   await writeFile(join(destination, 'src', 'Northwind.ts'), 'class Northwind { edited = true }');
   const target = join(root, 'acme-source-feature-default');
-  await restore('push', { newWorktree: 'feature/default', yes: true });
+  await restore('push', { newWorktree: 'feature/default' });
   expect((await runGit(target, ['rev-parse', 'HEAD'])).trim()).toBe(extracted);
   await expect(readFile(join(target, 'later.txt'))).rejects.toThrow();
   expect(await readFile(join(target, 'src', 'Acme.ts'), 'utf8')).toBe(
@@ -540,7 +484,7 @@ it('defaults a new worktree to the extracted commit even after the source branch
   );
 });
 
-it('supports an explicit base and configured worktree parent through the CLI parser', async () => {
+it('supports an explicit base and configured worktree parent through the shared application service', async () => {
   const { root, source, destination, restoreServices } = await worktreeFixture();
   await writeFile(join(source, 'later.txt'), 'later');
   await runGit(source, ['add', '--', 'later.txt']);
@@ -561,18 +505,14 @@ it('supports an explicit base and configured worktree parent through the CLI par
     initGit: false,
     worktreePath: parent,
   });
-  const { createProgram } = await import('../src/program.js');
-  let output = '';
-  await createProgram(undefined, async () => createSyncCommand(restoreServices, '2.0.0'))
-    .configureOutput({
-      writeOut: (text) => {
-        output += text;
-      },
-    })
-    .parseAsync(['push', '--new-worktree', 'feature/custom', '--base', base, '--yes', '--json'], {
-      from: 'user',
-    });
-  expect(JSON.parse(output).status).toBe('written');
+  expect(
+    (
+      await createTestSync(restoreServices, '2.0.0')('push', {
+        newWorktree: 'feature/custom',
+        base,
+      })
+    ).status,
+  ).toBe('written');
   const target = join(parent, 'acme-source-feature-custom');
   expect(await readFile(join(target, 'later.txt'), 'utf8')).toBe('later');
   expect((await runGit(target, ['rev-parse', 'HEAD'])).trim()).toBe(base);
@@ -591,10 +531,9 @@ it('removes the new worktree and branch after a manifest write failure', async (
     await writeAtomic(path, bytes);
   });
   await expect(
-    createSyncCommand(restoreServices, '2.0.0')('push', {
+    createTestSync(restoreServices, '2.0.0')('push', {
       newWorktree: 'feature/failed',
       path: target,
-      yes: true,
     }),
   ).rejects.toThrow('Simulated');
   await expect(readdir(target)).rejects.toThrow();
@@ -603,33 +542,28 @@ it('removes the new worktree and branch after a manifest write failure', async (
   expect(await readFile(join(destination, '.repo-cloak', 'manifest.json'))).toEqual(manifest);
 });
 
-it('cancels new worktree creation and rejects unsafe or contradictory options before writing', async () => {
-  const { root, source, destination, restoreServices, restore } = await worktreeFixture();
+it('previews new worktree creation and rejects unsafe or contradictory options before writing', async () => {
+  const { root, source, destination, restore } = await worktreeFixture();
   const target = join(root, 'cancelled');
-  restoreServices.interactive = true;
-  restoreServices.confirmPush = async () => false;
-  expect((await restore('push', { newWorktree: 'feature/cancelled', path: target })).status).toBe(
-    'cancelled',
-  );
+  expect(
+    (await restore('push', { newWorktree: 'feature/cancelled', path: target, preview: true }))
+      .status,
+  ).toBe('preview');
   await expect(readdir(target)).rejects.toThrow();
-  await expect(restore('push', { base: 'HEAD', yes: true })).rejects.toThrow(
-    'require --new-worktree',
-  );
-  await expect(restore('push', { path: target, yes: true })).rejects.toThrow(
-    'require --new-worktree',
-  );
-  await expect(restore('push', { newWorktree: 'main', path: target, yes: true })).rejects.toThrow(
+  await expect(restore('push', { base: 'HEAD' })).rejects.toThrow('require a new branch');
+  await expect(restore('push', { path: target })).rejects.toThrow('require a new branch');
+  await expect(restore('push', { newWorktree: 'main', path: target })).rejects.toThrow(
     'already exists',
   );
+  await expect(restore('push', { newWorktree: 'feature/new', path: destination })).rejects.toThrow(
+    /must not exist|separate/,
+  );
   await expect(
-    restore('push', { newWorktree: 'feature/new', path: destination, yes: true }),
-  ).rejects.toThrow(/must not exist|separate/);
-  await expect(
-    restore('push', { newWorktree: 'feature/new', path: join(source, 'nested'), yes: true }),
+    restore('push', { newWorktree: 'feature/new', path: join(source, 'nested') }),
   ).rejects.toThrow('separate');
-  await expect(
-    restore('push', { newWorktree: 'feature/new', worktree: source, yes: true }),
-  ).rejects.toThrow('cannot be combined');
+  await expect(restore('push', { newWorktree: 'feature/new', worktree: source })).rejects.toThrow(
+    'cannot be combined',
+  );
 });
 
 it('preserves a saved workspace after a private-record failure and repairs its record on retry', async () => {
@@ -661,16 +595,16 @@ it('preserves a restored source and baseline after a private-record failure and 
   restoreServices.store.record = async () => {
     throw new Error('Private store unavailable');
   };
-  const restore = createSyncCommand(restoreServices, '2.0.0');
-  await expect(restore('push', { yes: true })).rejects.toThrow('baseline were saved');
+  const restore = createTestSync(restoreServices, '2.0.0');
+  await expect(restore('push', {})).rejects.toThrow('baseline were saved');
   expect(await readFile(join(source, 'src', 'Acme.ts'), 'utf8')).toBe(
     'class Acme { saved = true }',
   );
-  const { runStatus } = await import('../src/commands/status.js');
+  const { runStatus } = await import('../src/application/status.js');
   const { createStatusIO } = await import('../src/adapters/status.js');
   expect((await runStatus(createStatusIO(destination))).modified).toEqual([]);
   restoreServices.store.record = record;
-  const retry = await restore('push', { yes: true });
+  const retry = await restore('push', {});
   expect(retry.writes).toEqual([]);
   expect(
     (await services.store.readSnapshot(destination))?.data.files['src/Northwind.ts']?.sourceHash,

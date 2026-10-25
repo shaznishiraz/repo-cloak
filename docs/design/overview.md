@@ -1,6 +1,6 @@
 # Overview: repo-cloak v2
 
-Status: **draft, not agreed**. Implements `docs/requirements.md`.
+Implements `docs/requirements.md`. Current launcher/workflow: [dashboard-first](dashboard-first.md).
 
 ## Problem
 
@@ -30,61 +30,26 @@ performance.
                                        repo-cloak ui (127.0.0.1)
 ```
 
-## Commands
+## Dashboard flow
 
-`pull`, `push`, `status`, `profile`, `workspaces`, `ui`, `schema`, plus
-interactive mode with no arguments. Full list and flags: [cli.md](cli.md).
-
-## Interactive flow
-
-Type `repo-cloak` anywhere. Inside Git, keep the exact launch worktree (including
-when launched in a subdirectory) and go straight to CLI actions or the dashboard.
-Ask for a source repository and worktree only when launched outside Git. Details:
-[sync.md](sync.md).
-
+```text
+repo-cloak -> detect context -> local dashboard
+  -> select code -> profiles -> destination / commands -> preview -> create
+  -> Pull / Push -> review when needed -> apply
 ```
-repo-cloak
-   |
-   +-- in a cloak workspace? --------> pull / push / status / ui (source from manifest)
-   |
-   +-- in a source worktree? --------> use it directly; skip context questions
-   |
-   +-- outside Git: source repository?  (select)
-   |       repos already registered      from the store
-   |       Enter a path...               checked to be a Git repo; ~ = home
-   |
-   +-- outside Git: worktree?  (select only if several exist)
-   |     > main worktree (default)
-   |       other worktrees with their branches
-   |     everything below runs in this worktree, on its branch B
-   |
-   +-- workspace linked to B exists? --> pull / push / status / ui / new
-   |   none yet ---------------------> create in CLI / open dashboard / exit
-   |                                     dashboard keeps selected worktree
-   |
-   +-- workspaces root set?  no --> ask once, save to config.json
-   |
-   +-- profiles:  [repo-specific] + [global]  (multi-select)  or  create new
-   |       +-- merge + validate  --(conflict)--> show conflict, fix, retry
-   |
-   +-- create workspace:  <root>/<anonymized repo name>-<short id>/
-   |
-   +-- what to pull?  files (tree) | recent commits | typed commit IDs/refs
-   |                  | working changes | extra paths
-   |
-   +-- preview (N files, M replacements, secrets found)  --> confirm
-   |
-   +-- pull  --> write files + manifest  --> link workspace <-> repo + branch B
-```
+
+The dashboard can register sources from folders, manage/import/export profiles,
+select older commits, restore to new worktrees, and export selected commit diffs.
+No terminal workflow or prompt adapter remains. Launcher options: [cli.md](cli.md).
 
 ## Modules
 
 ```
 src/
-  cli.ts                      parse args, pick command
+  cli.ts                      launcher entry point
   program.ts                  commander setup
-  commands/                   orchestration, no business rules
-    interactive.ts  pull.ts  push.ts  profile.ts  ui.ts
+  application/                shared dashboard and sync orchestration
+    dashboard.ts  sync.ts  pull.ts  push.ts
   core/                       pure logic, no I/O
     rules.ts        Rule, Profile types; validate a profile
     merge.ts        combine profiles, detect conflicts

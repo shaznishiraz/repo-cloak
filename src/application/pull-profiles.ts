@@ -3,12 +3,12 @@ import type { Snapshot } from '../core/manifest.js';
 import { mergeProfiles } from '../core/merge.js';
 import type { SavedProfile } from '../core/profiles.js';
 import type { RepoState } from '../core/pull.js';
-import type { PullOptions } from './pull-setup.js';
+import type { SyncOptions } from './pull-setup.js';
 
 export async function selectPullProfiles(
   services: SyncServices,
   repo: RepoState,
-  options: PullOptions,
+  options: SyncOptions,
   previous?: Snapshot,
 ): Promise<SavedProfile[]> {
   const available = (
@@ -29,9 +29,11 @@ export async function selectPullProfiles(
       );
       const first = matches[0];
       if (!first) throw new Error(`Profile ${value} was not found`);
-      if (matches.length > 1 && (options.yes || !services.interactive))
-        throw new Error(`Profile ${value} is ambiguous; use global:${value} or repo:${value}`);
-      profiles.push(matches.length > 1 ? await services.chooseProfile(matches) : first);
+      if (matches.length > 1)
+        throw new Error(
+          `Profile ${value} is ambiguous; select a profile with its scope in the dashboard`,
+        );
+      profiles.push(first);
     }
     mergeProfiles(profiles);
     return profiles;
@@ -48,13 +50,9 @@ export async function selectPullProfiles(
       );
       if (!profile)
         throw new Error(
-          `Recorded profile ${ref.name} is missing; choose replacement profiles with --profile`,
+          `Recorded profile ${ref.name} is missing; select replacement profiles in the dashboard`,
         );
       return profile;
     });
-  if (!services.interactive || options.yes)
-    throw new Error('Choose profiles with --profile <name>');
-  if (!available.length)
-    throw new Error('No profiles found; create one with repo-cloak profile create');
-  return services.chooseProfiles(available);
+  throw new Error('Select at least one profile in the dashboard');
 }

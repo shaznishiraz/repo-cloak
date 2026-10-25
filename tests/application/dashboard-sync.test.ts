@@ -4,8 +4,8 @@ import { join } from 'node:path';
 import { afterEach, expect, it } from 'vitest';
 import { createStore } from '../../src/adapters/store.js';
 import { createSyncServices } from '../../src/adapters/sync-services.js';
-import { createDashboard } from '../../src/commands/dashboard.js';
-import { createDashboardSync } from '../../src/commands/dashboard-sync.js';
+import { createDashboard } from '../../src/application/dashboard.js';
+import { createDashboardSync } from '../../src/application/dashboard-sync.js';
 
 const roots: string[] = [];
 afterEach(async () => {
@@ -65,6 +65,7 @@ it('previews without writes, creates once, refreshes, and restores saved names',
   expect(operation.state).toBe('running');
   const result = await f.dashboard.sync.wait(preview.operationId);
   expect(result.state).toBe('completed');
+  await expect(f.dashboard.sync.preview(f.input)).rejects.toThrow('empty destination');
   expect(await f.dashboard.sync.apply(preview.operationId, {})).toEqual(result);
   expect(await readFile(join(f.destination, 'Northwind.ts'), 'utf8')).toBe('class Northwind {}');
   const workspaceId = result.result?.workspaceId ?? '';
@@ -270,7 +271,7 @@ it('validates commits and selections, honors profile scope, and paginates eligib
   await expect(
     f.dashboard.sync.preview({ ...f.input, files: [], commits: ['missing-ref'] }),
   ).rejects.toThrow();
-  await expect(f.dashboard.sync.preview({ ...f.input, files: [] })).rejects.toThrow(/Choose files/);
+  await expect(f.dashboard.sync.preview({ ...f.input, files: [] })).rejects.toThrow(/Select files/);
   await f.services.git.runGit(f.source, ['add', 'Acme.ts']);
   await f.services.git.runGit(f.source, [
     '-c',
@@ -406,4 +407,68 @@ it('returns a fresh full inventory independent of commit and working-change load
     working: expect.arrayContaining(['Acme.ts', 'new.ts']),
     commits: expect.any(Array),
   });
+});
+
+it('exports commit paths outside the workspace with an explicit exclusion override and older commit lookup', async () => {
+  const f = await fixture();
+  const workspaceId = await createWorkspace(f);
+  await writeFile(join(f.source, 'Acme-extra.ts'), 'class AcmeExtra {}\n');
+  await writeFile(join(f.source, 'Acme-private.txt'), 'Acme private\n');
+  await writeFile(join(f.source, 'image.bin'), Buffer.from([0, 255, 1]));
+  await f.services.git.runGit(f.source, ['add', '.']);
+  await f.services.git.runGit(f.source, [
+    '-c',
+    'user.name=Test',
+    '-c',
+    'user.email=test@example.com',
+    'commit',
+    '-m',
+    'changes',
+  ]);
+  await f.dashboard.sync.saveExclusions(f.repoId, { patterns: ['Acme-private.txt'] });
+  const commits = await f.dashboard.sync.exportCommits(f.repoId, workspaceId);
+  const commit = commits[0]?.id ?? '';
+  expect((await f.dashboard.sync.exportCommits(f.repoId, workspaceId, 1))[0]?.id).toBe(
+    commits[1]?.id,
+  );
+  expect((await f.dashboard.sync.exportCommits(f.repoId, workspaceId, 0, 'HEAD~1'))[0]?.id).toBe(
+    commits[1]?.id,
+  );
+  const listing = await f.dashboard.sync.exportFiles(f.repoId, workspaceId, { commit });
+  const extra = listing.files.find((file) => file.path === 'Northwind-extra.ts');
+  const excluded = listing.files.find((file) => file.excluded);
+  const binary = listing.files.find((file) => file.path === 'image.bin');
+  expect(extra).toMatchObject({ added: 1, removed: 0, excluded: false });
+  expect(excluded?.path).toBe('Northwind-private.txt');
+  const indexes = [extra?.index ?? -1];
+  const diff = await f.dashboard.sync.exportDiff(f.repoId, workspaceId, { commit, indexes });
+  expect(diff.patch).toContain('class NorthwindExtra');
+  expect(diff.patch).toContain('--- /dev/null');
+  expect(diff.patch).not.toContain('Acme');
+  await expect(
+    f.dashboard.sync.exportDiff(f.repoId, workspaceId, { commit, indexes: [excluded?.index] }),
+  ).rejects.toThrow('override');
+  expect(
+    (
+      await f.dashboard.sync.exportDiff(f.repoId, workspaceId, {
+        commit,
+        indexes: [excluded?.index],
+        includeExcluded: true,
+      })
+    ).patch,
+  ).toContain('Northwind private');
+  expect(
+    (await f.dashboard.sync.exportDiff(f.repoId, workspaceId, { commit, indexes: [binary?.index] }))
+      .skipped,
+  ).toBe(1);
+  await expect(
+    f.dashboard.sync.exportDiff(f.repoId, workspaceId, { commit, indexes: [4999] }),
+  ).rejects.toThrow('not in this commit');
+  expect(await f.dashboard.sync.exclusions(f.repoId)).toEqual({ patterns: ['Acme-private.txt'] });
+  await expect(
+    f.dashboard.sync.saveExclusions(f.repoId, { patterns: ['!secret'] }),
+  ).rejects.toThrow('negation');
+  expect((await f.dashboard.sync.inventory(f.repoId, f.source)).files).not.toContain(
+    'Acme-private.txt',
+  );
 });

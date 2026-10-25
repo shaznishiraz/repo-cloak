@@ -2,7 +2,7 @@ import { mkdtemp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promis
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { expect, it } from 'vitest';
-import { createProgram } from '../src/program.js';
+import { runStatus } from '../src/application/status.js';
 import { createStatusIO } from '../src/adapters/status.js';
 import { hashBytes } from '../src/core/hash.js';
 
@@ -38,16 +38,7 @@ it('reports changes from a nested directory without a key or changing the worksp
     await writeFile(join(root, 'same'), bytes);
     await writeFile(join(root, 'edited'), 'new');
     await writeFile(join(root, 'nested', 'new.bin'), Buffer.from([0, 255]));
-    let output = '';
-    const program = createProgram(undefined, undefined, async () =>
-      createStatusIO(join(root, 'nested')),
-    ).configureOutput({
-      writeOut: (text) => {
-        output += text;
-      },
-    });
-    await program.parseAsync(['status', '--json'], { from: 'user' });
-    expect(JSON.parse(output)).toEqual({
+    expect(await runStatus(createStatusIO(join(root, 'nested')))).toEqual({
       workspaceId: 'test',
       added: ['nested/new.bin'],
       modified: ['edited'],
@@ -61,7 +52,7 @@ it('reports changes from a nested directory without a key or changing the worksp
 });
 
 it('explains that status requires a workspace', async () => {
-  const { runStatus } = await import('../src/commands/status.js');
+  const { runStatus } = await import('../src/application/status.js');
   await expect(
     runStatus({
       cwd: '/',
@@ -73,5 +64,5 @@ it('explains that status requires a workspace', async () => {
         throw new Error('unexpected read');
       },
     }),
-  ).rejects.toThrow('inside a repo-cloak workspace');
+  ).rejects.toThrow('Select a repo-cloak workspace');
 });
