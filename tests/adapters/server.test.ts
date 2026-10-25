@@ -231,6 +231,14 @@ it('binds loopback only, blocks a foreign Host, and serves only known assets', a
   expect(favicon.status).toBe(200);
   expect(favicon.headers.get('content-type')).toBe('image/svg+xml');
   expect(await favicon.text()).toBe(await readFile(resolve('src/ui/favicon.svg'), 'utf8'));
+  for (const path of ['/favicon.ico', '/favicon.ico?v=2']) {
+    const fallback = await fetch(`${base}${path}`);
+    expect(fallback.status).toBe(200);
+    expect(fallback.headers.get('content-type')).toBe('image/x-icon');
+    expect(Buffer.from(await fallback.arrayBuffer())).toEqual(
+      await readFile(resolve('src/ui/favicon.ico')),
+    );
+  }
 });
 
 it('registers a launched source in an existing group and routes guarded group sync, revisions and deletion', async () => {

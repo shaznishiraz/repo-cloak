@@ -10,6 +10,7 @@ export async function buildUi(destination: string) {
   const html = await readFile(join(source, 'index.html'), 'utf8');
   await Promise.all([
     copyFile(join(source, 'favicon.svg'), join(destination, 'favicon.svg')),
+    copyFile(join(source, 'favicon.ico'), join(destination, 'favicon.ico')),
     writeFile(
       join(destination, 'index.html'),
       html

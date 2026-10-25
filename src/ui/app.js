@@ -1818,11 +1818,17 @@ async function loadProfiles() {
     on(checkbox, 'change', () =>
       checkbox.checked ? checked.add(key(profile)) : checked.delete(key(profile)),
     );
-    label.append(
-      checkbox,
-      node('span', profile.profile.name),
-      node('small', `${profile.scope.kind} · ${profile.profile.rules.length} rules`),
+    const name = node('span', profile.profile.name);
+    name.title = profile.profile.name;
+    const summary = node('span');
+    summary.append(
+      name,
+      node(
+        'small',
+        `${profile.scope.kind === 'global' ? 'All repositories' : 'This repository'} · ${profile.profile.rules.length} rules`,
+      ),
     );
+    label.append(checkbox, summary);
     row.append(
       label,
       button('Edit', () => openEditor(profile)),
@@ -1847,6 +1853,7 @@ function openEditor(saved) {
       };
   $('editor').hidden = false;
   $('editor-title').textContent = saved ? `Edit ${saved.profile.name}` : 'New profile';
+  $('editor-title').title = $('editor-title').textContent;
   $('delete-profile').hidden = !saved;
   $('scope').replaceChildren();
   const global = node('option', 'All repositories');
@@ -1860,6 +1867,7 @@ function openEditor(saved) {
   $('scope').value = editing.scope.kind;
   $('scope').disabled = !!saved;
   setEditorMode(false);
+  document.querySelector('.editor-body').scrollTop = 0;
   $('profile-name').focus();
 }
 on($('import-profile'), 'click', () => $('import-profile-file').click());
@@ -1973,15 +1981,20 @@ function field(parent, text, value, change, values) {
 }
 function renderRule(rule, index) {
   const element = node('div', undefined, 'rule');
-  const toolbar = node('div', undefined, 'toolbar wiz-foot');
-  toolbar.append(
-    node('h3', `Rule ${index + 1}`),
-    button('Remove', () => {
+  const toolbar = node('div', undefined, 'toolbar');
+  const remove = button(
+    '',
+    () => {
       readForm();
       editing.profile.rules.splice(index, 1);
       renderForm();
-    }),
+    },
+    'quiet trash',
   );
+  remove.title = `Remove rule ${index + 1}`;
+  remove.setAttribute('aria-label', remove.title);
+  remove.append(icon('trash'));
+  toolbar.append(node('h3', `Rule ${index + 1}`), remove);
   element.append(toolbar);
   const grid = node('div', undefined, 'rule-grid');
   const variants = schema.properties.rules.items.oneOf;
@@ -3200,9 +3213,15 @@ async function showSettings() {
   setTab('settings-button');
   const view = $('settings-view');
   view.hidden = false;
-  view.replaceChildren();
+  const heading = node('div', undefined, 'prof-head');
+  heading.append(
+    node('h2', 'Settings'),
+    node('p', 'Local defaults and repository exclusions.', 'muted'),
+  );
+  const content = node('div', undefined, 'settings-body');
+  view.replaceChildren(heading, content);
   if (repoId) {
-    const exclusionSection = node('section', undefined, 'repo-exclusions');
+    const exclusionSection = node('section', undefined, 'settings-section');
     exclusionSection.append(
       node('h2', 'Repository-wide file exclusions'),
       node(
@@ -3212,7 +3231,7 @@ async function showSettings() {
       ),
     );
     const exclusionField = labeled(exclusionSection, 'Patterns (one per line)', 'textarea');
-    exclusionField.rows = 6;
+    exclusionField.rows = 4;
     exclusionField.spellcheck = false;
     exclusionField.placeholder = '*.env\nsecrets/\n/private-config.json';
     try {
@@ -3222,39 +3241,43 @@ async function showSettings() {
       exclusionSection.append(node('p', error.message, 'error'));
     }
     exclusionSection.append(
-      node(
-        'p',
-        'Patterns are stored encrypted in this device’s repo-cloak repository record.',
-        'muted',
+      node('p', 'Stored encrypted on this device for this repository.', 'muted'),
+      button(
+        'Save exclusions',
+        async () => {
+          const saved = await api(`repos/${repoId}/exclusions`, 'PUT', {
+            patterns: splitLines(exclusionField.value),
+          });
+          exclusionField.value = saved.patterns.join('\n');
+          notice('Repository exclusions saved');
+        },
+        '',
       ),
-      button('Save exclusions', async () => {
-        const saved = await api(`repos/${repoId}/exclusions`, 'PUT', {
-          patterns: splitLines(exclusionField.value),
-        });
-        exclusionField.value = saved.patterns.join('\n');
-        notice('Repository exclusions saved');
-      }),
     );
-    view.append(exclusionSection);
+    content.append(exclusionSection);
   }
-  view.append(node('h2', 'Workspace defaults'));
-  const root = labeled(view, 'Default cloak workspaces folder', 'input', settings.workspacesRoot);
-  view.append(
-    button('Browse default folder', () =>
-      pickFolder(root.value, (path) => {
-        root.value = path;
-      }),
-    ),
+  const defaults = node('section', undefined, 'settings-section');
+  defaults.append(node('h2', 'Workspace defaults'));
+  const folder = node('div', undefined, 'folder-field');
+  const root = labeled(folder, 'Default cloak workspaces folder', 'input', settings.workspacesRoot);
+  const browse = button('Browse', () =>
+    pickFolder(root.value, (path) => {
+      root.value = path;
+    }),
   );
+  browse.setAttribute('aria-label', 'Browse default folder');
+  browse.prepend(icon('folder'));
+  folder.append(browse);
+  defaults.append(folder);
   const commands = labeled(
-    view,
+    defaults,
     'Default post-create commands (one per line)',
     'textarea',
     settings.postCreateCommands.join('\n'),
   );
   commands.rows = 4;
-  view.append(node('p', 'Runs inside the workspace after creation.', 'muted'));
-  view.append(
+  defaults.append(node('p', 'Runs inside the workspace after creation.', 'muted'));
+  defaults.append(
     button(
       'Save defaults',
       async () => {
@@ -3267,10 +3290,11 @@ async function showSettings() {
             root: settings.workspacesRoot,
             commands: settings.postCreateCommands.join('\n'),
           });
-        notice('Defaults saved');
+        notice('Workspace defaults saved');
       },
       '',
     ),
   );
+  content.append(defaults);
 }
 $('settings-button').onclick = () => safely(showSettings);

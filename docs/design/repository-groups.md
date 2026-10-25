@@ -216,7 +216,7 @@ memory/queue limits are enforced by the shared operation manager.
 
 The grouped navigation, editor and batch review retain the existing vanilla UI
 and add no runtime dependencies. Keep the shipped browser assets below the
-current 92 KB cap, enforced in build tests and package smoke checks.
+current 96 KB cap, enforced in build tests and package smoke checks.
 
 The generated local MCP configuration follows the official
 [Codex project configuration](https://developers.openai.com/codex/config-basic/).

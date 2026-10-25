@@ -296,19 +296,13 @@ footer,
 #ws-view,
 #repos,
 #profiles,
-#editor,
 .wizard-body,
 .choices,
-.sel-chips,
-#settings-view {
+.sel-chips {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   align-content: start;
-}
-
-#settings-view > * {
-  max-width: 640px;
 }
 
 .toolbar p,
@@ -407,7 +401,6 @@ code {
   margin-bottom: 16px;
 }
 
-.prof-grid:has(#editor:not([hidden])),
 .wizard-body.wiz-split {
   grid-template-columns: minmax(0, 1.5fr) minmax(260px, 0.9fr);
   grid-template-rows: minmax(0, 1fr);
@@ -415,8 +408,6 @@ code {
   overflow: hidden;
 }
 
-#editor,
-.rule,
 .sel-panel,
 .sel-summary {
   padding: 18px 20px;
@@ -427,11 +418,10 @@ code {
 }
 
 .prof-row {
-  background: var(--pg);
-  border: 1px solid var(--bd);
-  border-radius: 16px;
-  padding: 14px 18px;
-  margin-bottom: 10px;
+  border-bottom: 1px solid var(--bd);
+  padding: 12px 4px;
+  gap: 8px;
+  flex-wrap: nowrap;
 }
 
 .prof-row label,
@@ -478,13 +468,149 @@ textarea {
 }
 
 .rule {
-  background: var(--sf);
-  margin-bottom: 12px;
+  border-top: 1px solid var(--bd);
+  padding: 12px 0;
 }
 
 .rule-grid {
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 4px 16px;
+}
+.rule-grid label {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 6px;
+}
+.rule-grid input,
+.rule-grid select,
+.rule-grid textarea {
+  margin-top: auto;
+}
+
+.manage {
+  min-width: 0;
+  padding: 4px;
+}
+.manage .prof-head {
+  margin: 0;
+}
+.prof-head .muted {
+  margin-top: 4px;
+}
+.prof-grid:has(#editor:not([hidden])) {
+  grid-template-columns: minmax(200px, 0.7fr) minmax(0, 2fr);
+  grid-template-rows: minmax(0, 1fr);
+}
+#profiles {
+  padding: 4px;
+}
+.prof-row label {
+  flex-wrap: nowrap;
+  gap: 10px;
+}
+.prof-row label > span {
+  min-width: 0;
+}
+.prof-row span,
+.prof-row small {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.prof-row button {
+  flex-shrink: 0;
+}
+#close-editor {
+  flex-shrink: 0;
+}
+#editor {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--bd);
+  border-radius: 16px;
+  background: var(--sf);
+}
+.editor-head,
+.editor-actions {
+  padding: 12px 16px;
+  flex-shrink: 0;
+}
+.editor-head {
+  border-bottom: 1px solid var(--bd);
+  flex-wrap: nowrap;
+}
+#editor-title {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.editor-actions {
+  border-top: 1px solid var(--bd);
+  gap: 8px;
+}
+.editor-body,
+.settings-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px 16px 16px;
+  scrollbar-gutter: stable;
+}
+.editor-options,
+.folder-field {
+  display: flex;
+  gap: 12px;
+  align-items: end;
+  flex-wrap: wrap;
+}
+.editor-options label,
+.folder-field label {
+  flex: 1;
+  min-width: 160px;
+}
+.editor-options .tabs,
+.folder-field button {
+  margin-bottom: 12px;
+}
+.editor-options .tabs {
+  border: 0;
+  gap: 2px;
+}
+.manage input,
+.manage select,
+.manage textarea {
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+.rules-head {
+  margin: 18px 0 8px;
+}
+.settings-body {
+  padding: 4px;
+}
+.settings-section {
+  max-width: 720px;
+  display: grid;
+  gap: 12px;
+  padding: 16px 0 24px;
+}
+.settings-section + .settings-section {
+  border-top: 1px solid var(--bd);
+}
+.settings-section label {
+  margin: 0;
+}
+.settings-section > button {
+  justify-self: start;
+}
+.settings-section .folder-field button {
+  margin: 0;
 }
 
 details {
@@ -1195,6 +1321,16 @@ dialog.panel {
   .prof-grid:has(#editor:not([hidden])) {
     grid-template-columns: 1fr;
     grid-template-rows: auto;
+  }
+  .prof-grid:has(#editor:not([hidden])) #profiles {
+    display: none;
+  }
+  #editor {
+    max-height: 80dvh;
+  }
+  .settings-body {
+    flex: none;
+    overflow: visible;
   }
   .layout {
     grid-template-rows: auto;

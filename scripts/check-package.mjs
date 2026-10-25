@@ -72,6 +72,7 @@ for (const path of [
   'dist/ui/app.js',
   'dist/ui/app.css',
   'dist/ui/favicon.svg',
+  'dist/ui/favicon.ico',
   'README.md',
   'LICENSE',
   'package.json',
@@ -84,7 +85,7 @@ for (const path of [
 assert.ok(
   pack.files
     .filter((file) => file.path.startsWith('dist/ui/'))
-    .reduce((sum, file) => sum + file.size, 0) < 92_000,
+    .reduce((sum, file) => sum + file.size, 0) < 96_000,
 );
 for (const path of files)
   assert.ok(!/^(src|tests|archive|coverage)\//.test(path), `Unexpected package file: ${path}`);

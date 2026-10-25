@@ -289,7 +289,7 @@ installing guidance so their baseline cannot silently change.
 Setup references: [Codex MCP](https://developers.openai.com/codex/mcp/),
 [Claude Code MCP](https://code.claude.com/docs/en/mcp). The official MCP SDK handles
 stdio framing/initialization; smol-toml validates configuration before appending.
-These are the two new runtime dependencies. Browser assets are capped at 92 KB
+These are the two new runtime dependencies. Browser assets are capped at 96 KB
 (previously 82 KB for groups).
 
 ## Implementation sequence and acceptance

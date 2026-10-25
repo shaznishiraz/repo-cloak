@@ -72,7 +72,7 @@ Choices:
 
 - **No framework.** Plain HTML, CSS, and JavaScript. The existing tsup build
   minifies browser JavaScript into `dist/ui/`; HTML and CSS are copied.
-  Shipped assets stay under 92 KB total.
+  Shipped assets stay under 96 KB total.
 - **`node:http` only.** No Express or similar; a small router over a handful
   of JSON routes.
 - **No new logic.** Every route calls the shared `application/` and `core/`
@@ -135,7 +135,7 @@ status uses the shared status service; history comes from the authenticated
 manifest. Missing workspace folders are marked in the list.
 
 Sources live in `src/ui/`. The CLI build copies HTML/CSS and minifies JavaScript into `dist/ui/` using
-the existing tsup dependency. Tests enforce the 92 KB shipped asset budget.
+the existing tsup dependency. Tests enforce the 96 KB shipped asset budget.
 
 ## Browser regression automation
 
@@ -161,3 +161,30 @@ checks, canceled/confirmed deletion, and a 390-pixel layout. CI runs Chromium
 on Ubuntu/Node 24 and retains reports and failure traces. The existing native
 macOS/Windows/Linux CLI matrix remains required; this runner currently supports
 Windows through WSL only.
+
+## Compact profile and settings management
+
+Profiles use a narrow list and a wider editor. Only the editor body scrolls;
+its header and Save/Export actions remain visible. Rule controls use compact
+rows and a labelled trash icon. Long profile names truncate in the list and
+remain available on hover. On narrow screens, the open editor replaces the list.
+
+```
+Profiles                         [Check] [Import] [+ New]
+----------------------+----------------------------------
+[ ] Name       [Edit] | Profile name       [Delete] [Close]
+    Scope · N rules   | Scope                   Form / JSON
+                      | Name          Description
+                      | Exclude       Include
+                      | Rules                  [+ Add]
+                      |         scrollable fields
+                      |----------------------------------
+                      | [Save profile] [Export JSON]
+```
+
+Settings uses separated sections with a shared field width and left-aligned Save
+actions. Folder browsing sits alongside the path. Padded scroll areas and
+shrinkable grid columns leave room for input borders and focus outlines. The
+asset budget is 96 KB (previously 92 KB), allowing the additional responsive form
+styles while keeping build and package size checks enforced. No dependencies
+were added.
