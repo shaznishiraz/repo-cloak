@@ -70,7 +70,8 @@ type SessionGate = {
 - **Lock order in a tab.** Show the lock screen and clear sessionStorage first, then post the
   revoke (waiting at most 2 s), then tell other tabs, then reload to clear memory.
 - **Unlock.** Run `repo-cloak` in a terminal. It opens a new tab with a fresh fragment token.
-  There is no unlock form, no token in any other URL, and locked tabs stay locked.
+  There is no unlock form, no token in any other URL, and locked tabs stay locked. A launch
+  link pasted into an open tab reloads it, so that tab reads the token and the address clears.
 - **Launcher route.** Outside `/api`, POST only. Any `Origin` header gets 403, as agent routes
   do, so a page cannot use it. Bearer auth with the key from `ui.lock`. It replaces
   `GET /api/session`, which is removed. Protocol becomes 2.
