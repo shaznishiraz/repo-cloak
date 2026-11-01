@@ -143,6 +143,7 @@ function toSummary(value: PreviewSummary): PreviewSummary {
     forced,
     redactions,
     postCreateCommands,
+    sourceCommit,
   } = value;
   return {
     intent,
@@ -158,6 +159,7 @@ function toSummary(value: PreviewSummary): PreviewSummary {
     forced,
     redactions,
     postCreateCommands,
+    ...(sourceCommit ? { sourceCommit } : {}),
   };
 }
 function toPreview(flat: PreviewSummary & { operationId: string; expiresAt: string }) {
@@ -528,7 +530,7 @@ async function pullPreview(dashboard: Dashboard, repoId: string, id: string, tar
       repoId,
       workspaceId: id,
       ...(worktree ? { worktree } : {}),
-      ...(target.kind === 'commit' ? { commits: [target.ref] } : {}),
+      ...(target.kind === 'commit' ? { fromCommit: target.ref } : {}),
     }),
   );
 }

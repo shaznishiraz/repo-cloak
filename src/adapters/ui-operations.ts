@@ -5,8 +5,9 @@ export class OperationError extends Error {
   constructor(
     readonly code: 'validation' | 'conflict' | 'stale' | 'expired' | 'busy' | 'limit' | 'unknown',
     message: string,
+    options?: ErrorOptions,
   ) {
-    super(message);
+    super(message, options);
   }
 }
 export type SyncResult = {
@@ -35,6 +36,8 @@ export type PreviewSummary = {
   forced: boolean;
   redactions: number;
   postCreateCommands: string[];
+  /** Set when contents come from this commit rather than the worktree. */
+  sourceCommit?: string;
 };
 export type PreparedOperation = {
   owner?: 'group' | 'agent-request';

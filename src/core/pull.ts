@@ -41,6 +41,8 @@ export type PullInput = {
   workspacePaths?: string[];
   previous?: Snapshot;
   selection: { files: number; commits: number; working: boolean; extra: number };
+  /** The commit contents were read from, when it was not the worktree. */
+  fromCommit?: string;
 };
 export type FileWrite = { path: string; bytes: Uint8Array; executable: boolean };
 
@@ -211,12 +213,16 @@ export function planPull(input: PullInput) {
   const data: ManifestData = {
     ...previous?.data,
     source: { path: repo.path, ...(repo.commonDir ? { commonDir: repo.commonDir } : {}) },
-    origin: {
-      worktree: repo.path,
-      branch: repo.branch,
-      commit: repo.commit,
-      dirty: input.selection.working,
-    },
+    // Files a commit pull did not touch still come from the previous origin.
+    origin:
+      input.fromCommit && previous
+        ? previous.data.origin
+        : {
+            worktree: repo.path,
+            branch: repo.branch,
+            commit: repo.commit,
+            dirty: input.selection.working,
+          },
     target: previous?.data.target ?? { branch: repo.branch },
     profiles: profileRefs(input.profiles),
     rules,
@@ -225,7 +231,12 @@ export function planPull(input: PullInput) {
     files: Object.fromEntries(originals),
     pulls: [
       ...(previous?.data.pulls ?? []),
-      { id: input.pullId, commit: repo.commit, branch: repo.branch },
+      {
+        id: input.pullId,
+        commit: input.fromCommit ?? repo.commit,
+        branch: repo.branch,
+        ...(input.fromCommit ? { fromCommit: input.fromCommit } : {}),
+      },
     ],
   };
   return {

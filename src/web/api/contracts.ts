@@ -95,6 +95,8 @@ export type OperationSummary = {
   forced: boolean;
   redactions: number;
   postCreateCommands: string[];
+  /** Contents come from this commit, not the worktree. */
+  sourceCommit?: string;
 };
 export type OperationPreview = {
   operationId: string;

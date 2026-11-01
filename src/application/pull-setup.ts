@@ -2,7 +2,10 @@ import { selectPullProfiles } from './pull-profiles.js';
 import { sourceForWorkspace } from './pull-source.js';
 import { basename, join, resolve } from 'node:path';
 import type { SyncServices } from '../adapters/sync-services.js';
+import { OperationError } from '../adapters/ui-operations.js';
 import { changedProfiles } from '../core/manifest.js';
+import type { Snapshot } from '../core/manifest.js';
+import type { SavedProfile } from '../core/profiles.js';
 import { mergeProfiles } from '../core/merge.js';
 import { validateRelativePath } from '../core/paths.js';
 import { createReplacer } from '../core/replacer.js';
@@ -20,6 +23,8 @@ export type SyncOptions = {
   profiles?: string[];
   files?: string[];
   commits?: string[];
+  /** Read contents from this commit, not the worktree. Selects the files it changed. */
+  fromCommit?: string;
   working?: boolean;
   to?: string;
   worktree?: string;
@@ -87,6 +92,9 @@ export async function preparePull(
   if (previous && previous.plain.source.repoId !== repo.repoId)
     throw new Error('Destination workspace belongs to another source repository');
   const profiles = await selectPullProfiles(services, repo, options, previous);
+  const fromCommit = options.fromCommit
+    ? await pinCommit(services, repo.path, options, previous, profiles)
+    : undefined;
   const workspaceId = previous?.plain.workspaceId ?? services.newId();
   const saveConfig = Boolean(options.saveDefaults);
   if (!destination) {
@@ -140,7 +148,8 @@ export async function preparePull(
     (await services.files.listDirectory(destination)).length
   )
     throw new Error('A new workspace destination must be empty');
-  const explicit = Boolean(options.files?.length || options.commits?.length || options.working);
+  const commitRefs = fromCommit ? [fromCommit] : (options.commits ?? []);
+  const explicit = Boolean(options.files?.length || commitRefs.length || options.working);
   if (!explicit && !previous)
     throw new Error('Select files, commits, or working changes in the dashboard');
   const files = options.exactFiles
@@ -155,7 +164,7 @@ export async function preparePull(
   if (options.files?.length && files.some(isRepoExcluded))
     throw new Error('Explicit file selection includes a path excluded for this repository');
   const commits = await Promise.all(
-    (options.commits ?? []).map((ref) => services.git.commitFiles(repo.path, ref)),
+    commitRefs.map((ref) => services.git.commitFiles(repo.path, ref)),
   );
   const working = options.working ? await services.git.workingFiles(repo.path) : [];
   const selected = services.files.filterPaths(
@@ -182,13 +191,38 @@ export async function preparePull(
     saveConfig,
     selection: {
       files: files.length,
-      commits: options.commits?.length ?? 0,
+      commits: commitRefs.length,
       working: Boolean(options.working),
       extra: 0,
     },
     ...(options.exactFiles ? { exactSelection: true } : {}),
+    ...(fromCommit ? { fromCommit } : {}),
   };
 }
+
+async function pinCommit(
+  services: SyncServices,
+  root: string,
+  options: SyncOptions,
+  previous: Snapshot | undefined,
+  profiles: SavedProfile[],
+) {
+  const ref = options.fromCommit ?? '';
+  if (!previous || options.files?.length || options.commits?.length || options.working)
+    throw new OperationError('validation', 'A commit pull refreshes a workspace from that commit');
+  // Refreshing profiles re-reads every tracked file, and a commit may not hold them all.
+  if (changedProfiles(profiles, previous).length)
+    throw new OperationError(
+      'validation',
+      'Profiles changed since the last pull; run a normal pull before pulling from a commit',
+    );
+  try {
+    return await services.git.resolveCommit(root, ref);
+  } catch (cause) {
+    throw new OperationError('validation', `Commit not found: ${ref}`, { cause });
+  }
+}
+
 export type PullSetup = Omit<Awaited<ReturnType<typeof preparePull>>, 'repoExcludes'> & {
   repoExcludes?: string[];
 };

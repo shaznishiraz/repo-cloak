@@ -62,6 +62,7 @@ const inputSchema = z.discriminatedUnion('intent', [
       repoId: repoIdSchema,
       workspaceId: z.string().min(1),
       worktree: z.string().min(1),
+      fromCommit: z.string().min(1).optional(),
       ...selection,
     })
     .strict(),
@@ -214,6 +215,7 @@ export function createDashboardSync(
             );
       if (input.commits !== undefined) options.commits = input.commits;
       if (input.working !== undefined) options.working = input.working;
+      if (input.intent === 'refresh' && input.fromCommit) options.fromCommit = input.fromCommit;
       if (input.intent === 'create') {
         options.newWorkspace = true;
         if (input.workspacesRoot)
@@ -283,12 +285,17 @@ export function createDashboardSync(
       };
     }
     const workspacePath = prepared.result.workspace;
+    const fromCommit = input.intent === 'refresh' ? input.fromCommit : undefined;
+    const sourceCommit = 'sourceCommit' in prepared ? prepared.sourceCommit : undefined;
     // Bind approval to identities, selected profiles, inventory and original destination.
     // Content baselines are also rechecked by the shared writers under their locks.
     const capture = async (underWriter = false) => {
       await registered(input.repoId);
       const state = await services.git.repoState(sourcePath);
-      const sourceInventory = await services.files.readWorkspace(sourcePath, [], 16);
+      // A commit pull reads nothing from the worktree, so its other files cannot stale a review.
+      const sourceInventory = fromCommit
+        ? undefined
+        : await services.files.readWorkspace(sourcePath, [], 16);
       // Restore rechecks its eligible file inventory and bytes under the writer lock.
       // Unrelated ignored build outputs must not invalidate its approval here.
       const workspaceInventory =
@@ -314,7 +321,7 @@ export function createDashboardSync(
       const present = await services.files.exists(destination);
       return hashJson({
         state,
-        sourcePaths: sourceInventory.paths.sort(),
+        sourcePaths: sourceInventory?.paths.sort(),
         workspacePaths: workspaceInventory?.paths.sort(),
         manifest: snapshot ? hashBytes(snapshot.bytes) : null,
         profiles: profileStates,
@@ -328,6 +335,7 @@ export function createDashboardSync(
             : await Promise.all(
                 (input.commits ?? []).map((ref) => services.git.resolveCommit(sourcePath, ref)),
               ),
+        fromCommit: fromCommit ? await services.git.resolveCommit(sourcePath, fromCommit) : null,
         destination: await services.files.canonicalPath(destination),
         exists: underWriter && input.intent === 'create' && !destinationExisted ? false : present,
         // A destination may not become a different repo while a preview is open.
@@ -365,6 +373,7 @@ export function createDashboardSync(
       forced: input.intent === 'restore' && input.policy === 'force',
       redactions: prepared.redactions,
       postCreateCommands: prepared.postCreateCommands,
+      ...(sourceCommit ? { sourceCommit } : {}),
     };
     return {
       summary,
@@ -396,6 +405,7 @@ export function createDashboardSync(
             ...prepared.result.deletes.map((path) => ({ path })),
           ],
           profiles: await auditProfiles(prepared.result.workspace),
+          ...(sourceCommit ? { detail: `Pulled from commit ${sourceCommit}` } : {}),
         });
         return prepared.result;
       },
