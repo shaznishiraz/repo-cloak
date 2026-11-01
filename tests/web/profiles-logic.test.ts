@@ -253,3 +253,10 @@ it('applies only the accepted changes', () => {
   expect(all.rules.map((rule) => rule.id)).toEqual(['a', 'n']);
   expect(all.exclude).toEqual(['new/']);
 });
+
+it('prints extensions last, whatever order the engine stored them in', () => {
+  const text = pretty({ extensions: { a: 1 }, kind: 'profile', name: 'x' });
+  expect(text.indexOf('"extensions"')).toBeGreaterThan(text.indexOf('"name"'));
+  expect(pretty({ name: 'x' })).not.toContain('extensions');
+  expect(pretty('plain')).toBe('"plain"');
+});

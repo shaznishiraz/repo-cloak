@@ -1,7 +1,13 @@
 import { kindLabels, rowOf, setList } from './rules.js';
 import type { ProfileDoc, RuleDoc } from './rules.js';
 
-export const pretty = (value: unknown) => JSON.stringify(value, null, 2);
+/** Extensions are bookkeeping, so they read last even though the engine stores them first. */
+export function pretty(value: unknown) {
+  if (!value || typeof value !== 'object' || Array.isArray(value))
+    return JSON.stringify(value, null, 2);
+  const { extensions, ...rest } = value as Record<string, unknown>;
+  return JSON.stringify(extensions === undefined ? rest : { ...rest, extensions }, null, 2);
+}
 
 /** Line of a dotted JSON path (rules.3.replace) in `text`; the nearest parent when it is missing. */
 export function lineOfPath(text: string, path: string): number | undefined {

@@ -147,6 +147,8 @@ it('shows the rules table with type, find, replace, case and hits', async () => 
   expect(table?.textContent).toContain('Brand');
   expect(table?.textContent).toContain('Secret');
   expect(table?.textContent).toContain('12');
+  // A scan ran and found nothing for this rule, which is not the same as unknown.
+  expect(root.querySelector('[aria-label="Rule 2"] .pf-hits')?.textContent).toBe('0');
   expect(byLabel('Find for rule 1')?.value).toBe('Contoso');
   expect(byLabel('Replace for rule 1')?.value).toBe('Northwind');
   expect(byLabel<HTMLSelectElement>('Case for rule 1')?.value).toBe('preserve');

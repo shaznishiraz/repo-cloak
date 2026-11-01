@@ -264,7 +264,7 @@ export function ProfileForm({
                 key={rule.id}
                 row={row}
                 number={index + 1}
-                hits={hits[rule.id]}
+                hits={hits[rule.id] ?? (hitsIn ? 0 : undefined)}
                 problems={problems.filter(
                   (problem) => ruleProblem.exec(problem.path)?.[1] === String(index),
                 )}
