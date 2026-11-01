@@ -1,0 +1,144 @@
+.setup {
+  display: flex;
+  justify-content: center;
+  padding: 56px 16px;
+}
+.setup {
+  .setup-column {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    width: 100%;
+    max-width: 640px;
+    min-width: 0;
+  }
+  .setup-brand {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+  }
+  .setup-brand svg {
+    stroke: var(--accent);
+    stroke-width: 1.8;
+  }
+  .setup-name {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 20px;
+    font-weight: 500;
+  }
+  .setup-intro {
+    margin: 0;
+    color: var(--text-2);
+    font-size: 13.5px;
+  }
+  .setup-error {
+    margin: 0;
+  }
+  .step {
+    display: grid;
+    grid-template-columns: 26px minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: start;
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-panel);
+    background: var(--panel);
+  }
+  .step-current {
+    border-color: var(--accent-line);
+  }
+  .step-mark {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--raised);
+    color: var(--text-3);
+    font-family: var(--font-mono);
+    font-size: var(--text-meta);
+  }
+  .step-done .step-mark {
+    background: var(--ok-bg);
+    color: var(--ok);
+  }
+  .step-current .step-mark {
+    background: var(--accent-bg);
+    color: var(--accent-soft);
+  }
+  .step-title {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .step-description {
+    margin: 0;
+    color: var(--text-2);
+    font-size: 12px;
+  }
+  .step-value {
+    margin: 3px 0 0;
+    color: var(--text-3);
+    font-family: var(--font-mono);
+    font-size: var(--text-meta);
+    overflow-wrap: anywhere;
+  }
+  .step-body {
+    grid-column: 2 / -1;
+    min-width: 0;
+  }
+  .step-form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .step-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 6px;
+  }
+  .preset {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .preset-patterns {
+    margin-left: 24px;
+    color: var(--text-3);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    overflow-wrap: anywhere;
+  }
+  .setup-foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-top: 4px;
+    font-size: 12.5px;
+  }
+  .setup-later {
+    margin-left: auto;
+  }
+  @media (max-width: 520px) {
+    & {
+      padding: 24px 16px;
+    }
+    .step {
+      grid-template-columns: 26px minmax(0, 1fr);
+    }
+    .step-action {
+      grid-column: 2;
+    }
+    .step-body {
+      grid-column: 1 / -1;
+    }
+    .setup-later {
+      margin-left: 0;
+    }
+  }
+}
