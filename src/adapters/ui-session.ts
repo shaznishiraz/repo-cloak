@@ -6,7 +6,7 @@ import { lock } from 'proper-lockfile';
 import { z } from 'zod';
 import { errorCode, writeAtomic } from './atomic.js';
 import { createDashboardServer } from './server.js';
-import type { UiKind } from './server.js';
+import type { UiKind } from '../web/api/contracts.js';
 import type { Dashboard } from '../application/dashboard.js';
 
 const sessionSchema = z.object({

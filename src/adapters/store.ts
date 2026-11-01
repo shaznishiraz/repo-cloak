@@ -5,7 +5,7 @@ import { join, resolve } from 'node:path';
 import { checkVersion, parseDocument, sealedSchema } from '../core/schemas.js';
 import type { DocumentKind, Migrations } from '../core/schemas.js';
 import { errorCode, writeAtomic } from './atomic.js';
-import { getOrCreateKey, loadKey, open, seal } from './crypto.js';
+import { getOrCreateKey, keyId, loadKey, open, seal } from './crypto.js';
 
 export function createStore(root = join(homedir(), '.repo-cloak')) {
   root = resolve(root);
@@ -27,6 +27,19 @@ export function createStore(root = join(homedir(), '.repo-cloak')) {
   }
   return {
     root,
+    async keyStatus() {
+      const key = await loadKey(join(root, 'key')).catch((error: unknown) => {
+        if (errorCode(error) === 'ENOENT') return undefined;
+        throw error;
+      });
+      return {
+        sealed: !!key,
+        keyId: key ? keyId(key) : null,
+        storage: key ? ('file' as const) : null,
+        migrationAvailable: false,
+        rotationPending: false,
+      };
+    },
     async listDirectories(relative: string): Promise<string[]> {
       try {
         return (await readdir(path(relative), { withFileTypes: true }))

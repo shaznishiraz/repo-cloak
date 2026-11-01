@@ -8,6 +8,9 @@ import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import type { Dashboard } from '../application/dashboard.js';
 import { z } from 'zod';
+import { RequestError, matchRoute, readBody } from './server-v2/router.js';
+import { v2Routes } from './server-v2/index.js';
+import type { UiKind } from '../web/api/contracts.js';
 import { documentKinds, jsonSchema } from '../core/schemas.js';
 
 const assets = new Map([
@@ -17,35 +20,6 @@ const assets = new Map([
   ['/favicon.svg', ['favicon.svg', 'image/svg+xml']],
   ['/favicon.ico', ['favicon.ico', 'image/x-icon']],
 ]);
-class RequestError extends Error {
-  constructor(
-    readonly status: number,
-    message: string,
-    options?: ErrorOptions,
-  ) {
-    super(message, options);
-  }
-}
-async function readBody(request: IncomingMessage): Promise<unknown> {
-  if (request.headers['content-type']?.split(';')[0]?.trim() !== 'application/json')
-    throw new RequestError(415, 'Use application/json');
-  const chunks: Buffer[] = [];
-  let size = 0;
-  for await (const chunk of request) {
-    const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as string);
-    size += bytes.length;
-    if (size > 1024 * 1024) throw new RequestError(413, 'Request body exceeds 1 MB');
-    chunks.push(bytes);
-  }
-  try {
-    return JSON.parse(Buffer.concat(chunks).toString('utf8')) as unknown;
-  } catch (cause) {
-    throw new RequestError(400, 'Invalid JSON', { cause });
-  }
-}
-
-export type UiKind = 'classic' | 'next';
-
 export function createDashboardServer(
   dashboard: Dashboard,
   token: string,
@@ -164,6 +138,23 @@ export function createDashboardServer(
       !timingSafeEqual(Buffer.from(supplied), Buffer.from(expected))
     )
       throw new RequestError(401, 'Session token required');
+    if (url.pathname.startsWith('/api/v2/')) {
+      const found = matchRoute(v2Routes, method, url.pathname);
+      if (!found) throw new RequestError(404, 'Not found');
+      send(
+        response,
+        200,
+        await found.route.handler({
+          dashboard,
+          ui,
+          port: address.port,
+          params: found.params,
+          query: url.searchParams,
+          body: () => readBody(request),
+        }),
+      );
+      return;
+    }
     let result: unknown;
     if (method === 'GET' && url.pathname === '/api/session')
       result = { app: 'repo-cloak', protocol: 1, pid: process.pid, ui };
