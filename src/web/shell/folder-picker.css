@@ -1,0 +1,55 @@
+.picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: min(480px, 80vw);
+}
+.picker-inline {
+  min-width: 0;
+  margin-top: 8px;
+}
+.picker-tools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.picker-path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.picker-error {
+  margin: 0;
+  color: var(--blocked);
+}
+.picker-list {
+  max-height: 300px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  list-style: none;
+}
+.picker-row {
+  width: 100%;
+  padding: 4px 8px;
+  border: 0;
+  border-bottom: 1px solid var(--divider);
+  background: none;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.picker-row:hover {
+  background: var(--raised);
+}
+.picker-list .muted {
+  padding: 6px 8px;
+}

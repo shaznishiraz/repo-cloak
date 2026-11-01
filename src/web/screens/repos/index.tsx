@@ -12,7 +12,8 @@ import {
   buttonClass,
   toast,
 } from '../../shell/ui/index.js';
-import { FolderPicker, LoadError, ago, errorText, useLoad } from './shared.js';
+import { FolderPicker } from '../../shell/folder-picker.js';
+import { LoadError, ago, errorText, useLoad } from './shared.js';
 
 function abLabel(tree: KnownWorktree) {
   return tree.ahead || tree.behind ? `↑${tree.ahead} ↓${tree.behind}` : 'up to date';
@@ -72,7 +73,8 @@ function AddRepoDialog({
       </div>
       {browsing && (
         <FolderPicker
-          start={path.trim()}
+          inline
+          initial={path.trim()}
           onPick={(picked) => {
             setPath(picked);
             setBrowsing(false);

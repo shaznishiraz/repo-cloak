@@ -84,12 +84,6 @@ export function joinFolder(root: string, name: string) {
   const separator = root.includes('\\') && !root.includes('/') ? '\\' : '/';
   return `${root.replace(/[\\/]+$/, '')}${separator}${name}`;
 }
-export function parentFolder(path: string) {
-  const trimmed = path.replace(/[\\/]+$/, '');
-  const cut = Math.max(trimmed.lastIndexOf('/'), trimmed.lastIndexOf('\\'));
-  if (cut < 0) return path;
-  return cut === 0 ? trimmed.slice(0, 1) : trimmed.slice(0, cut);
-}
 export function lastSegment(path: string) {
   return path.split(/[\\/]/).at(-1) ?? path;
 }

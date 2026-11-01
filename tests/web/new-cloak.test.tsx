@@ -421,3 +421,25 @@ it('asks for a folder when Settings does not fix the destination', async () => {
   expect(text()).not.toContain('fixed in Settings');
   expect(text()).toContain('Browse');
 });
+
+it('Browse opens the shared folder dialog, and its pick becomes the destination', async () => {
+  act(() => render(null, root));
+  overrides['GET /api/v2/new/context'] = () => ({
+    body: { ...context, destinationRoot: null, destinationLocked: false },
+  });
+  overrides['GET /api/v2/folders'] = () => ({
+    body: { path: '/picked', folders: [{ name: 'child', path: '/picked/child' }], next: null },
+  });
+  act(() => render(<NewCloakScreen />, root));
+  await flush();
+  await flush();
+  const button = (name: string) =>
+    [...root.querySelectorAll('button')].find((item) => item.textContent === name);
+  await act(() => button('Browse')?.click());
+  await flush();
+  expect(root.querySelector('ul[aria-label="Folders"]')?.textContent).toContain('child');
+  await act(() => button('Use this folder')?.click());
+  await flush();
+  expect(root.querySelector('ul[aria-label="Folders"]')).toBeNull();
+  expect(text()).toContain('/picked');
+});

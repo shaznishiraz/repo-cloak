@@ -15,7 +15,8 @@ import {
   toast,
 } from '../../shell/ui/index.js';
 import { exportSignedLog } from '../history/audit-actions.js';
-import { FolderPicker, LoadError, copyText, errorText, useLoad } from '../repos/shared.js';
+import { FolderPicker } from '../../shell/folder-picker.js';
+import { LoadError, copyText, errorText, useLoad } from '../repos/shared.js';
 import { AiTools } from './ai-tools.js';
 import { idleLock } from './auto-lock.js';
 
@@ -323,7 +324,8 @@ export function SettingsScreen() {
                     </span>
                     {browsing && (
                       <FolderPicker
-                        start={draft.workspacesRoot}
+                        inline
+                        initial={draft.workspacesRoot}
                         onPick={(path) => {
                           update({ workspacesRoot: path });
                           setBrowsing(false);
