@@ -5,10 +5,30 @@ import { join, resolve } from 'node:path';
 import { checkVersion, parseDocument, sealedSchema } from '../core/schemas.js';
 import type { DocumentKind, Migrations, Sealed } from '../core/schemas.js';
 import { errorCode, writeAtomic } from './atomic.js';
-import { getOrCreateKey, keyId, loadKey, open, seal } from './crypto.js';
+import { keyId, open, seal } from './crypto.js';
+import { defaultKeyStorage } from './key-storage.js';
+import type { KeyStorage, KeyStorageSetting } from './key-storage.js';
 
-export function createStore(root = join(homedir(), '.repo-cloak')) {
+const defaultRoot = () => resolve(homedir(), '.repo-cloak');
+
+export function createStore(root = defaultRoot(), injectedKeys?: KeyStorage) {
   root = resolve(root);
+  const keys =
+    injectedKeys ??
+    defaultKeyStorage(
+      root,
+      root === defaultRoot(),
+      async (): Promise<KeyStorageSetting | undefined> => {
+        try {
+          const config = JSON.parse(await readFile(join(root, 'config.json'), 'utf8')) as {
+            keyStorage?: KeyStorageSetting;
+          };
+          return config.keyStorage;
+        } catch {
+          return undefined;
+        }
+      },
+    );
   function path(relative: string) {
     // IDs and relative store paths must also be valid on Windows.
     const parts = relative.split('/');
@@ -27,30 +47,27 @@ export function createStore(root = join(homedir(), '.repo-cloak')) {
   }
   /** Encrypts values under the store key, authenticating `plain` alongside each one. */
   async function sealer() {
-    const key = await getOrCreateKey(join(root, 'key'));
+    const key = await keys.getOrCreate();
     return (value: unknown, plain: unknown = {}): Sealed => seal(value, key, plain);
   }
+  /** During a rotation data sealed under the retired key still opens. */
   async function opener() {
-    const key = await loadKey(join(root, 'key'));
-    return (sealed: unknown, plain: unknown = {}): unknown => open(sealed, key, plain);
+    const key = await keys.current();
+    if (!key) throw new Error('The store has no encryption key yet');
+    const retired = await keys.retired();
+    return (sealed: unknown, plain: unknown = {}): unknown =>
+      open(
+        sealed,
+        retired && sealedSchema.parse(sealed).keyId === keyId(retired) ? retired : key,
+        plain,
+      );
   }
   return {
     root,
     sealer,
     opener,
-    async keyStatus() {
-      const key = await loadKey(join(root, 'key')).catch((error: unknown) => {
-        if (errorCode(error) === 'ENOENT') return undefined;
-        throw error;
-      });
-      return {
-        sealed: !!key,
-        keyId: key ? keyId(key) : null,
-        storage: key ? ('file' as const) : null,
-        migrationAvailable: false,
-        rotationPending: false,
-      };
-    },
+    keys,
+    keyStatus: keys.status,
     async listDirectories(relative: string): Promise<string[]> {
       try {
         return (await readdir(path(relative), { withFileTypes: true }))

@@ -140,14 +140,15 @@ export function createDashboardShell(
   }
   return {
     async session(ui: UiKind, port: number): Promise<SessionInfo> {
-      const key = await store.keyStatus();
+      const { sealed, keyId, storage, migrationAvailable, rotationPending } =
+        await store.keyStatus();
       return {
         app: 'repo-cloak',
         protocol: 1,
         version,
         ui,
         port,
-        store: key,
+        store: { sealed, keyId, storage, migrationAvailable, rotationPending },
         policy: { status: 'none', locked: [] },
       };
     },

@@ -2,6 +2,7 @@ import { createDashboardSettings } from './dashboard-settings.js';
 import { createDashboardSync } from './dashboard-sync.js';
 import { createDashboardGroups } from './dashboard-groups.js';
 import { createAgentRequests } from './agent-requests.js';
+import { createDashboardSecurity } from './dashboard-security.js';
 import { createDashboardShell } from './dashboard-shell.js';
 import { createAgentClientConfig } from '../adapters/agent-client-config.js';
 import { createAgentStore } from '../adapters/agent-store.js';
@@ -62,6 +63,7 @@ export function createDashboard(
   const groupStore = createGroupStore(store);
   return {
     shell: createDashboardShell(store, sync),
+    security: createDashboardSecurity(store, sync),
     sync,
     groups: createDashboardGroups(store, sync),
     agents: createAgentRequests(store, sync),
