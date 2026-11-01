@@ -287,9 +287,10 @@ restoring to source. Legacy edited instruction files must be pushed before
 installing guidance so their baseline cannot silently change.
 
 Setup references: [Codex MCP](https://developers.openai.com/codex/mcp/),
-[Claude Code MCP](https://code.claude.com/docs/en/mcp). The official MCP SDK handles
-stdio framing/initialization; smol-toml validates configuration before appending.
-These are the two new runtime dependencies. Browser assets are capped at 96 KB
+[Claude Code MCP](https://code.claude.com/docs/en/mcp). `adapters/mcp-stdio.ts` is a
+minimal JSON-RPC 2.0 stdio server (it replaced the official MCP SDK; see
+[supply chain](web-ui.md#supply-chain)); smol-toml validates configuration before
+appending. Browser assets are capped at 96 KB
 (previously 82 KB for groups).
 
 ## Implementation sequence and acceptance

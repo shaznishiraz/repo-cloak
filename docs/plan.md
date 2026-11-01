@@ -26,6 +26,7 @@ Designs: [overview](design/overview.md) ·
 | 7    | Web UI 🏁                             | ✅ Code   |
 | 7a   | Dashboard sync wizard 🏁              | ✅ Code   |
 | 8    | Release 2.0.0                         | ⏳ Checks |
+| R0   | Dashboard rebuild: foundation         | ✅ Code   |
 
 ---
 
@@ -406,3 +407,28 @@ Design: [shared group folder](design/repository-groups.md#shared-folder-with-mov
       moves and moving members out of another active physical group.
 - [x] Update UI/docs and cover moves, reuse, connection preservation and rollback;
       run required checks and package validation.
+
+## Dashboard rebuild: foundation
+
+Plan: [00-foundation](rebuild/INDEX.md#00-foundation). Design:
+[rebuilt dashboard](design/web-ui.md#rebuilt-dashboard-foundation).
+
+- [x] Serve a Preact + signals shell from `dist/web/` behind `--next-ui`, with the
+      existing server security model and no new runtime dependencies.
+- [x] Add design tokens and accessible primitives; enforce 4.5:1 contrast by test.
+- [x] Add the top bar, rail, hash router, a placeholder per route and the ⌘K palette
+      with a command registry.
+- [x] Add v2 contracts, typed client, polling helper, route table,
+      `GET /api/v2/session` and `GET /api/v2/overview` with real counts.
+- [x] Add the hash-chained audit log; wire create, pull, push, delete, agent decisions,
+      settings and key rotation; `verify()` reports the first broken link.
+- [x] Add OS keychain storage, migration and resumable key rotation; a fake keychain
+      round-trips and migrates in tests.
+- [x] Add machine-wide org policy with optional Ed25519 signature; a policy locks a
+      setting and locked exclusions cannot be overridden.
+- [x] Replace the MCP SDK with a minimal stdio server; the package smoke test passes and
+      `npm ls --omit=dev` shows no SDK.
+- [x] Pin versions; add `.npmrc`, SBOM, the CI audit gate, generated supply-chain
+      numbers and the 160 KB budget test.
+- [x] Verify `--next-ui` in a real browser: counts, every route, ⌘K, token removal,
+      390px layout, CSP. Linux and Windows keychain backends are tested with fakes only.

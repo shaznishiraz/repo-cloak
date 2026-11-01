@@ -82,7 +82,8 @@ the user's private machine store.
 
 CI runs the full suite and package checks on macOS, Windows and Linux with
 Node 22 and 24. Ubuntu/Node 24 also enforces coverage floors and uploads the
-report. `prepublishOnly` runs the local coverage and package checks too.
+report. `npm run release:check` runs the local coverage and package checks too. Run it by
+hand: `.npmrc` sets `ignore-scripts=true`, so `npm publish` runs no lifecycle scripts.
 
 Before publishing:
 

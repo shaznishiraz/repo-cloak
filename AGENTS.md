@@ -73,6 +73,8 @@ Where things live:
 
 - Package name stays `repo-cloak-cli`; bins stay `repo-cloak` and `cloak`.
 - Version must be higher than what is on npm (`npm view repo-cloak-cli version`).
+- Run `npm run release:check` first. `ignore-scripts=true` in `.npmrc` means
+  `npm publish` runs no lifecycle scripts, so nothing does it for you.
 - Never run `npm publish` or push tags without the user asking.
 
 ## Git
