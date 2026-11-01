@@ -83,8 +83,9 @@ export async function loadSupplyChain(
 }
 
 /**
- * Refreshes on an interval without overlapping requests, and pauses while the tab is hidden.
- * Polling rather than SSE: the server keeps its short request timeouts.
+ * Refreshes on an interval without overlapping requests. While the tab is hidden only the first
+ * load runs; showing the tab refreshes at once. Polling rather than SSE: the server keeps its
+ * short request timeouts.
  */
 export function poll<T>(
   load: () => Promise<T>,
@@ -92,10 +93,15 @@ export function poll<T>(
   intervalMs = 15_000,
 ) {
   let stopped = false;
+  let running = false;
+  let loaded = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
   async function tick() {
-    if (stopped) return;
-    if (!globalThis.document?.hidden) {
+    if (stopped || running) return;
+    clearTimeout(timer);
+    running = true;
+    if (!loaded || !globalThis.document?.hidden) {
+      loaded = true;
       try {
         const value = await load();
         if (!stopped) handlers.onData(value);
@@ -103,11 +109,17 @@ export function poll<T>(
         if (!stopped) handlers.onError(error);
       }
     }
+    running = false;
     if (!stopped) timer = setTimeout(() => void tick(), intervalMs);
   }
+  const onVisible = () => {
+    if (!globalThis.document?.hidden) void tick();
+  };
+  globalThis.document?.addEventListener('visibilitychange', onVisible);
   void tick();
   return () => {
     stopped = true;
+    globalThis.document?.removeEventListener('visibilitychange', onVisible);
     clearTimeout(timer);
   };
 }

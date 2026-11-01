@@ -156,6 +156,7 @@ function RailLink({
 function Rail({ current }: { current: Route }) {
   const data = overview.value;
   const at = (screen: Route['screen']) => current.screen === screen;
+  const workspaceCount = data?.workspaces.length ?? 0;
   return (
     <nav class="rail" aria-label="Primary">
       <RailLink href="#/" active={at('home') || at('push')} count={data?.workspaces.length}>
@@ -195,7 +196,8 @@ function Rail({ current }: { current: Route }) {
       {data && !data.groups.length && <div class="rail-none">No groups yet</div>}
       <div class="rail-foot">
         <Mono muted>
-          {data?.workspacesRoot ?? 'no cloak root'} · {data?.workspaces.length ?? 0} workspaces
+          {data?.workspacesRoot ?? 'no cloak root'} · {workspaceCount}{' '}
+          {workspaceCount === 1 ? 'workspace' : 'workspaces'}
           <br />
           ui 127.0.0.1:{sessionInfo.value?.port ?? location.port}
         </Mono>

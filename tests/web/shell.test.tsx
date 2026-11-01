@@ -127,6 +127,7 @@ it('shows real counts, launch context and the sealed store in the chrome', () =>
   expect(root.querySelector('.launch-branch')?.textContent).toBe('feat/x');
   expect(root.querySelector('.store-chip')?.textContent).toContain('key 3f9a');
   expect(root.textContent).toContain('v2.0.0');
+  expect(root.textContent).toContain('/c · 1 workspace');
   expect(root.textContent).toContain('ui 127.0.0.1:4000');
 });
 
