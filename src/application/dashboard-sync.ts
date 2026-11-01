@@ -289,7 +289,12 @@ export function createDashboardSync(
       await registered(input.repoId);
       const state = await services.git.repoState(sourcePath);
       const sourceInventory = await services.files.readWorkspace(sourcePath, [], 16);
-      const workspaceInventory = await services.files.readWorkspace(workspacePath, [], 16);
+      // Restore rechecks its eligible file inventory and bytes under the writer lock.
+      // Unrelated ignored build outputs must not invalidate its approval here.
+      const workspaceInventory =
+        input.intent === 'restore'
+          ? undefined
+          : await services.files.readWorkspace(workspacePath, [], 16);
       const snapshot = await services.store.readSnapshot(workspacePath);
       const refs = input.intent === 'restore' ? [] : prepared.plan.data.profiles;
       const profileStates = await Promise.all(
@@ -310,7 +315,7 @@ export function createDashboardSync(
       return hashJson({
         state,
         sourcePaths: sourceInventory.paths.sort(),
-        workspacePaths: workspaceInventory.paths.sort(),
+        workspacePaths: workspaceInventory?.paths.sort(),
         manifest: snapshot ? hashBytes(snapshot.bytes) : null,
         profiles: profileStates,
         config: await services.store.readConfig(),

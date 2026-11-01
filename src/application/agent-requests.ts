@@ -280,10 +280,21 @@ export function createAgentRequests(
             requests: [],
           };
         await reconcile(doc);
+        const ctx = await context(doc);
+        const excluded = compilePatterns([
+          ...(ctx.repo.exclude ?? []),
+          ...ctx.selected.flatMap(({ profile }) => profile.exclude ?? []),
+        ]);
         return {
           enabled: doc.enabled,
           guidance: true,
-          requests: doc.requests,
+          requests: doc.requests.map((request) => ({
+            ...request,
+            files: request.files.map((file) => ({
+              ...file,
+              excluded: excluded(file.path) || excluded(file.original),
+            })),
+          })),
           worktree: doc.worktree,
         };
       });

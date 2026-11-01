@@ -91,25 +91,27 @@ export async function preparePushRun(
     },
     data: { ...previous.data, files: Object.fromEntries(allowedTracked) },
   };
-  const untracked = inventory.paths.filter(
-    (path) =>
-      !Object.hasOwn(activePrevious.plain.files, path) &&
-      !previous.data.guidance?.generated.includes(path),
-  );
-  const restored = restorePaths(
-    untracked,
-    createReplacer(previous.data.rules),
-    previous.data.ledger,
-  );
-  const eligibleNew = new Set(
-    services.files.filterPaths(
-      restored.paths.map((path) => path.original),
-      selectedProfiles,
-      repoRecord?.exclude ?? [],
-    ),
-  );
-  const allowedNew = restored.paths.filter((path) => eligibleNew.has(path.original));
-  const workspacePaths = [...new Set([...tracked, ...allowedNew.map((path) => path.anonymized)])];
+  const pathReplacer = createReplacer(previous.data.rules);
+  const workspaceSelection = (paths: string[]) => {
+    const untracked = paths.filter(
+      (path) =>
+        !Object.hasOwn(activePrevious.plain.files, path) &&
+        !previous.data.guidance?.generated.includes(path),
+    );
+    const restored = restorePaths(untracked, pathReplacer, previous.data.ledger);
+    const eligibleNew = new Set(
+      services.files.filterPaths(
+        restored.paths.map((path) => path.original),
+        selectedProfiles,
+        repoRecord?.exclude ?? [],
+      ),
+    );
+    return restored.paths.filter((path) => eligibleNew.has(path.original));
+  };
+  const allowedNew = workspaceSelection(inventory.paths);
+  const workspacePaths = [
+    ...new Set([...tracked, ...allowedNew.map((path) => path.anonymized)]),
+  ].sort();
   const workspaceBytes = await services.files.readWorkspace(workspace, workspacePaths, concurrency);
   const current = await services.files.readSourceFiles(
     workspace,
@@ -171,7 +173,13 @@ export async function preparePushRun(
     if (!snapshot || hashBytes(snapshot.bytes) !== hashBytes(previous.bytes))
       throw new Error('Workspace manifest changed while preparing restore; retry');
     const check = await services.files.readWorkspace(workspace, workspacePaths, concurrency);
-    if (hashJson(check) !== hashJson(workspaceBytes))
+    const selectedPaths = [
+      ...new Set([...tracked, ...workspaceSelection(check.paths).map((path) => path.anonymized)]),
+    ].sort();
+    if (
+      hashJson(check.files) !== hashJson(workspaceBytes.files) ||
+      hashJson(selectedPaths) !== hashJson(workspacePaths)
+    )
       throw new Error('Workspace files changed while preparing restore; retry');
     if (newTree) {
       await newTree.validate();

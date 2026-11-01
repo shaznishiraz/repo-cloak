@@ -4,6 +4,52 @@ Status: implemented. A group can start with one member so a
 backend workspace can join immediately and a frontend workspace can be added later.
 Launch from either repository, create a workspace if needed, then use Add to group.
 
+## Explicit placement and safe joining
+
+```
+launch from source/worktree -> file selection -> profiles -> destination
+                                                        |
+                                         Group [No group (standalone)]
+                                               [Existing group...   ]
+                                                        |
+                                          preview -> create standalone
+                                                        |
+                                 selected group? -> append this member
+```
+
+Every new workspace defaults to standalone; current sidebar selection and a
+repository's other workspaces do not supply group membership. Show the choice
+and the chosen group in creation review. Create at the standalone root first;
+after successful creation, move/join only the explicitly selected group using
+the existing group move transaction. Store that choice/revision in the browser's
+pending operation draft so response recovery retains the same intent. Join is
+idempotent for the same registered workspace/worktree. A failed or stale join
+reports that the workspace was created and the group join failed; it must not
+delete the new workspace or edit a different group.
+
+Use owner-only `POST /api/groups/:id/members` with `{ revision, member }` for
+joining. It preserves the target's name, folder and other members. Reject extra
+fields, stale revisions and replacing an existing member of the same repository;
+replacement/renaming remains an explicit Edit group operation. Add to group shows
+only the joining repository when targeting an existing group, with the name
+read-only. Joining a new group retains the normal group editor.
+
+Resolve actual source Git repositories/worktrees before a containing group-folder
+context, while recognized cloak workspaces retain highest priority. Keep a source
+repository in the standalone rail whenever any of its workspaces is ungrouped;
+membership of one workspace must not hide its siblings. Creation clears stale
+group navigation, and Add repository preserves its new exact worktree on reload.
+
+Standalone roots and exact destinations cannot be inside a managed group folder.
+Validate both during preview and under the writer lock, including defaults left
+by older versions. Read an old nested default as the enclosing group's parent;
+persist it only when the owner explicitly saves settings/defaults. Existing group
+workspaces continue to Pull/Push in place. Creation cannot rename a group.
+
+The shipped UI budget is 98 KB (previously 96 KB); the explicit placement/review
+and safe-join controls add about 1 KB, with no runtime dependencies. Build and
+package checks continue enforcing the cap.
+
 Group related source repositories (for example backend and frontend) without
 merging their Git histories or cloak manifests. Repository registration and
 individual workspace creation already exist. Each member explicitly chooses
@@ -216,7 +262,7 @@ memory/queue limits are enforced by the shared operation manager.
 
 The grouped navigation, editor and batch review retain the existing vanilla UI
 and add no runtime dependencies. Keep the shipped browser assets below the
-current 96 KB cap, enforced in build tests and package smoke checks.
+current 98 KB cap, enforced in build tests and package smoke checks.
 
 The generated local MCP configuration follows the official
 [Codex project configuration](https://developers.openai.com/codex/config-basic/).

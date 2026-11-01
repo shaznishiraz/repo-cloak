@@ -94,6 +94,100 @@ async function fixture() {
   return { root, store, dashboard, services, members: [backend, frontend] as const, input };
 }
 
+it('joins only the selected group without renaming it or replacing existing members', async () => {
+  const f = await fixture();
+  const group = await f.dashboard.groups.save({
+    ...f.input,
+    members: [f.input.members[0]],
+    moveWorkspaces: true,
+  });
+  const member = f.input.members[1];
+  await expect(f.dashboard.groups.join(group.id, { revision: 'outdated', member })).rejects.toThrow(
+    /changed/,
+  );
+  await expect(
+    f.dashboard.groups.join(group.id, {
+      revision: group.revision,
+      member,
+      name: 'Accidental rename',
+    }),
+  ).rejects.toThrow();
+  expect(await f.dashboard.groups.list()).toEqual([group]);
+  const joined = await f.dashboard.groups.join(group.id, { revision: group.revision, member });
+  expect(joined.name).toBe(group.name);
+  expect(joined.folder).toBe(group.folder);
+  expect(joined.members).toEqual(f.input.members);
+  expect(await f.dashboard.groups.join(group.id, { revision: group.revision, member })).toEqual(
+    joined,
+  );
+  await expect(
+    f.dashboard.groups.join(group.id, {
+      revision: joined.revision,
+      member: { ...member, workspaceId: 'another-workspace' },
+    }),
+  ).rejects.toThrow(/already/);
+  expect(await f.dashboard.groups.list()).toEqual([joined]);
+}, 15_000);
+
+it('keeps standalone creation and source worktree launches independent of existing groups', async () => {
+  const f = await fixture();
+  const group = await f.dashboard.groups.save({
+    ...f.input,
+    members: [f.input.members[0]],
+    moveWorkspaces: true,
+  });
+  if (!group.folder) throw new Error('Expected group folder');
+  const frontend = f.members[1];
+  const profile = (await f.dashboard.profiles(frontend.repoId)).find(
+    (profile) => profile.scope.kind === 'repo',
+  );
+  if (!profile) throw new Error('Expected repository profile');
+  const input = {
+    intent: 'create',
+    repoId: frontend.repoId,
+    worktree: frontend.worktree,
+    profiles: [{ id: profile.id, scope: profile.scope }],
+    files: ['Frontend.ts'],
+  };
+  await f.services.store.saveConfig({
+    kind: 'config',
+    schemaVersion: 1,
+    workspacesRoot: join(group.folder, 'nested-default'),
+  });
+  expect((await f.dashboard.settings.read()).workspacesRoot).toBe(dirname(group.folder));
+  await expect(f.dashboard.settings.save({ workspacesRoot: group.folder })).rejects.toThrow(
+    /group/,
+  );
+  await expect(
+    f.dashboard.sync.preview({ ...input, destination: join(group.folder, 'uninvited') }),
+  ).rejects.toThrow(/group/);
+  await expect(f.dashboard.sync.preview({ ...input, name: 'uninvited' })).rejects.toThrow(/group/);
+  const settings = await f.dashboard.settings.read();
+  const preview = await f.dashboard.sync.preview({
+    ...input,
+    name: 'standalone',
+    workspacesRoot: settings.workspacesRoot,
+  });
+  await f.dashboard.sync.apply(preview.operationId, {});
+  const created = await f.dashboard.sync.wait(preview.operationId);
+  expect(created.state).toBe('completed');
+  expect(created.result?.workspace).toBe(join(f.root, 'standalone'));
+  expect(
+    (await f.dashboard.overview())
+      .find((repo) => repo.id === frontend.repoId)
+      ?.workspaces.find((workspace) => workspace.id === created.result?.workspaceId)?.groupId,
+  ).toBeUndefined();
+  expect(await f.dashboard.groups.list()).toEqual([group]);
+  const source = join(group.folder, 'source-worktree');
+  await f.services.git.runGit(frontend.worktree, ['worktree', 'add', '-b', 'inside-group', source]);
+  const launched = createDashboard(f.store, source);
+  cleanups.push(async () => launched.sync.close());
+  expect(await launched.context()).toEqual({ repoId: frontend.repoId, worktree: source });
+  const rootLaunch = createDashboard(f.store, group.folder);
+  cleanups.push(async () => rootLaunch.sync.close());
+  expect(await rootLaunch.context()).toEqual({ groupId: group.id });
+}, 15_000);
+
 it('initializes Git for moved legacy cloak folders and keeps credentials out of history', async () => {
   const f = await fixture();
   for (const member of f.members) await rm(join(member.destination, '.git'), { recursive: true });
@@ -647,7 +741,7 @@ it('requires per-member review and rejects changed groups, missing members and s
   await expect(
     f.dashboard.groups.preview(group.id, { revision: group.revision, intent: 'refresh' }),
   ).rejects.toThrow();
-});
+}, 15_000);
 
 it('holds the queue for a batch, reports partial failure and retries only unfinished members', async () => {
   const f = await fixture();

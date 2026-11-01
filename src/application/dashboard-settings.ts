@@ -6,6 +6,7 @@ import { createAuditStore } from '../adapters/audit-store.js';
 import { documentSchema } from '../core/schemas.js';
 import { effectiveSecurity } from '../core/policy.js';
 import { OperationError } from '../adapters/ui-operations.js';
+import { outsideGroupFolders } from '../adapters/group-location.js';
 
 const settingsSchema = documentSchema.config
   .pick({ workspacesRoot: true, postCreateCommands: true })
@@ -23,6 +24,10 @@ export function createDashboardSettings(store = createStore(), audit = createAud
   const services = createSyncServices(process.cwd(), store);
   async function validateRoot(value: string) {
     const root = await services.files.canonicalPath(absoluteFolder(value));
+    if ((await outsideGroupFolders(root)) !== root)
+      throw new Error(
+        'Choose a workspace root outside group folders; join a group explicitly during setup',
+      );
     let ancestor = root;
     while (!(await services.files.exists(ancestor))) ancestor = dirname(ancestor);
     if ((await services.git.findRepo(ancestor)) || (await services.store.findWorkspace(ancestor)))
@@ -88,7 +93,9 @@ export function createDashboardSettings(store = createStore(), audit = createAud
     async read() {
       const config = await services.store.readConfig();
       return {
-        workspacesRoot: config.workspacesRoot ?? '',
+        workspacesRoot: config.workspacesRoot
+          ? await outsideGroupFolders(config.workspacesRoot)
+          : '',
         postCreateCommands: config.postCreateCommands ?? [],
       };
     },
@@ -97,7 +104,9 @@ export function createDashboardSettings(store = createStore(), audit = createAud
       const config = await services.store.readConfig();
       const root = input.workspacesRoot
         ? await validateRoot(input.workspacesRoot)
-        : config.workspacesRoot;
+        : config.workspacesRoot
+          ? await outsideGroupFolders(config.workspacesRoot)
+          : undefined;
       const saved = {
         ...config,
         ...(root ? { workspacesRoot: root } : {}),

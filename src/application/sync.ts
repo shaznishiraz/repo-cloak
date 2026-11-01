@@ -7,6 +7,7 @@ import { preparePullRun } from './pull.js';
 import { preparePull } from './pull-setup.js';
 import type { SyncOptions } from './pull-setup.js';
 import { preparePushRun } from './push.js';
+import { outsideGroupFolders } from '../adapters/group-location.js';
 
 export async function prepareSync(
   services: SyncServices,
@@ -74,6 +75,10 @@ async function extraction(
     files: SourceFile[],
     workspace: { paths: string[]; files: Record<string, Uint8Array> },
   ) => {
+    if (!setup.previous && (await outsideGroupFolders(setup.destination)) !== setup.destination)
+      throw new Error(
+        'Group folder changed while preparing the pull; choose a standalone destination',
+      );
     const repo = await services.store.readRepo(setup.repo.repoId);
     if (hashJson(repo?.exclude ?? []) !== hashJson(setup.repoExcludes ?? []))
       throw new Error('Repository exclusions changed while preparing the pull; retry');

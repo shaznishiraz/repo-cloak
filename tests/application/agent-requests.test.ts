@@ -144,6 +144,50 @@ it('discards legacy request-only exclusions instead of retaining a hidden policy
   });
 });
 
+it.each(['repository', 'profile', 'globalProfile'] as const)(
+  'marks queued files ignored using current %s exclusions and restores their eligibility',
+  async (scope) => {
+    const f = await fixture();
+    const request = (await f.dashboard.agents.agentCall(f.doc, 'requests', {
+      clientRequestId: 'ignored-review',
+      paths: ['NorthwindContext.ts', 'more.ts'],
+      reason: 'Need context',
+    })) as { id: string };
+    const setExclusions = async (patterns: string[]) => {
+      if (scope === 'repository') await f.dashboard.sync.saveExclusions(f.repoId, { patterns });
+      else {
+        const profile = f[scope];
+        await f.dashboard.saveProfile({
+          ...profile,
+          profile: { ...profile.profile, exclude: patterns },
+        });
+      }
+    };
+    for (const pattern of ['AcmeContext.ts', 'NorthwindContext.ts']) {
+      await setExclusions([pattern]);
+      const info = await f.dashboard.agents.info(f.repoId, f.workspaceId);
+      expect(info.requests.find((item) => item.id === request.id)?.files).toEqual([
+        expect.objectContaining({ path: 'NorthwindContext.ts', state: 'pending', excluded: true }),
+        expect.objectContaining({ path: 'more.ts', state: 'pending', excluded: false }),
+      ]);
+      await expect(
+        f.dashboard.agents.preview(f.repoId, f.workspaceId, request.id, {
+          paths: ['NorthwindContext.ts'],
+        }),
+      ).rejects.toThrow(/exclusions changed/);
+    }
+    if (scope === 'repository') {
+      const preview = await f.dashboard.agents.preview(f.repoId, f.workspaceId, request.id, {
+        paths: ['more.ts'],
+      });
+      f.dashboard.sync.operations.cancel(preview.operationId);
+    }
+    await setExclusions([]);
+    const info = await f.dashboard.agents.info(f.repoId, f.workspaceId);
+    expect(info.requests[0]?.files.every((file) => !file.excluded)).toBe(true);
+  },
+);
+
 it.each(['profile', 'globalProfile'] as const)(
   'rechecks changed selected %s exclusions before queueing and approval',
   async (key) => {

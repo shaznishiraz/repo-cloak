@@ -7,7 +7,7 @@ import { canonicalPath } from '../adapters/files.js';
 import { isWithin } from '../adapters/locations.js';
 import { OperationError } from '../adapters/ui-operations.js';
 import type { PreviewSummary, SyncResult, PreparedOperation } from '../adapters/ui-operations.js';
-import { groupInputSchema } from '../core/groups.js';
+import { groupInputSchema, groupMemberSchema } from '../core/groups.js';
 import type { GroupMember } from '../core/groups.js';
 import type { createDashboardSync } from './dashboard-sync.js';
 
@@ -198,38 +198,67 @@ export function createDashboardGroups(store: ReturnType<typeof createStore>, syn
     batches.set(preview.operationId, batch);
     return { ...preview, ...structuredClone(batch) };
   }
+  async function saveGroup(value: unknown, id?: string, revision?: string) {
+    const input = groupInputSchema
+      .extend({
+        moveWorkspaces: z.boolean().optional(),
+        folderRoot: z.string().trim().min(1).optional(),
+      })
+      .parse(value);
+    return sync.operations.exclusive(() =>
+      groups.locked(async () => {
+        const previous = id ? await requireGroup(id, revision ?? '') : undefined;
+        const members = await validateMembers(input.members);
+        const group = {
+          kind: 'group',
+          schemaVersion: 1,
+          id: id ?? randomUUID(),
+          name: input.name,
+          members,
+          ...(previous?.folder ? { folder: previous.folder } : {}),
+        } as const;
+        if (input.moveWorkspaces || previous?.folder) {
+          const targets = await Promise.all(
+            members.map(async (member) => ({
+              ...member,
+              ...(await sync.workspaceTarget(member.repoId, member.workspaceId)),
+            })),
+          );
+          return folders.save(group, targets, input.folderRoot, groups.write);
+        }
+        return groups.write(group);
+      }),
+    );
+  }
   return {
     list: groups.list,
-    async save(value: unknown, id?: string, revision?: string) {
-      const input = groupInputSchema
-        .extend({
-          moveWorkspaces: z.boolean().optional(),
-          folderRoot: z.string().trim().min(1).optional(),
-        })
+    save: saveGroup,
+    async join(id: string, value: unknown) {
+      const input = z
+        .object({ revision: z.string().min(1), member: groupMemberSchema })
+        .strict()
         .parse(value);
-      return sync.operations.exclusive(() =>
-        groups.locked(async () => {
-          const previous = id ? await requireGroup(id, revision ?? '') : undefined;
-          const members = await validateMembers(input.members);
-          const group = {
-            kind: 'group',
-            schemaVersion: 1,
-            id: id ?? randomUUID(),
-            name: input.name,
-            members,
-            ...(previous?.folder ? { folder: previous.folder } : {}),
-          } as const;
-          if (input.moveWorkspaces || previous?.folder) {
-            const targets = await Promise.all(
-              members.map(async (member) => ({
-                ...member,
-                ...(await sync.workspaceTarget(member.repoId, member.workspaceId)),
-              })),
-            );
-            return folders.save(group, targets, input.folderRoot, groups.write);
-          }
-          return groups.write(group);
-        }),
+      const group = await requireGroup(id);
+      const existing = group.members.find((item) => item.repoId === input.member.repoId);
+      if (existing && existing.workspaceId !== input.member.workspaceId)
+        throw new OperationError(
+          'validation',
+          'This group already contains a workspace for this repository; use Edit group to change it',
+        );
+      const [member] = await validateMembers([input.member]);
+      if (!member) throw new OperationError('validation', 'Choose a group member');
+      if (existing) {
+        if (existing.workspaceId === member.workspaceId && existing.worktree === member.worktree)
+          return group;
+        throw new OperationError(
+          'validation',
+          'This group already contains a workspace for this repository; use Edit group to change it',
+        );
+      }
+      return saveGroup(
+        { name: group.name, members: [...group.members, member], moveWorkspaces: true },
+        id,
+        input.revision,
       );
     },
     async remove(id: string, revision: string) {

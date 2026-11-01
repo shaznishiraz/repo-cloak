@@ -9,6 +9,7 @@ import { createReplacer } from '../core/replacer.js';
 import { selectFiles } from '../core/selection.js';
 import { compilePatterns } from '../core/patterns.js';
 import { agentLocalPath } from '../core/agent-guidance.js';
+import { outsideGroupFolders } from '../adapters/group-location.js';
 
 export type SyncOptions = {
   name?: string;
@@ -114,6 +115,10 @@ export async function preparePull(
     );
   }
   destination = await services.files.canonicalPath(destination);
+  if (!previous && (await outsideGroupFolders(destination)) !== destination)
+    throw new Error(
+      'Create the workspace outside group folders, then join the selected group explicitly',
+    );
   if (
     services.files.isWithin(repo.path, destination) ||
     services.files.isWithin(destination, repo.path)

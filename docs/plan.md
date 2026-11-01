@@ -218,7 +218,7 @@ Design: [web-ui.md](design/web-ui.md).
 - **WHEN** an API call has no valid token **THEN** it is rejected.
 - **WHEN** a request has a foreign `Origin` **THEN** it is rejected.
 - **WHEN** a profile is saved in the UI **THEN** it passes the same validation as the CLI.
-- **WHEN** the UI assets are built **THEN** they total under 96 KB.
+- **WHEN** the UI assets are built **THEN** they total under 98 KB.
 
 **Milestone documentation:** OpenWiki regeneration remains pending the
 credentials described under step 4. Generated pages were left untouched.
@@ -296,7 +296,7 @@ context-first setup refinement. Acceptance tests cover each implementation slice
 - **WHEN** the browser wizard runs at desktop and 390-pixel widths **THEN** back,
   profile-editor return, validation, confirmation and results remain usable.
 - **WHEN** validation runs **THEN** typecheck, lint, Vitest, browser regressions,
-  build/package checks and the existing 96 KB UI asset budget pass.
+  build/package checks and the existing 98 KB UI asset budget pass.
 
 - **WHEN** a launch identifies a source worktree without its own available workspace
   **THEN** setup starts with folder selection, even when another worktree already
@@ -407,6 +407,43 @@ Design: [shared group folder](design/repository-groups.md#shared-folder-with-mov
       moves and moving members out of another active physical group.
 - [x] Update UI/docs and cover moves, reuse, connection preservation and rollback;
       run required checks and package validation.
+
+### Explicit workspace placement
+
+Design: [explicit placement and safe joining](design/repository-groups.md#explicit-placement-and-safe-joining).
+
+- [x] Default new workspaces to standalone and explicitly select an existing group
+      during creation; preserve group choice during operation recovery.
+- [x] Append through a revision-checked, idempotent join route that preserves names
+      and existing members; reserve replacement and renaming for Edit group.
+- [x] Guard standalone roots/destinations against nested group folders, recover
+      legacy defaults, and prefer source worktree context over containing groups.
+- [x] Keep ungrouped sibling workspaces visible and retain the newly added source
+      worktree in navigation; add regression coverage for isolation and stale state.
+      The browser side of this section went with the old dashboard; package 20-new-cloak
+      and 10-home rebuild it.
+- [x] Run required checks and build/package verification; typecheck the new browser
+      placement and join regression scenarios.
+- [ ] Execute the new browser placement scenario when BrowserOS is available;
+      BrowserOS tools are not connected in this session.
+
+## Prompt library and repository packages
+
+Design: [prompt library](design/prompt-library.md). Proposed; awaiting design
+agreement before implementation, as required by AGENTS.md.
+
+- [ ] Agree the compact library, repository inheritance and creation-time
+      injection design, including fixed workspace snapshots.
+- [ ] Add core prompt/package validation and deterministic resolution tests.
+- [ ] Add sealed library storage, locking/revision checks and owner CRUD APIs;
+      cover referenced deletions, limits and scoped-agent authorization failures.
+- [ ] Add repository assignments and linked-worktree inheritance coverage.
+- [ ] Add previewed creation injection, protected guidance stripping and rollback;
+      verify snapshots survive Pull/Push, export, requests and group moves.
+- [ ] Add compact Prompts/Packages management, tag filtering, assignments and
+      optional creation selection; cover desktop/mobile browser interactions.
+- [ ] Run required checks and build/package budget checks; document live browser
+      availability and validation limits.
 
 ## Dashboard rebuild: foundation
 

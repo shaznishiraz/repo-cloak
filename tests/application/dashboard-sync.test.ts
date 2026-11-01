@@ -6,6 +6,7 @@ import { createStore } from '../../src/adapters/store.js';
 import { createSyncServices } from '../../src/adapters/sync-services.js';
 import { createDashboard } from '../../src/application/dashboard.js';
 import { createDashboardSync } from '../../src/application/dashboard-sync.js';
+import { prepareSync } from '../../src/application/sync.js';
 
 const roots: string[] = [];
 afterEach(async () => {
@@ -92,7 +93,15 @@ it('previews without writes, creates once, refreshes, and restores saved names',
 });
 
 it('rejects stale source, profile, HEAD, destination and inventory changes without applying', async () => {
-  for (const change of ['source', 'profile', 'head', 'destination', 'inventory', 'config']) {
+  for (const change of [
+    'source',
+    'profile',
+    'head',
+    'destination',
+    'inventory',
+    'config',
+    'group',
+  ]) {
     const f = await fixture();
     const preview = await f.dashboard.sync.preview(f.input);
     if (change === 'source') await writeFile(join(f.source, 'Acme.ts'), 'changed');
@@ -106,6 +115,10 @@ it('rejects stale source, profile, HEAD, destination and inventory changes witho
     if (change === 'config')
       await f.services.store.saveConfig({ kind: 'config', schemaVersion: 1, initGit: true });
     if (change === 'inventory') await writeFile(join(f.source, 'added.ts'), 'new');
+    if (change === 'group') {
+      await mkdir(join(f.root, '.repo-cloak'));
+      await writeFile(join(f.root, '.repo-cloak/group.json'), '{}');
+    }
     await f.dashboard.sync.apply(preview.operationId, {});
     const result = await f.dashboard.sync.wait(preview.operationId);
     expect(result.state, change).toBe('failed');
@@ -322,6 +335,101 @@ it('creates an independent Git repository with anonymized files using default se
   expect(detail.trackedFiles).toBe(1);
 });
 
+it.each(['listing order', 'excluded build files'])(
+  'pushes edited workspace files despite changes to %s',
+  async (change) => {
+    const f = await fixture();
+    await createWorkspace(f);
+    await writeFile(join(f.destination, 'Northwind.ts'), 'class Northwind { edited = true }');
+    let reads = 0;
+    const local = {
+      ...f.services,
+      cwd: f.destination,
+      files: {
+        ...f.services.files,
+        async readWorkspace(root: string, paths: string[], concurrency: number) {
+          const result = await f.services.files.readWorkspace(root, paths, concurrency);
+          if (root === f.destination && paths.length && change === 'listing order') {
+            result.paths.sort();
+            if (++reads % 2 === 0) result.paths.reverse();
+          }
+          return result;
+        },
+      },
+    };
+    const prepared = await prepareSync(local, '2.0.0', 'push', { worktree: f.source });
+    if (change === 'excluded build files') {
+      await mkdir(join(f.destination, 'dist'));
+      await writeFile(join(f.destination, 'dist', 'bundle.js'), 'generated output');
+    }
+    await prepared.apply();
+    expect(await readFile(join(f.source, 'Acme.ts'), 'utf8')).toBe('class Acme { edited = true }');
+    expect(await readdir(f.source)).not.toContain('dist');
+  },
+);
+
+it('allows ignored workspace build artifacts appearing after a dashboard restore preview', async () => {
+  const f = await fixture();
+  const workspaceId = await createWorkspace(f);
+  await writeFile(join(f.destination, 'Northwind.ts'), 'class Northwind { edited = true }');
+  const preview = await f.dashboard.sync.preview({
+    intent: 'restore',
+    repoId: f.repoId,
+    workspaceId,
+    worktree: f.source,
+  });
+  await mkdir(join(f.destination, 'node_modules'));
+  await writeFile(join(f.destination, 'node_modules', 'cache.js'), 'ignored output');
+  await f.dashboard.sync.apply(preview.operationId, {});
+  expect((await f.dashboard.sync.wait(preview.operationId)).state).toBe('completed');
+  expect(await readFile(join(f.source, 'Acme.ts'), 'utf8')).toBe('class Acme { edited = true }');
+  expect(await readdir(f.source)).not.toContain('node_modules');
+});
+
+it.each(['added', 'deleted'])(
+  'rejects a genuinely %s workspace file before pushing',
+  async (change) => {
+    const f = await fixture();
+    await createWorkspace(f);
+    await writeFile(join(f.destination, 'Northwind.ts'), 'class Northwind { edited = true }');
+    const prepared = await prepareSync({ ...f.services, cwd: f.destination }, '2.0.0', 'push', {
+      worktree: f.source,
+    });
+    if (change === 'added') await writeFile(join(f.destination, 'new.txt'), 'latest content');
+    else await rm(join(f.destination, 'Northwind.ts'));
+    await expect(prepared.apply()).rejects.toThrow(
+      'Workspace files changed while preparing restore',
+    );
+    expect(await readFile(join(f.source, 'Acme.ts'), 'utf8')).toBe('class Acme {}');
+  },
+);
+
+it('force-pushes the latest workspace snapshot after rejecting a genuinely stale preview', async () => {
+  const f = await fixture();
+  const workspaceId = await createWorkspace(f);
+  await writeFile(join(f.source, 'Acme.ts'), 'class Acme { source = true }');
+  await writeFile(join(f.destination, 'Northwind.ts'), 'class Northwind { first = true }');
+  const input = {
+    intent: 'restore',
+    repoId: f.repoId,
+    workspaceId,
+    worktree: f.source,
+    policy: 'force',
+  };
+  const stale = await f.dashboard.sync.preview(input);
+  await writeFile(join(f.destination, 'Northwind.ts'), 'class Northwind { latest = true }');
+  await f.dashboard.sync.apply(stale.operationId, { force: true });
+  expect(await f.dashboard.sync.wait(stale.operationId)).toMatchObject({
+    state: 'failed',
+    code: 'stale',
+  });
+  expect(await readFile(join(f.source, 'Acme.ts'), 'utf8')).toBe('class Acme { source = true }');
+  const fresh = await f.dashboard.sync.preview(input);
+  await f.dashboard.sync.apply(fresh.operationId, { force: true });
+  expect((await f.dashboard.sync.wait(fresh.operationId)).state).toBe('completed');
+  expect(await readFile(join(f.source, 'Acme.ts'), 'utf8')).toBe('class Acme { latest = true }');
+});
+
 it('invalidates restore previews when workspace bytes or the authenticated manifest change', async () => {
   const f = await fixture();
   const workspaceId = await createWorkspace(f);
@@ -407,6 +515,39 @@ it('returns a fresh full inventory independent of commit and working-change load
     working: expect.arrayContaining(['Acme.ts', 'new.ts']),
     commits: expect.any(Array),
   });
+});
+
+it('exports small changes from large source schemas outside the cloak selection', async () => {
+  const f = await fixture();
+  const workspaceId = await createWorkspace(f);
+  const path = 'schema.graphql';
+  const context = '  unchangedField: String # retained schema context\n'.repeat(25_000);
+  for (const field of ['previous: String', 'updated: Acme']) {
+    await writeFile(join(f.source, path), `type Acme {\n${context}  ${field}\n}\n`);
+    await f.services.git.runGit(f.source, ['add', '--', path]);
+    await f.services.git.runGit(f.source, [
+      '-c',
+      'user.name=Test',
+      '-c',
+      'user.email=test@example.com',
+      'commit',
+      '-m',
+      field,
+    ]);
+  }
+  const commit = (await f.services.git.repoState(f.source)).commit ?? '';
+  const listing = await f.dashboard.sync.exportFiles(f.repoId, workspaceId, { commit });
+  const selected = listing.files.find((file) => file.path === path);
+  expect(selected).toMatchObject({ added: 1, removed: 1 });
+  const diff = await f.dashboard.sync.exportDiff(f.repoId, workspaceId, {
+    commit,
+    indexes: [selected?.index ?? -1],
+  });
+  expect(diff.patch).toContain('-  previous: String');
+  expect(diff.patch).toContain('+  updated: Northwind');
+  expect(diff.patch).not.toContain('Acme');
+  expect(Buffer.byteLength(diff.patch)).toBeLessThan(1024);
+  expect(await readdir(f.destination)).not.toContain(path);
 });
 
 it('exports commit paths outside the workspace with an explicit exclusion override and older commit lookup', async () => {

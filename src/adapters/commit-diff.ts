@@ -11,7 +11,7 @@ import type { Rule } from '../core/rules.js';
 
 const exec = promisify(execFile);
 const decoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
-const limit = 1024 * 1024;
+const diffLimit = 1024 * 1024;
 
 export async function createCommitDiff(input: {
   root: string;
@@ -75,8 +75,8 @@ export async function createCommitDiff(input: {
         skipped++;
         continue;
       }
-      if (oldText.length + newText.length > limit)
-        throw new Error(`${change.anonymized}: file exceeds the 1 MiB export limit`);
+      // Full source blobs can be large while their anonymized patch is tiny.
+      // Apply the export budget to the generated patch below, not the inputs.
       const oldResult = replacer.anonymize(
         oldText,
         { file: change.original, scope: 'content' },
@@ -111,7 +111,7 @@ export async function createCommitDiff(input: {
               oldPath,
               newPath,
             ],
-            { cwd: input.root, encoding: 'utf8', windowsHide: true, maxBuffer: limit * 4 },
+            { cwd: input.root, encoding: 'utf8', windowsHide: true, maxBuffer: diffLimit * 4 },
           )
         ).stdout;
       } catch (error) {
@@ -148,7 +148,7 @@ export async function createCommitDiff(input: {
         ...body,
       ].join('\n');
       size += Buffer.byteLength(filePatch);
-      if (size > limit) throw new Error('This commit exceeds the 1 MiB anonymized diff limit');
+      if (size > diffLimit) throw new Error('This commit exceeds the 1 MiB anonymized diff limit');
       const changedLines = body.filter(
         (line) =>
           (line.startsWith('+') && !line.startsWith('+++ ')) ||
@@ -166,7 +166,7 @@ export async function createCommitDiff(input: {
     await rm(directory, { recursive: true, force: true });
   }
   const patch = output.map((file) => file.patch).join('\n');
-  if (Buffer.byteLength(patch) > limit)
+  if (Buffer.byteLength(patch) > diffLimit)
     throw new Error('This commit exceeds the 1 MiB anonymized diff limit');
   return {
     patch,

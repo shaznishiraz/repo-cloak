@@ -21,6 +21,7 @@ requirements.md  -->  design/  -->  plan.md  -->  code  -->  openwiki/
 | [design/web-ui.md](design/web-ui.md)                           | Work on the local web UI                                             |
 | [design/repository-groups.md](design/repository-groups.md)     | Review the proposed backend/frontend grouping and combined sync      |
 | [design/agent-file-requests.md](design/agent-file-requests.md) | Review scoped agent probes, queued requests and human-approved pulls |
+| [design/prompt-library.md](design/prompt-library.md)           | Review proposed tagged prompts, packages and worktree inheritance     |
 | [plan.md](plan.md)                                             | Find the next step to build and how it is accepted                   |
 
 ## Launch the dashboard

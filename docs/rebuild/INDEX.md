@@ -111,17 +111,18 @@ land the dashboard is the shell only. Read `git show 860f5c7:src/ui/app.js` for 
 behaviour. Keep the input checks the old routes did before calling `dashboard.*`: IDs
 are `decodeURIComponent`ed by `route()`, but query numbers, booleans and JSON are yours.
 
-| Capability                                   | Calls                                     | Owner |
-| -------------------------------------------- | ----------------------------------------- | ----- |
-| Workspace detail, delete, open, desktop list | `dashboard.workspace/deleteWorkspace`,    | 10    |
-|                                              | `dashboard.desktop.*`                     |       |
-| Group CRUD, join, open, sync, retry, cancel  | `dashboard.groups.*`                      | 10    |
-| Export commits, files and diff               | `dashboard.sync.export*`                  | 10    |
-| Selection, inventory, worktrees, commits     | `dashboard.sync.*`                        | 20    |
-| Folder browser, used by 20 and 50            | `browseFolders`, offset is a whole number | 20    |
-| Profiles, check, validate, JSON Schemas      | `dashboard.*Profile*`, `jsonSchema`       | 40    |
-| Repos, remove, exclusions, settings          | `dashboard.*`, `dashboard.settings.*`     | 50    |
-| Agent access, requests, MCP client setup     | `dashboard.agents.*`, `agentClientConfig` | 50    |
+| Capability                                        | Calls                                     | Owner |
+| ------------------------------------------------- | ----------------------------------------- | ----- |
+| Workspace detail, delete, open, desktop list      | `dashboard.workspace/deleteWorkspace`,    | 10    |
+|                                                   | `dashboard.desktop.*`                     |       |
+| Group CRUD, join, open, sync, retry, cancel       | `dashboard.groups.*`                      | 10    |
+| Export commits, files and diff                    | `dashboard.sync.export*`                  | 10    |
+| Selection, inventory, worktrees, commits          | `dashboard.sync.*`                        | 20    |
+| Choose a group at creation; standalone by default | see `design/repository-groups.md`         | 20    |
+| Folder browser, used by 20 and 50                 | `browseFolders`, offset is a whole number | 20    |
+| Profiles, check, validate, JSON Schemas           | `dashboard.*Profile*`, `jsonSchema`       | 40    |
+| Repos, remove, exclusions, settings               | `dashboard.*`, `dashboard.settings.*`     | 50    |
+| Agent access, requests, MCP client setup          | `dashboard.agents.*`, `agentClientConfig` | 50    |
 
 ## 10-home — Workspaces home + group sync
 

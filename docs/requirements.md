@@ -153,6 +153,20 @@ See [repository groups](design/repository-groups.md).
 
 See [agent file requests](design/agent-file-requests.md).
 
+## R10. Prompt library and repository packages
+
+- Manage reusable Markdown prompts with tags, search and ordered prompt packages.
+- Store the library and repository assignments encrypted in the local owner store.
+- Share assignments across a main Git repository and all its linked worktrees,
+  using the existing repository identity rather than individual checkout paths.
+- Inherit prompts during workspace creation, allow an explicit override, and
+  preview anonymized prompt content before approval and injection.
+- Include the selected instructions in the cloak's agent guidance while keeping
+  generated prompts out of source Push and export. Existing workspaces retain
+  their selected prompt versions when library entries change.
+
+Proposed design: [prompt library](design/prompt-library.md).
+
 ## Out of scope (for now)
 
 - Reading v1 workspaces (`.repo-cloak-map.json`). v2 is a fresh start.

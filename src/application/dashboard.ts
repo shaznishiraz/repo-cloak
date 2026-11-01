@@ -179,13 +179,16 @@ export function createDashboard(
           worktree: snapshot?.data.source.path,
         };
       }
+      const repo = await findRepo(cwd);
+      if (repo) {
+        await syncStore.registerRepo(await repoState(repo.topLevel));
+        return { repoId: repo.repoId, worktree: repo.topLevel };
+      }
       const path = await canonicalPath(cwd);
       for (const group of await groupStore.list())
         if (group.folder && isWithin(group.folder, path) && (await exists(group.folder)))
           return { groupId: group.id };
-      const repo = await findRepo(cwd);
-      if (repo) await syncStore.registerRepo(await repoState(repo.topLevel));
-      return { repoId: repo?.repoId, worktree: repo?.topLevel };
+      return { repoId: undefined, worktree: undefined };
     },
     async overview() {
       const repos = [];
