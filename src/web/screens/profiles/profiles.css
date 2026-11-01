@@ -1,0 +1,480 @@
+.pf {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.pf-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--line);
+}
+.pf-title {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+.pf-crumb {
+  color: var(--text-2);
+}
+.pf-head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-left: auto;
+}
+.pf-file {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+.pf-body {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  min-height: 0;
+}
+.pf-nav {
+  flex: 1 1 220px;
+  max-width: 260px;
+  padding: 8px;
+  border-right: 1px solid var(--line);
+  background: var(--rail);
+}
+.pf-main {
+  display: flex;
+  flex: 999 1 560px;
+  flex-direction: column;
+  min-width: 0;
+}
+.pf-aside {
+  flex: 1 1 300px;
+  max-width: 380px;
+  border-left: 1px solid var(--line);
+  background: var(--rail);
+}
+.pf-item {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.pf-item-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.pf-item-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pf-label,
+.pf-rule-head {
+  color: var(--text-3);
+  font-size: var(--text-label);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+.pf-presets-label {
+  margin: 14px 8px 4px;
+}
+.pf-presets .check {
+  padding: 4px 8px;
+  color: var(--text-2);
+  font-size: 12px;
+}
+.pf-note {
+  color: var(--text-3);
+  font-size: var(--text-meta);
+  font-weight: 400;
+}
+.pf-foot {
+  margin: 0;
+}
+.pf-loading {
+  padding: 16px;
+}
+.pf-editor-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--line);
+}
+.pf-name {
+  flex: 0 1 180px;
+  min-width: 120px;
+  font-size: 15px;
+}
+.pf-name-static {
+  color: var(--text-2);
+}
+.pf-editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+.pf-mono {
+  font-family: var(--font-mono);
+}
+.pf-accent {
+  color: var(--accent-soft);
+}
+.pf-stale {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--push-bg);
+  color: var(--push);
+}
+.pf-form,
+.pf-panels {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.pf-form {
+  padding: 12px 16px;
+}
+.pf .panel-head {
+  flex-wrap: wrap;
+}
+.pf .panel-actions {
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.pf .panel-body:has(.pf-table) {
+  padding: 0;
+}
+.pf-add {
+  border-style: dashed;
+}
+.pf-rule {
+  display: grid;
+  grid-template-columns: 90px minmax(0, 1fr) minmax(0, 1fr) 84px 44px 28px;
+  gap: 8px;
+  align-items: center;
+  padding: 4px 12px;
+  border-bottom: 1px solid var(--divider);
+}
+.pf-rule-head {
+  padding-block: 5px;
+}
+.pf-rule > p {
+  grid-column: 1 / -1;
+}
+.pf-right,
+.pf-hits {
+  text-align: right;
+}
+.pf-hits {
+  color: var(--text-3);
+  font-size: 11px;
+}
+.pf-kind {
+  min-width: 0;
+}
+.pf-cell {
+  width: 100%;
+  min-width: 0;
+  height: 26px;
+  font-size: 12px;
+}
+.pf-case,
+.pf-sealed {
+  color: var(--text-2);
+  font-size: 11px;
+}
+.pf-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.pf-empty-rules {
+  margin: 0;
+  padding: 12px;
+  color: var(--text-3);
+}
+.pf-row-error,
+.pf-row-warn {
+  margin: 2px 0;
+  font-size: var(--text-meta);
+}
+.pf-row-error,
+.pf-bad {
+  color: var(--blocked);
+}
+.pf-row-warn,
+.pf-warn {
+  color: var(--push);
+}
+.pf-panels > .panel > .panel-body > .pf-row-error,
+.pf-panels > .panel > .panel-body > .pf-row-warn {
+  padding: 4px 12px;
+}
+.pf-ok {
+  color: var(--ok);
+  font-size: 12px;
+}
+.pf-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.pf-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11.5px;
+  overflow-wrap: anywhere;
+}
+.pf-chip-locked,
+.pf-chip-neutral {
+  background: var(--raised);
+  color: var(--text-2);
+}
+.pf-chip-blocked {
+  background: var(--blocked-bg);
+  color: var(--blocked);
+}
+.pf-chip-tag {
+  color: var(--text-3);
+  font-family: var(--font-ui);
+  font-size: var(--text-label);
+}
+.pf-chip-x {
+  padding: 0 2px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.pf-chip-input {
+  width: 130px;
+  height: 22px;
+  border-style: dashed;
+  font-size: 11.5px;
+}
+.pf-side {
+  margin: 0;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+}
+.pf-side-title {
+  margin: 0 0 6px;
+  font-size: var(--text-row);
+  font-weight: 600;
+}
+.pf-side-label {
+  display: block;
+  margin: 8px 0 3px;
+  color: var(--text-3);
+  font-size: 11px;
+}
+.pf-textarea {
+  display: block;
+  width: 100%;
+  height: auto;
+  padding: 8px;
+  font-size: 11.5px;
+  resize: vertical;
+}
+.pf-cloaked {
+  display: block;
+  min-height: 34px;
+  padding: 8px;
+  overflow-wrap: anywhere;
+  border: 1px solid var(--accent-line);
+  border-radius: var(--radius-button);
+  background: var(--accent-bg-2);
+  color: var(--accent-soft);
+  font-size: 11.5px;
+  white-space: pre-wrap;
+}
+.pf-suggestion {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 8px;
+  padding: 3px 0;
+}
+.pf-suggest-text {
+  color: var(--push);
+  overflow-wrap: anywhere;
+}
+.pf-suggestion .btn {
+  margin-left: auto;
+}
+.pf-problem {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.pf-outline {
+  color: var(--text-2);
+  font-size: 11.5px;
+  line-height: 1.8;
+}
+.pf-indent {
+  padding-left: 14px;
+}
+.pf-json-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--line);
+  color: var(--text-3);
+  font-size: var(--text-meta);
+}
+.pf-changes {
+  color: var(--push);
+}
+.pf-json-scroll {
+  flex: 1;
+  overflow: auto;
+}
+.pf-json {
+  display: flex;
+  width: max-content;
+  min-width: 100%;
+  padding: 8px 0;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 22px;
+}
+.pf-gutter {
+  flex: none;
+  width: 56px;
+  padding-right: 16px;
+  color: var(--text-3);
+  text-align: right;
+  user-select: none;
+}
+.pf-code {
+  position: relative;
+  flex: 1;
+}
+.pf-back {
+  position: absolute;
+  inset: 0;
+}
+.pf-back > div {
+  height: 22px;
+}
+.pf-area {
+  position: relative;
+  display: block;
+  min-width: 100%;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  outline-offset: 2px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  line-height: 22px;
+  resize: none;
+  white-space: pre;
+}
+.pf-line-add {
+  background: var(--ok-bg);
+}
+.pf-line-err {
+  background: var(--blocked-bg);
+}
+.pf-line-warn {
+  background: var(--push-bg);
+}
+.pf-changes-list {
+  max-height: 320px;
+  margin: 8px 0 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+.pf-changes-list li {
+  padding: 4px 0;
+  border-bottom: 1px solid var(--divider);
+}
+.pf-before,
+.pf-after {
+  display: block;
+  font-size: 11.5px;
+  overflow-wrap: anywhere;
+}
+.pf-before {
+  color: var(--blocked);
+}
+.pf-after {
+  color: var(--ok);
+}
+
+@media (max-width: 760px) {
+  .pf-nav,
+  .pf-aside {
+    flex: 1 1 100%;
+    max-width: none;
+    border-right: 0;
+    border-left: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .pf-main {
+    flex-basis: 100%;
+  }
+  .pf-editor-actions {
+    margin-left: 0;
+  }
+  .pf-form {
+    padding: 12px;
+  }
+  .pf-rule-head {
+    display: none;
+  }
+  .pf-rule {
+    grid-template-columns: minmax(0, 1fr) 84px 28px;
+    padding-block: 8px;
+  }
+  .pf-kind {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .pf-hits {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .pf-remove {
+    grid-column: 3;
+    grid-row: 1;
+  }
+  .pf-find,
+  .pf-replace {
+    grid-column: 1 / -1;
+  }
+  .pf-casecell {
+    grid-column: 1 / -1;
+  }
+}
