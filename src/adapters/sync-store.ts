@@ -9,7 +9,6 @@ import type { RepoState } from '../core/pull.js';
 import { parseDocument } from '../core/schemas.js';
 import type { Document } from '../core/schemas.js';
 import { writeAtomic } from './atomic.js';
-import { getOrCreateKey, loadKey, open, seal } from './crypto.js';
 import { checkDestinationPath, exists } from './files.js';
 import type { createStore } from './store.js';
 
@@ -35,7 +34,7 @@ export function createSyncStore(store: ReturnType<typeof createStore>) {
     return {
       ...validateSnapshot({
         plain,
-        data: open(sealed, await loadKey(join(store.root, 'key')), plain) as Snapshot['data'],
+        data: (await store.opener())(sealed, plain) as Snapshot['data'],
       }),
       bytes,
     };
@@ -123,8 +122,8 @@ export function createSyncStore(store: ReturnType<typeof createStore>) {
       await store.writePlain('config.json', 'config', config);
     },
     async sealManifest<T extends Snapshot>(plan: T): Promise<Uint8Array> {
-      const key = await getOrCreateKey(join(store.root, 'key'));
-      const manifest = { ...plan.plain, sealed: seal(plan.data, key, plan.plain) };
+      const seal = await store.sealer();
+      const manifest = { ...plan.plain, sealed: seal(plan.data, plan.plain) };
       parseDocument('manifest', manifest);
       return Buffer.from(`${JSON.stringify(manifest, null, 2)}\n`);
     },

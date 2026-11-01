@@ -3,7 +3,11 @@ import { deleteWorkspace } from '../adapters/workspace-delete.js';
 import { createDashboardSettings } from './dashboard-settings.js';
 import { documentSchema } from '../core/schemas.js';
 import { version as packageVersion } from '../package.js';
-import { resolve, dirname } from 'node:path';
+import { readFile } from 'node:fs/promises';
+import { basename, dirname, join, resolve } from 'node:path';
+import pLimit from 'p-limit';
+import { createAuditStore } from '../adapters/audit-store.js';
+import { maxAuditFiles } from '../core/audit.js';
 import { z } from 'zod';
 import { createStore } from '../adapters/store.js';
 import { createSyncServices } from '../adapters/sync-services.js';
@@ -81,6 +85,8 @@ const ackSchema = z
   })
   .strict();
 
+const auditOp = { create: 'create', refresh: 'pull', restore: 'push' } as const;
+
 export function createDashboardSync(
   store = createStore(),
   limits: OperationLimits = {},
@@ -88,6 +94,29 @@ export function createDashboardSync(
 ) {
   const operations = createUiOperations(limits);
   const services = createSyncServices(process.cwd(), store);
+  const audit = createAuditStore(store, {
+    retentionDays: async () => (await services.store.readConfig()).auditRetentionDays ?? null,
+  });
+  /** Paths and content hashes only; a file that cannot be read is logged without a hash. */
+  async function auditFiles(root: string, paths: string[]) {
+    const limit = pLimit(16);
+    return Promise.all(
+      paths.slice(0, maxAuditFiles).map((path) =>
+        limit(async () => {
+          try {
+            await services.files.checkDestinationPath(root, path);
+            return { path, hash: hashBytes(await readFile(join(root, path))) };
+          } catch {
+            return { path };
+          }
+        }),
+      ),
+    ).then((files) => [...files, ...paths.slice(maxAuditFiles).map((path) => ({ path }))]);
+  }
+  async function auditProfiles(workspacePath: string) {
+    const snapshot = await services.store.readSnapshot(workspacePath).catch(() => undefined);
+    return (snapshot?.data.profiles ?? []).map(({ id, hash }) => ({ id, hash }));
+  }
   async function registered(repoId: string) {
     const repo = await services.store.readRepo(repoIdSchema.parse(repoId));
     if (!repo || repo.hidden)
@@ -339,7 +368,28 @@ export function createDashboardSync(
       },
       async apply() {
         await recheck();
-        await prepared.apply();
+        const workspace = {
+          repoId: input.repoId,
+          id: prepared.result.workspaceId,
+          name: basename(prepared.result.workspace),
+        };
+        const op = auditOp[input.intent];
+        try {
+          await prepared.apply();
+        } catch (error) {
+          await audit.record({ op, outcome: 'failed', workspace, detail: 'Operation failed' });
+          throw error;
+        }
+        await audit.record({
+          op,
+          outcome: 'ok',
+          workspace,
+          files: [
+            ...(await auditFiles(prepared.destination.path, prepared.result.writes)),
+            ...prepared.result.deletes.map((path) => ({ path })),
+          ],
+          profiles: await auditProfiles(prepared.result.workspace),
+        });
         return prepared.result;
       },
     };
@@ -410,6 +460,11 @@ export function createDashboardSync(
       if (problem) throw new OperationError('validation', `${pattern}: ${problem}`);
     }
     await services.store.saveRepoExclusions(repoId, patterns);
+    await audit.record({
+      op: 'settings',
+      outcome: 'ok',
+      detail: `Repository exclusions changed for ${repoId} (${patterns.length} patterns)`,
+    });
     return { patterns };
   }
   async function commitPage(root: string, offset: unknown = 0, ref?: string) {
@@ -433,12 +488,28 @@ export function createDashboardSync(
     return { root, snapshot };
   }
   return {
+    audit,
     operations,
     prepareOperation: prepare,
     workspaceTarget: workspace,
     worktrees,
     deleteWorkspace: (repoId: string, id: string, path: string) =>
-      operations.exclusive(() => deleteWorkspace(store, repoId, id, path)),
+      operations.exclusive(async () => {
+        const workspace = { repoId, id, name: basename(path) };
+        try {
+          const result = await deleteWorkspace(store, repoId, id, path);
+          await audit.record({ op: 'delete', outcome: 'ok', workspace });
+          return result;
+        } catch (error) {
+          await audit.record({
+            op: 'delete',
+            outcome: 'failed',
+            workspace,
+            detail: 'Delete failed',
+          });
+          throw error;
+        }
+      }),
     inventory,
     selectionContext,
     async exclusions(repoId: string) {

@@ -112,7 +112,7 @@ export function createDashboard(
       const target = await sync.workspaceTarget(repoId, workspaceId);
       return clientConfig.install(client, workspaceId, target.path);
     },
-    settings: createDashboardSettings(store),
+    settings: createDashboardSettings(store, sync.audit),
     async removeRepository(value: string) {
       const repoId = repoIdSchema.parse(value);
       return sync.operations.exclusive(() =>

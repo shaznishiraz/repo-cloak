@@ -128,6 +128,10 @@ export const documentSchema = {
     worktreePath: text.optional(),
     initGit: z.boolean().optional(),
     concurrency: z.number().int().positive().optional(),
+    auditRetentionDays: z.number().int().positive().nullable().optional(),
+    keyStorage: z.enum(['auto', 'keychain', 'file']).optional(),
+    allowExclusionOverride: z.boolean().optional(),
+    autoLockMinutes: z.number().int().positive().nullable().optional(),
   }),
   manifest: z.looseObject({
     ...base,

@@ -3,7 +3,7 @@ import { readFile, readdir, unlink } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { checkVersion, parseDocument, sealedSchema } from '../core/schemas.js';
-import type { DocumentKind, Migrations } from '../core/schemas.js';
+import type { DocumentKind, Migrations, Sealed } from '../core/schemas.js';
 import { errorCode, writeAtomic } from './atomic.js';
 import { getOrCreateKey, keyId, loadKey, open, seal } from './crypto.js';
 
@@ -25,8 +25,19 @@ export function createStore(root = join(homedir(), '.repo-cloak')) {
       throw new Error(`${file}: cannot read JSON document`, { cause });
     }
   }
+  /** Encrypts values under the store key, authenticating `plain` alongside each one. */
+  async function sealer() {
+    const key = await getOrCreateKey(join(root, 'key'));
+    return (value: unknown, plain: unknown = {}): Sealed => seal(value, key, plain);
+  }
+  async function opener() {
+    const key = await loadKey(join(root, 'key'));
+    return (sealed: unknown, plain: unknown = {}): unknown => open(sealed, key, plain);
+  }
   return {
     root,
+    sealer,
+    opener,
     async keyStatus() {
       const key = await loadKey(join(root, 'key')).catch((error: unknown) => {
         if (errorCode(error) === 'ENOENT') return undefined;
@@ -88,7 +99,7 @@ export function createStore(root = join(homedir(), '.repo-cloak')) {
       const envelope = checkVersion(kind, await read(relative), file);
       const { sealed, ...plain } = envelope;
       sealedSchema.parse(sealed);
-      const value = open(sealed, await loadKey(join(root, 'key')), plain);
+      const value = (await opener())(sealed, plain);
       const doc = checkVersion(kind, value, file);
       if (doc.schemaVersion !== envelope.schemaVersion)
         throw new Error(`${file}: envelope and document schemaVersion differ`);
@@ -103,7 +114,7 @@ export function createStore(root = join(homedir(), '.repo-cloak')) {
       const file = path(relative);
       const doc = parseDocument(kind, value, file);
       const plain = { kind, schemaVersion: doc.schemaVersion, id };
-      const sealed = seal(doc, await getOrCreateKey(join(root, 'key')), plain);
+      const sealed = (await sealer())(doc, plain);
       await writeAtomic(file, `${JSON.stringify({ ...plain, sealed }, null, 2)}\n`);
     },
   };

@@ -333,6 +333,13 @@ export function createAgentRequests(
           for (const item of request.files)
             if (input.paths.includes(item.path) && item.state !== 'pulled') item.state = 'rejected';
           await access.write(doc);
+          await sync.audit.record({
+            op: 'agent-deny',
+            outcome: 'ok',
+            workspace: { repoId, id: workspaceId },
+            files: input.paths.map((path) => ({ path })),
+            detail: `Request ${requestId}`,
+          });
           return publicRequest(request);
         }),
       );
@@ -412,6 +419,13 @@ export function createAgentRequests(
               await access.locked(workspaceId, async () => {
                 await reconcile(await requireDoc(workspaceId));
               });
+              await sync.audit.record({
+                op: 'agent-approve',
+                outcome: 'ok',
+                workspace: { repoId, id: workspaceId },
+                files: items.map((item) => ({ path: item.path })),
+                detail: `Request ${requestId}`,
+              });
               return result;
             } catch (error) {
               await access.locked(workspaceId, async () => {
@@ -421,6 +435,13 @@ export function createAgentRequests(
                   if (input.paths.includes(item.path) && item.state === 'pending')
                     item.state = 'failed';
                 await access.write(record);
+              });
+              await sync.audit.record({
+                op: 'agent-approve',
+                outcome: 'failed',
+                workspace: { repoId, id: workspaceId },
+                files: items.map((item) => ({ path: item.path })),
+                detail: `Request ${requestId}`,
               });
               throw error;
             }

@@ -415,3 +415,32 @@ it('separates scoped HTTP credentials from all owner endpoints and redacts looku
   const forged = `${otherState.result.workspaceId}.${f.token.split('.')[1]}`;
   expect((await call('/agent/v1/info', forged)).status).toBe(401);
 });
+
+it('audits agent request approvals and denials with paths only', async () => {
+  const f = await fixture();
+  const request = (await f.dashboard.agents.agentCall(f.doc, 'requests', {
+    clientRequestId: 'audit-1',
+    paths: ['NorthwindContext.ts', 'more.ts'],
+    reason: 'Need types',
+  })) as { id: string };
+  await f.dashboard.agents.reject(f.repoId, f.workspaceId, request.id, { paths: ['more.ts'] });
+  const preview = await f.dashboard.agents.preview(f.repoId, f.workspaceId, request.id, {
+    paths: ['NorthwindContext.ts'],
+  });
+  await f.dashboard.agents.apply(f.repoId, f.workspaceId, preview.operationId);
+  expect((await f.dashboard.sync.wait(preview.operationId)).state).toBe('completed');
+  const { events } = await f.dashboard.sync.audit.list();
+  expect(events.find((event) => event.op === 'agent-deny')).toMatchObject({
+    outcome: 'ok',
+    workspace: { repoId: f.repoId, id: f.workspaceId },
+    files: [{ path: 'more.ts' }],
+    detail: `Request ${request.id}`,
+  });
+  expect(events.find((event) => event.op === 'agent-approve')).toMatchObject({
+    outcome: 'ok',
+    files: [{ path: 'NorthwindContext.ts' }],
+  });
+  expect(events.filter((event) => event.op === 'pull')).toHaveLength(1);
+  expect(JSON.stringify(events)).not.toContain('class ');
+  expect(await f.dashboard.sync.audit.verify()).toMatchObject({ ok: true });
+});
