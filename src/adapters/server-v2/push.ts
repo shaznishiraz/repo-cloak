@@ -598,7 +598,7 @@ async function review(
         : 'Every cloaked name restores',
       detail:
         unrestored[0]?.message ??
-        `${snapshot.data.rules.length} rules · ${derived.length} derived · 0 left`,
+        `${snapshot.data.rules.length} rule${snapshot.data.rules.length === 1 ? '' : 's'} · ${derived.length} derived · 0 left`,
     },
     {
       id: 'no-leak',
@@ -703,7 +703,7 @@ async function review(
     id: 'merges',
     state: blocked.length ? 'blocked' : clean ? 'info' : 'ok',
     title: blocked.length
-      ? `${blocked.length} file${blocked.length === 1 ? '' : 's'} overlap upstream changes`
+      ? `${blocked.length} file${blocked.length === 1 ? ' overlaps' : 's overlap'} upstream changes`
       : clean
         ? `${clean} file${clean === 1 ? '' : 's'} auto-merge${clean === 1 ? 's' : ''} with upstream`
         : 'No upstream changes to merge',
