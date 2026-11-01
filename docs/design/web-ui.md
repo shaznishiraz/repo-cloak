@@ -70,9 +70,8 @@ package adds its own journeys.
 
 Plan: [rebuild index](../rebuild/INDEX.md), visual reference:
 [rebuild design](../rebuild/design/README.md). The vanilla dashboard in `src/ui/` and
-its `/api/*` routes were removed before the screens landed, so **until packages 10-50
-merge, this branch's dashboard is the shell with placeholder screens and cannot run a
-sync**. The engine and its tests are unaffected.
+its `/api/*` routes are gone; packages 10-50 replaced every placeholder screen. Decisions
+those packages made are under [Rebuilt screens](#rebuilt-screens).
 
 ```
 repo-cloak
@@ -156,7 +155,8 @@ setting is rejected.
 - Changes apply within five seconds, without a restart.
 - A policy file this account can write is still applied, but flagged as not enforced
   by the OS.
-- `autoLockMinutes` is stored and reported only. Locking behaviour belongs to 50-admin.
+- `autoLockMinutes` drives a lock in the browser tab: `startAutoLock()` in `main.tsx`
+  clears the tab's session after idle time. The token stays valid on the server.
 
 ### Supply chain
 
@@ -166,3 +166,25 @@ and uploads the SBOM. `scripts/supply-chain.ts` generates the numbers Settings s
 
 `ignore-scripts` also stops `npm publish` running `prepublishOnly`, so that gate is now
 `npm run release:check`, run by hand before publishing.
+
+## Rebuilt screens
+
+Each package owns `src/web/screens/<screen>/` and `src/adapters/server-v2/<area>.ts`.
+Shared types live only in `src/web/api/contracts.ts`.
+
+- **Agent decisions** are per file: the route id is `<request id>:<path>`. The inbox
+  decides one file; Home decides a whole request by posting each file in turn, so a
+  failure part way leaves earlier files decided and the list is refreshed.
+- **Signatures-only pulls, auto-approve and allowed roots** return 501 and change nothing.
+  The inbox shows them disabled; Home does not offer them.
+- **Pins** persist as `pinned` in the repo document.
+- **New cloak** takes `#/new?repo=&worktree=`, which Known repos uses for a worktree
+  without a cloak. The folder field is fixed once Settings names a workspaces folder.
+- **First run**: home redirects to `#/setup` once, when there is no workspaces folder and
+  no workspace.
+- **Push backups** go in `<git common dir>/repo-cloak-backups/`, unsealed. Merge output
+  is a second locked write after the engine write, so a crash between them needs manual
+  recovery.
+- **Profiles** map the designed rule format onto schema v1; there is no `profile@2`,
+  `extends` or `allowRoots`. Rule hits come from a capped on-demand scan.
+- **Schema errors** reach the client as `Invalid request: <path>: <message>`, never raw JSON.

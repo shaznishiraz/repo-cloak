@@ -27,6 +27,7 @@ Designs: [overview](design/overview.md) ·
 | 7a   | Dashboard sync wizard 🏁              | ✅ Code   |
 | 8    | Release 2.0.0                         | ⏳ Checks |
 | R0   | Dashboard rebuild: foundation         | ✅ Code   |
+| R1   | Dashboard rebuild: screens            | ⏳ Checks |
 
 ---
 
@@ -472,3 +473,33 @@ Plan: [00-foundation](rebuild/INDEX.md#00-foundation). Design:
 - [x] Remove the vanilla dashboard, its `/api/*` routes and the `--next-ui` flag ahead of
       cutover; keep their behaviour tests at the application layer and give every removed
       capability a v2 route in `contracts.ts`.
+
+## Dashboard rebuild: screens
+
+Plan: [10-50](rebuild/INDEX.md#10-home--workspaces-home--group-sync). Design:
+[rebuilt screens](design/web-ui.md#rebuilt-screens).
+
+- [x] Merge 10-home, 20-new-cloak, 30-push, 40-profiles and 50-admin; remove placeholders.
+- [x] Fold package-local types into `contracts.ts`; move auto-lock start to `main.tsx`.
+- [x] Persist pins; add the first-run redirect and the `#/new` deep link.
+- [x] Run every browser spec against one config, in its own server run.
+- [x] Cover cross-package flows in `e2e/integration.e2e.ts`: Home approve, worktree link,
+      folder browsing, first-run profile.
+- [ ] Agree the shipped-asset budget. The build is ~247 KB against the agreed 160 KB, so
+      `tests/scripts/build-web.test.ts` and `release:check` fail until this is decided.
+- [ ] 90-cutover remainder and 99-review.
+
+Known gaps, engine or contract work not done:
+
+- Home: bulk runs use a custom sequence in `server-v2/home.ts` without `groups.locked`;
+  bulk rules live in localStorage; "Pull from commit" reads the worktree, not the commit;
+  the leak guard only checks ledger values.
+- New cloak: no `pull` CLI command, so that line is labelled planned; "Never pull" presets
+  sit in a reserved global profile.
+- Push: all-or-nothing, no per-file selection and no post-check command; `push.ts` should
+  be split.
+- Profiles: a catastrophic regex can stall the server; presets duplicate New cloak's.
+- Admin: default profiles are read-only; signed export uses a one-time key; advisories and
+  SBOM are copy commands; wipe on delete is unavailable. Known repos and New cloak each
+  have their own `FolderPicker`.
+- Windows is untested; Linux and Windows keychains are tested with fakes only.

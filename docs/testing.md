@@ -119,7 +119,8 @@ cd ..
 The root command disables framework telemetry and builds the shipped UI before
 running tests. It creates a temporary source repo, encrypted private store and
 workspace using real adapters, binds a runner-selected loopback port, and
-removes the fixture on shutdown. Each test gets a fresh browser context. No AI
+removes the fixture on shutdown. Each test gets a fresh browser context, and each `e2e/*.e2e.ts` file
+gets its own run and server because specs change the fixture. No AI
 subscription, API key, production data, or machine-store override is needed.
 
 The suite covers the shell: real counts, token removal and reload, every route, the

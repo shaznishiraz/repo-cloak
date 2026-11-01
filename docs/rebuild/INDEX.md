@@ -1,6 +1,6 @@
 # Dashboard rebuild — plan and work packages
 
-Status: **agreed, not started**. Designs: [`design/`](design/README.md).
+Status: **00-50 merged; 90-cutover and 99-review remain**, see [plan](../plan.md#dashboard-rebuild-screens). Designs: [`design/`](design/README.md).
 
 ## Decisions
 
