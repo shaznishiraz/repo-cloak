@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { planPull } from '../../src/core/pull.js';
 import type { SourceFile } from '../../src/core/pull.js';
 import { planPush } from '../../src/core/push.js';
@@ -8,6 +8,23 @@ import { validateProfile } from '../../src/core/rules.js';
 function file(path: string, text: string): SourceFile {
   return { path, text, bytes: Buffer.from(text), binary: false, executable: false };
 }
+function snapshotProfiles() {
+  return [
+    {
+      id: 'pf_test',
+      scope: { kind: 'global' as const },
+      profile: validateProfile({
+        kind: 'profile',
+        schemaVersion: 1,
+        name: 'acme',
+        rules: [
+          { id: 'company', type: 'literal', match: 'Acme', replace: 'Northwind' },
+          { id: 'key', type: 'secret', detector: 'github-token' },
+        ],
+      }),
+    },
+  ];
+}
 function snapshot(): Snapshot {
   return planPull({
     repo: { repoId: '0123456789abcdef', path: '/source', branch: 'main', commit: null },
@@ -15,21 +32,7 @@ function snapshot(): Snapshot {
     pullId: 'p_test',
     at: '2026-10-16T00:00:00Z',
     version: '2.0.0',
-    profiles: [
-      {
-        id: 'pf_test',
-        scope: { kind: 'global' },
-        profile: validateProfile({
-          kind: 'profile',
-          schemaVersion: 1,
-          name: 'acme',
-          rules: [
-            { id: 'company', type: 'literal', match: 'Acme', replace: 'Northwind' },
-            { id: 'key', type: 'secret', detector: 'github-token' },
-          ],
-        }),
-      },
-    ],
+    profiles: snapshotProfiles(),
     files: [file('Acme.txt', 'Acme')],
     workspace: {},
     selection: { files: 1, commits: 0, working: false, extra: 0 },
@@ -114,4 +117,85 @@ it('still protects unrelated base files from new agent files when restoring a fu
       { fullSnapshot: true },
     ),
   ).toThrow(/new.txt/);
+});
+
+describe('only', () => {
+  function pair() {
+    const pulled = planPull({
+      repo: { repoId: '0123456789abcdef', path: '/source', branch: 'main', commit: null },
+      workspaceId: 'test',
+      pullId: 'p_test',
+      at: '2026-10-16T00:00:00Z',
+      version: '2.0.0',
+      profiles: snapshotProfiles(),
+      files: [file('Acme.txt', 'Acme'), file('b.txt', 'b'), file('gone.txt', 'gone')],
+      workspace: {},
+      selection: { files: 3, commits: 0, working: false, extra: 0 },
+    });
+    const source = [file('Acme.txt', 'Acme'), file('b.txt', 'b'), file('gone.txt', 'gone')];
+    const workspace = [
+      file('Northwind.txt', 'Northwind edit'),
+      file('b.txt', 'b edit'),
+      file('new.txt', 'new'),
+    ];
+    return { pulled, source, workspace };
+  }
+
+  it('writes only the selected paths and keeps old baselines for the rest', () => {
+    const { pulled, source, workspace } = pair();
+    const plan = planPush(pulled, workspace, source, { only: new Set(['b.txt']) });
+    expect(plan.writes.map((write) => write.path)).toEqual(['b.txt']);
+    expect(plan.deletes).toEqual([]);
+    expect(plan.plain.files['Northwind.txt']).toEqual(pulled.plain.files['Northwind.txt']);
+    expect(plan.data.files['Northwind.txt']).toEqual(pulled.data.files['Northwind.txt']);
+    // An unselected deletion stays tracked, an unselected new file stays untracked.
+    expect(plan.plain.files['gone.txt']).toEqual(pulled.plain.files['gone.txt']);
+    expect(plan.plain.files['new.txt']).toBeUndefined();
+    expect(plan.plain.files['b.txt']).not.toEqual(pulled.plain.files['b.txt']);
+    expect(plan.data.ledger).toEqual(pulled.data.ledger);
+  });
+
+  it('applies a selected deletion, and an empty selection changes nothing', () => {
+    const { pulled, source, workspace } = pair();
+    const deleted = planPush(pulled, workspace, source, { only: new Set(['gone.txt']) });
+    expect(deleted.deletes).toEqual(['gone.txt']);
+    expect(deleted.writes).toEqual([]);
+    expect(deleted.plain.files['gone.txt']).toBeUndefined();
+    const none = planPush(pulled, workspace, source, { only: new Set() });
+    expect(none.writes).toEqual([]);
+    expect(none.deletes).toEqual([]);
+    expect(none.plain.files).toEqual(pulled.plain.files);
+  });
+
+  it('does not report or block on a conflict outside the selection', () => {
+    const { pulled, source, workspace } = pair();
+    const moved = source.map((item) => (item.path === 'Acme.txt' ? file('Acme.txt', 'up') : item));
+    const plan = planPush(pulled, workspace, moved, { only: new Set(['b.txt']) });
+    expect(plan.conflicts).toEqual([]);
+    expect(() => planPush(pulled, workspace, moved, { only: new Set(['Northwind.txt']) })).toThrow(
+      /Source files changed/,
+    );
+  });
+
+  it('does not recreate an unselected file that the source removed', () => {
+    const { pulled, workspace } = pair();
+    const unchanged = [file('Northwind.txt', 'Northwind'), ...workspace.slice(1)];
+    const plan = planPush(pulled, unchanged, [file('b.txt', 'b')], { only: new Set(['b.txt']) });
+    expect(plan.writes.map((write) => write.path)).toEqual(['b.txt']);
+  });
+
+  it('still writes files unchanged in the cloak into a new worktree', () => {
+    const { pulled } = pair();
+    const workspace = [
+      file('Northwind.txt', 'Northwind edit'),
+      file('b.txt', 'b'),
+      file('gone.txt', 'gone'),
+    ];
+    const plan = planPush(pulled, workspace, [], {
+      fullSnapshot: true,
+      only: new Set(['gone.txt']),
+    });
+    // Edited and unselected: left out. Unchanged: part of the snapshot.
+    expect(plan.writes.map((write) => write.path).sort()).toEqual(['b.txt', 'gone.txt']);
+  });
 });

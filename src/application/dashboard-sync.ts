@@ -17,6 +17,7 @@ import type {
   OperationLimits,
   PreviewSummary,
   PreparedOperation,
+  PushSelection,
 } from '../adapters/ui-operations.js';
 import { hashBytes, hashJson } from '../core/hash.js';
 import { ConflictError } from '../core/errors.js';
@@ -366,39 +367,65 @@ export function createDashboardSync(
       redactions: prepared.redactions,
       postCreateCommands: prepared.postCreateCommands,
     };
-    return {
+    const run = async <R extends typeof prepared.result>(result: R, write: () => Promise<void>) => {
+      await recheck();
+      const workspace = {
+        repoId: input.repoId,
+        id: result.workspaceId,
+        name: basename(result.workspace),
+      };
+      const op = auditOp[input.intent];
+      try {
+        await write();
+      } catch (error) {
+        await audit.record({ op, outcome: 'failed', workspace, detail: 'Operation failed' });
+        throw error;
+      }
+      await audit.record({
+        op,
+        outcome: 'ok',
+        workspace,
+        files: [
+          ...(await auditFiles(prepared.destination.path, result.writes)),
+          ...result.deletes.map((path) => ({ path })),
+        ],
+        profiles: await auditProfiles(result.workspace),
+      });
+      return result;
+    };
+    const operation = {
       summary,
       bytes: prepared.bytes,
       async recheck() {
         await recheck();
         await prepared.recheck();
       },
-      async apply() {
-        await recheck();
-        const workspace = {
-          repoId: input.repoId,
-          id: prepared.result.workspaceId,
-          name: basename(prepared.result.workspace),
-        };
-        const op = auditOp[input.intent];
-        try {
-          await prepared.apply();
-        } catch (error) {
-          await audit.record({ op, outcome: 'failed', workspace, detail: 'Operation failed' });
-          throw error;
-        }
-        await audit.record({
-          op,
-          outcome: 'ok',
-          workspace,
-          files: [
-            ...(await auditFiles(prepared.destination.path, prepared.result.writes)),
-            ...prepared.result.deletes.map((path) => ({ path })),
-          ],
-          profiles: await auditProfiles(prepared.result.workspace),
-        });
-        return prepared.result;
-      },
+    };
+    return {
+      ...operation,
+      apply: () => run(prepared.result, prepared.apply),
+      ...('select' in prepared
+        ? {
+            select(selection: PushSelection): PreparedOperation {
+              const chosen = prepared.select(selection);
+              const kept = new Set(selection.paths);
+              return {
+                ...operation,
+                summary: {
+                  ...summary,
+                  writes: chosen.result.writes,
+                  deletes: chosen.result.deletes,
+                  warnings: chosen.result.warnings,
+                  replacements: chosen.result.replacements,
+                  conflicts: selection.paths
+                    ? summary.conflicts.filter((path) => kept.has(path))
+                    : summary.conflicts,
+                },
+                apply: () => run(chosen.result, chosen.apply),
+              };
+            },
+          }
+        : {}),
     };
   }
   async function existingParent(path: string) {
@@ -503,6 +530,8 @@ export function createDashboardSync(
   return {
     audit,
     operations,
+    /** Store crypto for what lives outside the store, such as push backups. */
+    vault: async () => ({ seal: await store.sealer(), open: await store.opener() }),
     prepareOperation: prepare,
     workspaceTarget: workspace,
     worktrees,
@@ -531,6 +560,23 @@ export function createDashboardSync(
     },
     saveExclusions: (repoId: string, value: unknown) =>
       operations.exclusive(() => saveExclusions(repoId, value)),
+    async postCheck(repoId: string) {
+      return (await registered(repoId)).postCheck ?? null;
+    },
+    savePostCheck: (
+      repoId: string,
+      postCheck: { command: string; timeoutSeconds: number } | null,
+    ) =>
+      operations.exclusive(async () => {
+        await registered(repoId);
+        await services.store.saveRepoPostCheck(repoId, postCheck);
+        // Names the field only: a command can contain anything.
+        await audit.record({
+          op: 'settings',
+          outcome: 'ok',
+          detail: `Post-check ${postCheck ? 'set' : 'cleared'} for ${repoId}`,
+        });
+      }),
     async commits(repoId: string, path: string, offset: unknown = 0, ref?: string) {
       return commitPage(await worktree(repoId, path), offset, ref);
     },

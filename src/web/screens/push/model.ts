@@ -110,9 +110,6 @@ export function mergeNotes(review: PushReview) {
 export function targetNote(review: PushReview) {
   return review.checks.find((check) => check.id === 'target');
 }
-export function hasConflict(review: PushReview) {
-  return review.files.some((file) => file.flags.includes('conflict'));
-}
 export function hasMerges(review: PushReview) {
   return review.files.some((file) => file.flags.includes('source-moved'));
 }

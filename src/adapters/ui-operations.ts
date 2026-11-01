@@ -36,12 +36,31 @@ export type PreviewSummary = {
   redactions: number;
   postCreateCommands: string[];
 };
+export type OperationOwner = 'group' | 'agent-request' | 'push-review';
+/** What a reviewed restore should actually write, decided after its review. */
+export type PushSelection = {
+  /** Anonymized paths; undefined means every pending file. */
+  paths?: string[] | undefined;
+  /** Restored path to merged bytes, written in place of the cloak's version in the same step. */
+  merged?: ReadonlyMap<string, Uint8Array>;
+  /** Runs under the writer's locks, with the sealed manifest, before the first file changes. */
+  beforeWrite?(
+    manifest: Uint8Array,
+    changes: {
+      writes: { path: string; bytes: Uint8Array }[];
+      deletes: string[];
+      checkpoint: string[];
+    },
+  ): Promise<void>;
+};
 export type PreparedOperation = {
-  owner?: 'group' | 'agent-request';
+  owner?: OperationOwner;
   summary: PreviewSummary;
   bytes: number;
   recheck?(): Promise<void>;
   apply(): Promise<SyncResult>;
+  /** Restores only: the same reviewed files, narrowed and merged, read again from nowhere. */
+  select?(selection: PushSelection): PreparedOperation;
 };
 export type OperationState = {
   operationId: string;
@@ -145,7 +164,9 @@ export function createUiOperations(limits: OperationLimits = {}) {
         profiles?: boolean | undefined;
         force?: boolean | undefined;
       },
-      owner?: 'group' | 'agent-request',
+      owner?: OperationOwner,
+      /** Refines what runs. A refusal below leaves the operation as it was reviewed. */
+      choose?: (prepared: PreparedOperation) => PreparedOperation,
     ): Promise<OperationState> {
       const operation = get(id);
       if (operation.state.state === 'expired' || operation.state.state === 'cancelled')
@@ -154,10 +175,14 @@ export function createUiOperations(limits: OperationLimits = {}) {
           `Preview ${operation.state.state}; create a new preview`,
         );
       if (operation.state.state !== 'pending') return { ...operation.state };
-      const prepared = operation.prepared;
-      if (!prepared) throw new OperationError('unknown', 'Preview is no longer available');
-      if (prepared.owner !== owner)
-        throw new OperationError('validation', 'Use the group review or request review to apply this operation');
+      const reviewed = operation.prepared;
+      if (!reviewed) throw new OperationError('unknown', 'Preview is no longer available');
+      if (reviewed.owner !== owner)
+        throw new OperationError(
+          'validation',
+          'Use the group review or request review to apply this operation',
+        );
+      const prepared = choose ? choose(reviewed) : reviewed;
       const summary = prepared.summary;
       if (!summary.canApply)
         throw new OperationError('conflict', 'Resolve conflicts and create a new preview');

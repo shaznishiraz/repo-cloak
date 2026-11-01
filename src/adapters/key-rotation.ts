@@ -6,6 +6,7 @@ import type { AuditStore } from './audit-store.js';
 import { errorCode, writeAtomic } from './atomic.js';
 import { keyId } from './crypto.js';
 import { checkDestinationPath, exists } from './files.js';
+import { findRepo } from './git.js';
 import type { createStore } from './store.js';
 import { createSyncStore } from './sync-store.js';
 
@@ -51,6 +52,16 @@ async function readSealedFile(path: string): Promise<SealedFile | undefined> {
   const { sealed, ...plain } = value as Record<string, unknown>;
   return { path, plain, sealed };
 }
+/** Push backups hold sealed parts in the source's Git directory; undo must survive a rotation. */
+async function backupDocuments(repoPath: string): Promise<string[]> {
+  const repo = await findRepo(repoPath).catch(() => undefined);
+  if (!repo) return [];
+  const root = join(repo.commonDir, 'repo-cloak-backups');
+  const entries = await readdir(root, { recursive: true, withFileTypes: true }).catch(() => []);
+  return entries
+    .filter((entry) => entry.isFile() && entry.name.endsWith('.json'))
+    .map((entry) => join(entry.parentPath, entry.name));
+}
 /** Everything to reseal right now, and registered workspaces that cannot be reached. */
 async function scan(store: Store) {
   const records = createSyncStore(store);
@@ -58,6 +69,7 @@ async function scan(store: Store) {
   const pending: string[] = [];
   for (const id of await store.listDirectories('repos')) {
     const repo = await records.readRepo(id);
+    if (repo) manifests.push(...(await backupDocuments(repo.path)));
     for (const workspace of Object.values(repo?.workspaces ?? {})) {
       if (await exists(join(workspace.path, '.repo-cloak', 'manifest.json'))) {
         await checkDestinationPath(workspace.path, '.repo-cloak/manifest.json');

@@ -119,6 +119,13 @@ export const documentSchema = {
     exclude: z.array(text).optional(),
     hidden: z.boolean().optional(),
     pinned: z.boolean().optional(),
+    /** Run only when the user asks, after a push; it runs agent-edited code. */
+    postCheck: z
+      .strictObject({
+        command: z.string().trim().min(1).max(4000),
+        timeoutSeconds: z.number().int().min(1).max(3600),
+      })
+      .optional(),
   }),
   config: z.looseObject({
     ...base,

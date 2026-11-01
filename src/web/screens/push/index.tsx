@@ -6,6 +6,7 @@ import type {
   GuardCheck,
   OperationResult,
   PushBackup,
+  PushFile,
   PushReview,
   WorktreeOption,
 } from '../../api/contracts.js';
@@ -15,10 +16,10 @@ import { api } from '../../shell/load.js';
 import { overview } from '../../shell/state.js';
 import {
   Button,
+  Checkbox,
   Dialog,
   EmptyState,
   Field,
-  Row,
   RowList,
   buttonClass,
   toast,
@@ -32,16 +33,17 @@ import {
   count,
   directoryOf,
   flagText,
-  hasConflict,
   mergeNotes,
   statusLetter,
   targetNote,
   targetOptions,
   totals,
 } from './model.js';
+import { PostCheck } from './post-check.js';
 import './push.css';
 
 const pollMs = 400;
+const restored = (file: PushFile) => file.restoredPath;
 type Confirm = 'overwrite' | 'deletes' | 'undo' | 'new-worktree' | null;
 
 function errorText(error: unknown) {
@@ -95,6 +97,8 @@ export function PushScreen({ workspaceId }: { workspaceId: string }) {
   const [result, setResult] = useState<{ result: OperationResult; failed?: string }>();
   const [failure, setFailure] = useState<string>();
   const [reviewCount, setReviewCount] = useState(0);
+  const [left, setLeft] = useState<ReadonlySet<string>>(new Set());
+  const [pushes, setPushes] = useState(0);
   const sequence = useRef(0);
 
   const options = useMemo(
@@ -138,6 +142,7 @@ export function PushScreen({ workspaceId }: { workspaceId: string }) {
       .then((value) => {
         if (at !== sequence.current) return;
         setReview(value);
+        if (value.checks.some((check) => check.id.startsWith('recovery:'))) void loadBackups();
         setSelected((current) =>
           value.files.some((file) => file.path === current) ? current : value.files[0]?.path,
         );
@@ -187,6 +192,10 @@ export function PushScreen({ workspaceId }: { workspaceId: string }) {
           repull: form.repull,
           includeGroupMembers: form.includeGroupMembers,
           mergeMode,
+          ...(chosen.length < files.length ? { paths: chosen.map((item) => item.path) } : {}),
+          // Exactly what the dialogs listed; the server refuses anything else.
+          ...(deleting.length ? { confirmDeletes: deleting.map(restored) } : {}),
+          ...(mergeMode === 'overwrite' ? { confirmOverwrites: moved.map(restored) } : {}),
         },
       });
       while (state.state === 'pending' || state.state === 'running') {
@@ -199,6 +208,8 @@ export function PushScreen({ workspaceId }: { workspaceId: string }) {
         const { writes, deletes } = state.result;
         toast(`Pushed ${count(writes.length + deletes.length, 'file')}`, 'ok');
         setResult({ result: state.result });
+        setPushes((value) => value + 1);
+        setLeft(new Set());
       } else if (state.code === 'stale') {
         setFailure(`Files changed after this review, so nothing was written. Review it again.`);
       } else {
@@ -228,6 +239,7 @@ export function PushScreen({ workspaceId }: { workspaceId: string }) {
       });
       toast(`Restored ${count(value.restored, 'file')} from the backup`, 'ok');
       setResult(undefined);
+      setPushes((value) => value + 1);
     } catch (error) {
       setFailure(errorText(error));
     } finally {
@@ -238,7 +250,9 @@ export function PushScreen({ workspaceId }: { workspaceId: string }) {
   }
 
   const files = review?.files ?? [];
-  const deletes = files.filter((file) => file.status === 'deleted').length;
+  const chosen = files.filter((item) => !left.has(item.path));
+  const deleting = chosen.filter((item) => item.status === 'deleted');
+  const moved = chosen.filter((item) => item.flags.includes('source-moved'));
   const file = files.find((item) => item.path === selected);
   const sum = totals(files);
   const members = workspace?.groupId
@@ -249,23 +263,24 @@ export function PushScreen({ workspaceId }: { workspaceId: string }) {
   const groupName = data?.groups.find((group) => group.id === workspace?.groupId)?.name;
   const note: GuardCheck | undefined = review && targetNote(review);
   const notes = review ? mergeNotes(review) : [];
-  const conflicted = !!review && hasConflict(review);
+  const conflicted = chosen.some((item) => item.flags.includes('conflict'));
   const readOnly = target?.kind === 'dry-run';
   let blockedBecause: string | undefined;
   if (loading) blockedBecause = 'Checking…';
   else if (readOnly) blockedBecause = 'Dry run: nothing will be written';
   else if (!review) blockedBecause = 'This push could not be reviewed';
   else if (!files.length) blockedBecause = 'Nothing to push';
+  else if (!chosen.length) blockedBecause = 'Select at least one file';
   else if (!review.canApply || !review.operationId) blockedBecause = 'Fix the blocked checks first';
   else if (conflicted && mergeMode === 'merge')
     blockedBecause = 'Pull first, or choose to overwrite the overlapping files';
   else if (form.mode === 'commit' && !form.commitMessage.trim())
     blockedBecause = 'Enter a commit message';
-  const pushLabel = `Push ${count(files.length, 'file')} to ${option?.short ?? 'the source'}`;
+  const pushLabel = `Push ${count(chosen.length, 'file')} to ${option?.short ?? 'the source'}`;
 
   function requestPush() {
     if (blockedBecause !== undefined) return;
-    if (deletes) setConfirm('deletes');
+    if (deleting.length) setConfirm('deletes');
     else void push();
   }
 
@@ -382,7 +397,21 @@ export function PushScreen({ workspaceId }: { workspaceId: string }) {
       <div class="push-body">
         <section class="push-files" aria-label="Files">
           <div class="push-files-head">
-            <span>{count(files.length, 'file')}</span>
+            {files.length ? (
+              <Checkbox
+                label={`${chosen.length} of ${count(files.length, 'file')}`}
+                checked={chosen.length === files.length}
+                indeterminate={!!chosen.length && chosen.length < files.length}
+                disabled={busy}
+                onChange={() =>
+                  setLeft(
+                    new Set(chosen.length === files.length ? files.map((item) => item.path) : []),
+                  )
+                }
+              />
+            ) : (
+              <span>0 files</span>
+            )}
             <span class="push-sum">
               <span class="push-plus">+{sum.additions}</span>{' '}
               <span class="push-minus">−{sum.deletions}</span>
@@ -392,21 +421,37 @@ export function PushScreen({ workspaceId }: { workspaceId: string }) {
             {files.map((item) => {
               const flag = flagText(item);
               return (
-                <Row
-                  key={item.path}
-                  selected={item.path === selected}
-                  onSelect={() => setSelected(item.path)}
-                >
-                  <span class={`push-st push-st-${item.status}`}>{statusLetter[item.status]}</span>
-                  <span class="push-file">
-                    <span class="push-file-name">{baseName(item.restoredPath)}</span>
-                    <span class="push-file-dir">
-                      {directoryOf(item.restoredPath) || './'}
-                      {item.status === 'added' ? ' · new' : ''}
+                <li key={item.path} class="row-item push-row">
+                  <input
+                    type="checkbox"
+                    aria-label={`Include ${item.restoredPath}`}
+                    checked={!left.has(item.path)}
+                    disabled={busy}
+                    onChange={() => {
+                      const next = new Set(left);
+                      if (!next.delete(item.path)) next.add(item.path);
+                      setLeft(next);
+                    }}
+                  />
+                  <button
+                    type="button"
+                    class={`row${item.path === selected ? ' row-selected' : ''}`}
+                    aria-current={item.path === selected ? 'true' : undefined}
+                    onClick={() => setSelected(item.path)}
+                  >
+                    <span class={`push-st push-st-${item.status}`}>
+                      {statusLetter[item.status]}
                     </span>
-                    <span class={`push-flag push-tone-${flag.tone}`}>{flag.text}</span>
-                  </span>
-                </Row>
+                    <span class="push-file">
+                      <span class="push-file-name">{baseName(item.restoredPath)}</span>
+                      <span class="push-file-dir">
+                        {directoryOf(item.restoredPath) || './'}
+                        {item.status === 'added' ? ' · new' : ''}
+                      </span>
+                      <span class={`push-flag push-tone-${flag.tone}`}>{flag.text}</span>
+                    </span>
+                  </button>
+                </li>
               );
             })}
           </RowList>
@@ -506,7 +551,7 @@ export function PushScreen({ workspaceId }: { workspaceId: string }) {
             setMessageError(undefined);
             setForm((current) => ({ ...current, ...change }));
           }}
-          fileCount={files.length}
+          fileCount={chosen.length}
           groupMembers={
             members.length && groupName
               ? { names: members.map((item) => item.name), group: groupName }
@@ -519,7 +564,9 @@ export function PushScreen({ workspaceId }: { workspaceId: string }) {
           backup={backups[0]}
           onUndo={() => setConfirm('undo')}
           message={messageError}
-        />
+        >
+          {client && ids && <PostCheck client={client} ids={ids} pushes={pushes} />}
+        </PushAside>
       </div>
       <Dialog
         title="Overwrite upstream changes?"
@@ -544,9 +591,14 @@ export function PushScreen({ workspaceId }: { workspaceId: string }) {
       >
         Files that changed in the source get your version as it stands, dropping the upstream edits
         from the working tree. A backup is kept for 7 days.
+        <ul class="mono">
+          {moved.map((item) => (
+            <li key={item.path}>{item.restoredPath}</li>
+          ))}
+        </ul>
       </Dialog>
       <Dialog
-        title={`Delete ${count(deletes, 'file')} from the source?`}
+        title={`Delete ${count(deleting.length, 'file')} from the source?`}
         open={confirm === 'deletes'}
         onClose={() => setConfirm(null)}
         actions={
@@ -567,11 +619,9 @@ export function PushScreen({ workspaceId }: { workspaceId: string }) {
         }
       >
         <ul class="mono">
-          {files
-            .filter((item) => item.status === 'deleted')
-            .map((item) => (
-              <li key={item.path}>{item.restoredPath}</li>
-            ))}
+          {deleting.map((item) => (
+            <li key={item.path}>{item.restoredPath}</li>
+          ))}
         </ul>
       </Dialog>
       <Dialog

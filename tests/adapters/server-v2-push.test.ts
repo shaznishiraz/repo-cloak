@@ -1,167 +1,24 @@
 import { execFile } from 'node:child_process';
-import { chmod, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { chmod, mkdir, readFile, readdir, rm, utimes, writeFile } from 'node:fs/promises';
+import { basename, dirname, join } from 'node:path';
 import { promisify } from 'node:util';
-import { afterEach, expect, it, vi } from 'vitest';
-import { createDashboardServer } from '../../src/adapters/server.js';
-import { createStore } from '../../src/adapters/store.js';
-import { createSyncServices } from '../../src/adapters/sync-services.js';
-import { createDashboard } from '../../src/application/dashboard.js';
-import type {
-  DiffLine,
-  OperationState,
-  PushApply,
-  PushBackup,
-  PushReview,
-  PushTarget,
-} from '../../src/web/api/contracts.js';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+  backupRoot,
+  readBytes,
+  readPart,
+  sealManifestCopy,
+  writePart,
+} from '../../src/adapters/server-v2/push/backup-parts.js';
+import { readBackups } from '../../src/adapters/server-v2/push/backups.js';
+import { hashBytes } from '../../src/core/hash.js';
+import type { PostCheckView, PushReview } from '../../src/web/api/contracts.js';
+import { cleanupFixtures, editedLines, fixture, secret } from '../support/push-fixture.js';
 
 // Each test drives real Git through several previews.
 vi.setConfig({ testTimeout: 60_000 });
 const exec = promisify(execFile);
-const cleanups: (() => Promise<void>)[] = [];
-afterEach(async () => {
-  for (const cleanup of cleanups.splice(0).reverse()) await cleanup();
-});
-const secret = `ghp_${'a1b2c3'.repeat(6)}`;
-
-async function fixture(initGit = true) {
-  const root = await realpath(await mkdtemp(join(tmpdir(), 'cloak push ')));
-  cleanups.push(() => rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }));
-  const source = join(root, 'source');
-  const workspace = join(root, 'workspace');
-  await mkdir(source);
-  const git = (cwd: string, ...args: string[]) =>
-    exec(
-      'git',
-      [
-        '-c',
-        'user.name=Test',
-        '-c',
-        'user.email=test@example.test',
-        '-c',
-        'commit.gpgSign=false',
-        '-c',
-        `core.hooksPath=${join(root, 'no-hooks')}`,
-        ...args,
-      ],
-      { cwd },
-    ).then(({ stdout }) => stdout.trim());
-  await git(source, 'init', '-b', 'main');
-  const lines = Array.from({ length: 30 }, (_, index) => `line ${index + 1} of Acme`);
-  await writeFile(join(source, 'Acme.ts'), `${lines.join('\n')}\n`);
-  await writeFile(join(source, 'other.ts'), 'class AcmeOther {}\n');
-  await writeFile(join(source, 'gone.ts'), 'to be removed\n');
-  await writeFile(join(source, 'keys.ts'), `const key = "${secret}";\nconst name = "Acme";\n`);
-  await git(source, 'add', '-A');
-  await git(source, 'commit', '-m', 'initial');
-  const store = createStore(join(root, 'store'));
-  const services = createSyncServices(source, store);
-  await services.store.saveConfig({ kind: 'config', schemaVersion: 1, initGit });
-  const dashboard = createDashboard(store, source);
-  const { repoId = '' } = await dashboard.context();
-  const profile = await dashboard.saveProfile({
-    scope: { kind: 'global' },
-    profile: {
-      kind: 'profile',
-      schemaVersion: 1,
-      name: 'names',
-      rules: [
-        { id: 'company', type: 'literal', match: 'Acme', replace: 'Northwind' },
-        { id: 'key', type: 'secret', detector: 'github-token' },
-      ],
-    },
-  });
-  const created = await dashboard.sync.preview({
-    intent: 'create',
-    repoId,
-    worktree: source,
-    destination: workspace,
-    profiles: [{ id: profile.id, scope: { kind: 'global' } }],
-    files: ['Acme.ts', 'other.ts', 'gone.ts', 'keys.ts'],
-  });
-  await dashboard.sync.apply(created.operationId, {});
-  const done = await dashboard.sync.wait(created.operationId);
-  if (done.state !== 'completed') throw new Error(done.error ?? 'create failed');
-  const workspaceId = done.result?.workspaceId ?? '';
-  const server = createDashboardServer(dashboard, 'test-token', resolve('src/web'));
-  await new Promise<void>((ready) => server.listen(0, '127.0.0.1', ready));
-  cleanups.push(
-    () =>
-      new Promise<void>((closed, fail) => {
-        server.close((error) => (error ? fail(error) : closed()));
-        server.closeAllConnections();
-      }),
-  );
-  const address = server.address();
-  if (!address || typeof address === 'string') throw new Error('No port');
-  const base = `http://127.0.0.1:${address.port}/api/v2/push/${repoId}/${encodeURIComponent(workspaceId)}`;
-  const headers = { Authorization: 'Bearer test-token', 'Content-Type': 'application/json' };
-  const post = (path: string, body?: unknown) =>
-    fetch(`${base}${path}`, {
-      method: 'POST',
-      headers,
-      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-    });
-  const reviewOf = async (target: PushTarget = { kind: 'origin' }) => {
-    const response = await post('/review', { target });
-    const value = (await response.json()) as PushReview & { error?: string };
-    if (!response.ok) throw new Error(value.error);
-    return value;
-  };
-  const diffOf = async (path: string) => {
-    const response = await fetch(`${base}/diff?path=${encodeURIComponent(path)}`, { headers });
-    return ((await response.json()) as { lines: DiffLine[] }).lines;
-  };
-  const apply = async (
-    operationId: string | null,
-    options: Partial<Omit<PushApply, 'operationId'>> = {},
-  ) => {
-    const response = await post('/apply', {
-      operationId,
-      mode: 'write',
-      repull: false,
-      includeGroupMembers: false,
-      mergeMode: 'merge',
-      ...options,
-    });
-    const value = (await response.json()) as OperationState & { error?: string };
-    if (!response.ok) throw new Error(value.error);
-    return dashboard.sync.wait(value.operationId);
-  };
-  const backups = async () => {
-    const response = await fetch(`${base}/backups`, { headers });
-    return ((await response.json()) as { backups: PushBackup[] }).backups;
-  };
-  const edit = (name: string, text: string, root_ = workspace) =>
-    writeFile(join(root_, name), text);
-  const read = (name: string, root_ = source) => readFile(join(root_, name), 'utf8');
-  return {
-    root,
-    source,
-    workspace,
-    git,
-    dashboard,
-    repoId,
-    workspaceId,
-    base,
-    headers,
-    post,
-    reviewOf,
-    diffOf,
-    apply,
-    backups,
-    edit,
-    read,
-    lines,
-  };
-}
-const editedLines = (lines: string[], at: number, text: string) =>
-  `${lines.map((line, index) => (index === at ? text : line)).join('\n')}\n`.replaceAll(
-    'Acme',
-    'Northwind',
-  );
+afterEach(cleanupFixtures);
 
 it('lists file changes with flags and passes the guard checks', async () => {
   const f = await fixture();
@@ -279,7 +136,10 @@ it('blocks overlapping edits unless overwrite is chosen, and overwrite is revers
   await expect(f.apply(review.operationId)).rejects.toThrow(/overlap upstream/);
   expect(await f.read('Acme.ts')).toBe(upstream);
   // A refused apply keeps the review alive for a different choice.
-  const done = await f.apply(review.operationId, { mergeMode: 'overwrite' });
+  const done = await f.apply(review.operationId, {
+    mergeMode: 'overwrite',
+    confirmOverwrites: ['Acme.ts'],
+  });
   expect(done.state).toBe('completed');
   expect(await f.read('Acme.ts')).toContain('cloak side');
   const [backup] = await f.backups();
@@ -392,7 +252,9 @@ it('keeps a backup, lists it for 7 days, and undoes the push and its baseline', 
   await f.edit('Northwind2.ts', 'new file\n');
   await rm(join(f.workspace, 'gone.ts'));
   const review = await f.reviewOf();
-  expect((await f.apply(review.operationId)).state).toBe('completed');
+  expect((await f.apply(review.operationId, { confirmDeletes: ['gone.ts'] })).state).toBe(
+    'completed',
+  );
   await expect(f.read('gone.ts')).rejects.toThrow();
   const backups = await f.backups();
   expect(backups).toHaveLength(1);
@@ -430,8 +292,202 @@ it('stores backups in the source Git directory, not the cloak', async () => {
     () => undefined,
   );
   expect(inCloak).toBeUndefined();
-  const inGit = await exec('grep', ['-r', '-l', 'line 2 of Acme', join(f.source, '.git')]);
-  expect(inGit.stdout).toContain('repo-cloak-backups');
+  const [backup] = await f.backups();
+  expect(backup?.files).toBe(1);
+  const parts = await backupParts(f.source);
+  expect(parts.map((part) => basename(part)).sort()).toEqual([
+    'f0.json',
+    'index.json',
+    'manifest.json',
+  ]);
+});
+
+async function backupParts(source: string) {
+  const root = join(source, '.git', 'repo-cloak-backups');
+  const found = await readdir(root, { recursive: true, withFileTypes: true }).catch(() => []);
+  return found.filter((entry) => entry.isFile()).map((entry) => join(entry.parentPath, entry.name));
+}
+
+it('seals backups: no source text, path or root is readable on disk', async () => {
+  const f = await fixture();
+  await f.edit('Northwind.ts', editedLines(f.lines, 1, 'edit'));
+  const keys = await readFile(join(f.workspace, 'keys.ts'), 'utf8');
+  await f.edit('keys.ts', keys.replace('name = "Northwind"', 'name = "x"'));
+  await f.apply((await f.reviewOf()).operationId);
+  const parts = await backupParts(f.source);
+  expect(parts.length).toBeGreaterThan(2);
+  for (const part of parts) {
+    const text = await readFile(part, 'utf8');
+    for (const leak of ['Acme', 'line 2 of', secret, f.root, 'keys.ts', 'manifestAfter'])
+      expect(text).not.toContain(leak);
+    expect(JSON.parse(text)).toMatchObject({
+      kind: 'push-backup',
+      sealed: { alg: 'A256GCM' },
+    });
+  }
+  // grep over the whole Git directory finds none of the old source text in a backup.
+  const hits = await exec('grep', [
+    '-r',
+    '-l',
+    secret,
+    join(f.source, '.git', 'repo-cloak-backups'),
+  ])
+    .then(({ stdout }) => stdout)
+    .catch(() => '');
+  expect(hits).toBe('');
+});
+
+it('undoes from sealed backups, and refuses a tampered or swapped part', async () => {
+  const f = await fixture();
+  const before = await f.read('Acme.ts');
+  await f.edit('Northwind.ts', editedLines(f.lines, 1, 'edit'));
+  await f.apply((await f.reviewOf()).operationId);
+  const [backup] = await f.backups();
+  const parts = await backupParts(f.source);
+  const blob = parts.find((part) => part.endsWith('f0.json')) ?? '';
+  const good = await readFile(blob, 'utf8');
+  const value = JSON.parse(good) as { sealed: { data: string } };
+  const data = Buffer.from(value.sealed.data, 'base64');
+  data[0] = (data[0] ?? 0) ^ 0xff;
+  value.sealed.data = data.toString('base64');
+  await writeFile(blob, JSON.stringify(value));
+  const pushed = await f.read('Acme.ts');
+  const tampered = await f.post(`/backups/${backup?.id}/undo`);
+  expect(tampered.ok).toBe(false);
+  expect(await f.read('Acme.ts')).toBe(pushed);
+  // The same bytes under another part's name fail as well: the name is authenticated.
+  const manifestPart = parts.find((part) => part.endsWith('manifest.json')) ?? '';
+  const manifestText = await readFile(manifestPart, 'utf8');
+  await writeFile(manifestPart, good);
+  await writeFile(blob, manifestText);
+  expect((await f.post(`/backups/${backup?.id}/undo`)).ok).toBe(false);
+  expect(await f.read('Acme.ts')).toBe(pushed);
+  await writeFile(blob, good);
+  await writeFile(manifestPart, manifestText);
+  expect(await (await f.post(`/backups/${backup?.id}/undo`)).json()).toEqual({ restored: 1 });
+  expect(await f.read('Acme.ts')).toBe(before);
+});
+
+it('seals a plaintext backup from before this change, keeping undo, and removes the plaintext', async () => {
+  const f = await fixture();
+  const before = await f.read('Acme.ts');
+  await f.edit('Northwind.ts', editedLines(f.lines, 1, 'edit'));
+  await f.apply((await f.reviewOf()).operationId);
+  const [backup] = await f.backups();
+  const parts = await backupParts(f.source);
+  const directory = dirname(parts[0] ?? '');
+  // Rebuild the old on-disk format from the sealed parts.
+  const vault = await f.dashboard.sync.vault();
+  const id = backup?.id ?? '';
+  const index = (await readPart(vault, directory, id, 'index')) as object;
+  await writeFile(join(directory, 'f0'), await readBytes(vault, directory, id, 'f0'));
+  await writeFile(
+    join(directory, 'manifest'),
+    sealManifestCopy(vault, await readPart(vault, directory, id, 'manifest')),
+  );
+  await rm(join(directory, 'f0.json'));
+  await rm(join(directory, 'manifest.json'));
+  await writeFile(
+    join(directory, 'index.json'),
+    JSON.stringify({
+      ...index,
+      manifestAfter: hashBytes(await readFile(join(f.workspace, '.repo-cloak', 'manifest.json'))),
+    }),
+  );
+  expect(await readFile(join(directory, 'f0'), 'utf8')).toContain('line 2 of Acme');
+
+  expect((await f.backups()).map((item) => item.id)).toEqual([id]);
+  const after = await readdir(directory);
+  expect(after.sort()).toEqual(['f0.json', 'index.json', 'manifest.json']);
+  expect(await readFile(join(directory, 'index.json'), 'utf8')).not.toContain(f.root);
+
+  // A crash after the commit point leaves plaintext, which the next read removes.
+  await writeFile(join(directory, 'f0'), 'leftover plaintext');
+  await f.backups();
+  expect(await readdir(directory)).not.toContain('f0');
+
+  expect(await (await f.post(`/backups/${id}/undo`)).json()).toEqual({ restored: 1 });
+  expect(await f.read('Acme.ts')).toBe(before);
+});
+
+it('keeps undo working across a key rotation', async () => {
+  const f = await fixture();
+  const before = await f.read('Acme.ts');
+  await f.edit('Northwind.ts', editedLines(f.lines, 1, 'edit'));
+  await f.apply((await f.reviewOf()).operationId);
+  const [backup] = await f.backups();
+  const part = (await backupParts(f.source)).find((item) => item.endsWith('f0.json')) ?? '';
+  const oldKey = (JSON.parse(await readFile(part, 'utf8')) as { sealed: { keyId: string } }).sealed
+    .keyId;
+  const rotated = await f.dashboard.security.rotateKey();
+  expect(rotated.pending).toEqual([]);
+  const newKey = (JSON.parse(await readFile(part, 'utf8')) as { sealed: { keyId: string } }).sealed
+    .keyId;
+  expect(newKey).not.toBe(oldKey);
+  expect(newKey).toBe(rotated.keyId);
+  expect(await (await f.post(`/backups/${backup?.id}/undo`)).json()).toEqual({ restored: 1 });
+  expect(await f.read('Acme.ts')).toBe(before);
+  // The restored manifest is sealed under the new key, so the workspace still opens.
+  expect((await f.reviewOf()).files.map((file) => file.path)).toEqual(['Northwind.ts']);
+});
+
+it('bounds retention by count and size, keeping the newest', async () => {
+  const f = await fixture();
+  const vault = await f.dashboard.sync.vault();
+  const commonDir = join(f.source, '.git');
+  const { base, relative } = backupRoot(commonDir, f.workspaceId);
+  const parent = join(base, relative);
+  const make = async (age: number, bytes = 0) => {
+    const id = crypto.randomUUID();
+    const directory = join(parent, id);
+    const createdAt = new Date(Date.now() - age);
+    await writePart(vault, directory, id, 'index', {
+      id,
+      workspaceId: f.workspaceId,
+      root: f.source,
+      createdAt: createdAt.toISOString(),
+      expiresAt: new Date(createdAt.getTime() + 7 * 86400000).toISOString(),
+      manifestAfter: 'x',
+      files: [],
+    });
+    if (bytes) await writeFile(join(directory, 'f0.json'), Buffer.alloc(bytes));
+    return id;
+  };
+  const ids: string[] = [];
+  for (let at = 0; at < 22; at++) ids.push(await make(at * 1000));
+  const kept = await readBackups(vault, commonDir, f.workspaceId);
+  expect(kept.map((item) => item.id)).toEqual(ids.slice(0, 20));
+  expect((await readdir(parent)).length).toBe(20);
+  await rm(parent, { recursive: true });
+
+  // Too large together: the oldest goes. The newest stays even if it alone is over the limit.
+  const big = 150 * 1024 * 1024;
+  const [newest, older] = [await make(0, big), await make(1000, big)];
+  expect((await readBackups(vault, commonDir, f.workspaceId)).map((item) => item.id)).toEqual([
+    newest,
+  ]);
+  await expect(readdir(join(parent, older))).rejects.toThrow();
+  await rm(parent, { recursive: true });
+  const huge = await make(0, 300 * 1024 * 1024);
+  expect((await readBackups(vault, commonDir, f.workspaceId)).map((item) => item.id)).toEqual([
+    huge,
+  ]);
+  await rm(parent, { recursive: true });
+});
+
+it('ages out the backups of other workspaces, without their key', async () => {
+  const f = await fixture();
+  const root = join(f.source, '.git', 'repo-cloak-backups');
+  const old = join(root, 'deleted-workspace', crypto.randomUUID());
+  const recent = join(root, 'other-workspace', crypto.randomUUID());
+  await mkdir(old, { recursive: true });
+  await mkdir(recent, { recursive: true });
+  await writeFile(join(old, 'f0.json'), '{}');
+  const past = new Date(Date.now() - 8 * 86400000);
+  await utimes(old, past, past);
+  await f.backups();
+  await expect(readdir(join(root, 'deleted-workspace'))).rejects.toThrow();
+  expect(await readdir(join(root, 'other-workspace'))).toHaveLength(1);
 });
 
 it('refuses to undo over newer work', async () => {
@@ -599,4 +655,394 @@ it('validates every body, query and identifier', async () => {
   expect(unknown.status).toBe(404);
   const anonymous = await fetch(`${f.base}/backups`);
   expect(anonymous.status).toBe(401);
+});
+
+describe('acknowledgements are enforced by the server', () => {
+  it('refuses a deletion without its exact confirmation, then accepts it', async () => {
+    const f = await fixture();
+    await rm(join(f.workspace, 'gone.ts'));
+    const review = await f.reviewOf();
+    await expect(f.apply(review.operationId)).rejects.toThrow(/Confirm the listed deletions/);
+    await expect(f.apply(review.operationId, { confirmDeletes: [] })).rejects.toThrow(/Confirm/);
+    await expect(f.apply(review.operationId, { confirmDeletes: ['other.ts'] })).rejects.toThrow(
+      /Confirm/,
+    );
+    expect(await f.read('gone.ts')).toBe('to be removed\n');
+    expect(await f.backups()).toEqual([]);
+    const done = await f.apply(review.operationId, { confirmDeletes: ['gone.ts'] });
+    expect(done.state).toBe('completed');
+    await expect(f.read('gone.ts')).rejects.toThrow();
+  });
+
+  it('refuses an overwrite without its exact confirmation', async () => {
+    const f = await fixture();
+    await f.edit('Northwind.ts', editedLines(f.lines, 5, 'cloak side'));
+    const upstream = `${f.lines.map((line, index) => (index === 5 ? 'upstream side' : line)).join('\n')}\n`;
+    await writeFile(join(f.source, 'Acme.ts'), upstream);
+    const review = await f.reviewOf();
+    await expect(f.apply(review.operationId, { mergeMode: 'overwrite' })).rejects.toThrow(
+      /Confirm forced overwrites/,
+    );
+    await expect(
+      f.apply(review.operationId, { mergeMode: 'overwrite', confirmOverwrites: ['other.ts'] }),
+    ).rejects.toThrow(/Confirm forced overwrites/);
+    expect(await f.read('Acme.ts')).toBe(upstream);
+    expect(await f.backups()).toEqual([]);
+  });
+
+  it('asks for no force on a clean push or a clean merge', async () => {
+    const f = await fixture();
+    await f.edit('Northwind.ts', editedLines(f.lines, 20, 'cloak edit'));
+    const upstream = f.lines.map((line, index) => (index === 2 ? 'upstream of Acme' : line));
+    await writeFile(join(f.source, 'Acme.ts'), `${upstream.join('\n')}\n`);
+    expect((await f.apply((await f.reviewOf()).operationId)).state).toBe('completed');
+  });
+
+  it('cannot be applied through the generic operations route', async () => {
+    const f = await fixture();
+    await rm(join(f.workspace, 'gone.ts'));
+    const review = await f.reviewOf();
+    const base = f.base.slice(0, f.base.indexOf('/api/v2/'));
+    const response = await fetch(`${base}/api/v2/operations/${review.operationId}/apply`, {
+      method: 'POST',
+      headers: f.headers,
+      body: JSON.stringify({ deletions: true, force: true }),
+    });
+    expect(response.ok).toBe(false);
+    expect(await f.read('gone.ts')).toBe('to be removed\n');
+  });
+});
+
+describe('per-file push', () => {
+  async function edited() {
+    const f = await fixture();
+    await f.edit('Northwind.ts', editedLines(f.lines, 1, 'edit one'));
+    await f.edit('other.ts', 'class NorthwindOther { edit() {} }\n');
+    await f.edit('NorthwindNew.ts', 'new Northwind file\n');
+    await rm(join(f.workspace, 'gone.ts'));
+    return f;
+  }
+  const paths = (review: PushReview) => review.files.map((file) => file.path).sort();
+  const all = ['Northwind.ts', 'NorthwindNew.ts', 'gone.ts', 'other.ts'];
+
+  it('writes only the selection and leaves the rest pending, intact and pushable', async () => {
+    const f = await edited();
+    const ledger = (await f.dashboard.sync.workspaceTarget(f.repoId, f.workspaceId)).snapshot.data
+      .ledger;
+    const cloak = {
+      main: await readFile(join(f.workspace, 'Northwind.ts'), 'utf8'),
+      added: await readFile(join(f.workspace, 'NorthwindNew.ts'), 'utf8'),
+    };
+    const sourceBefore = await f.read('Acme.ts');
+    const review = await f.reviewOf();
+    expect(paths(review)).toEqual(all);
+    const done = await f.apply(review.operationId, { paths: ['other.ts'] });
+    expect(done.state).toBe('completed');
+    expect(done.result?.writes).toEqual(['other.ts']);
+    expect(done.result?.deletes).toEqual([]);
+
+    // Source: only the selected file changed.
+    expect(await f.read('other.ts')).toContain('class AcmeOther { edit');
+    expect(await f.read('Acme.ts')).toBe(sourceBefore);
+    expect(await f.read('gone.ts')).toBe('to be removed\n');
+    await expect(f.read('AcmeNew.ts')).rejects.toThrow();
+    // Cloak: nothing was touched.
+    expect(await readFile(join(f.workspace, 'Northwind.ts'), 'utf8')).toBe(cloak.main);
+    expect(await readFile(join(f.workspace, 'NorthwindNew.ts'), 'utf8')).toBe(cloak.added);
+    await expect(readFile(join(f.workspace, 'gone.ts'))).rejects.toThrow();
+    // Ledger unchanged; the manifest moved on for the selected file only.
+    const { snapshot } = await f.dashboard.sync.workspaceTarget(f.repoId, f.workspaceId);
+    expect(snapshot.data.ledger).toEqual(ledger);
+    expect(snapshot.plain.files['gone.ts']).toBeDefined();
+    expect(snapshot.plain.files['NorthwindNew.ts']).toBeUndefined();
+
+    // Repeat push sees everything else, and can finish the job.
+    const again = await f.reviewOf();
+    expect(paths(again)).toEqual(['Northwind.ts', 'NorthwindNew.ts', 'gone.ts']);
+    const rest = await f.apply(again.operationId, { confirmDeletes: ['gone.ts'] });
+    expect(rest.state).toBe('completed');
+    expect(await f.read('Acme.ts')).toContain('edit one');
+    expect(await f.read('AcmeNew.ts')).toBe('new Acme file\n');
+    await expect(f.read('gone.ts')).rejects.toThrow();
+    expect((await f.reviewOf()).files).toEqual([]);
+  });
+
+  it('keeps unselected edits out of the workspace checkpoint', async () => {
+    const f = await edited();
+    await f.apply((await f.reviewOf()).operationId, { paths: ['other.ts'] });
+    expect(await f.git(f.workspace, 'show', '--name-only', '--format=', 'HEAD')).not.toContain(
+      'Northwind.ts',
+    );
+    const status = await f.git(f.workspace, 'status', '--porcelain');
+    expect(status).toContain('Northwind.ts');
+    expect(status).toContain('NorthwindNew.ts');
+    expect(status).not.toContain('other.ts');
+  });
+
+  it('survives a re-pull with unselected edits intact', async () => {
+    const f = await edited();
+    const main = await readFile(join(f.workspace, 'Northwind.ts'), 'utf8');
+    const done = await f.apply((await f.reviewOf()).operationId, {
+      paths: ['other.ts'],
+      repull: true,
+      mode: 'stage',
+    });
+    expect(done.state).toBe('completed');
+    expect(done.result?.warnings.join()).not.toContain('re-pull failed');
+    expect(await readFile(join(f.workspace, 'Northwind.ts'), 'utf8')).toBe(main);
+    expect(paths(await f.reviewOf())).toEqual(['Northwind.ts', 'NorthwindNew.ts', 'gone.ts']);
+    expect(await f.git(f.source, 'diff', '--cached', '--name-only')).toBe('other.ts');
+  });
+
+  it('commits only the selection', async () => {
+    const f = await edited();
+    await f.apply((await f.reviewOf()).operationId, {
+      paths: ['other.ts'],
+      mode: 'commit',
+      commitMessage: 'Only other',
+    });
+    expect(await f.git(f.source, 'show', '--name-only', '--format=', 'HEAD')).toBe('other.ts');
+  });
+
+  it('asks to confirm only the deletions and overwrites it selected', async () => {
+    const f = await edited();
+    const upstream = `${f.lines.map((line, index) => (index === 1 ? 'upstream' : line)).join('\n')}\n`;
+    await writeFile(join(f.source, 'Acme.ts'), upstream);
+    const review = await f.reviewOf();
+    expect(review.files.find((file) => file.path === 'Northwind.ts')?.flags).toContain('conflict');
+    // The overlap and the deletion are outside this selection, so neither blocks nor needs a yes.
+    const done = await f.apply(review.operationId, { paths: ['other.ts'] });
+    expect(done.state).toBe('completed');
+    expect(await f.read('Acme.ts')).toBe(upstream);
+    expect(await f.read('gone.ts')).toBe('to be removed\n');
+
+    const next = await f.reviewOf();
+    await expect(f.apply(next.operationId, { paths: ['Northwind.ts'] })).rejects.toThrow(/overlap/);
+    await expect(f.apply(next.operationId, { paths: ['gone.ts'] })).rejects.toThrow(/Confirm/);
+    expect(
+      (
+        await f.apply(next.operationId, {
+          paths: ['gone.ts'],
+          confirmDeletes: ['gone.ts'],
+        })
+      ).result?.deletes,
+    ).toEqual(['gone.ts']);
+  });
+
+  it('backs up and undoes only the selection', async () => {
+    const f = await edited();
+    const before = await f.read('other.ts');
+    await f.apply((await f.reviewOf()).operationId, { paths: ['other.ts'] });
+    const [backup] = await f.backups();
+    expect(backup?.files).toBe(1);
+    expect(await (await f.post(`/backups/${backup?.id}/undo`)).json()).toEqual({ restored: 1 });
+    expect(await f.read('other.ts')).toBe(before);
+    expect(paths(await f.reviewOf())).toEqual(all);
+  });
+
+  it('refuses paths the review did not list, and stays open', async () => {
+    const f = await edited();
+    const review = await f.reviewOf();
+    await expect(f.apply(review.operationId, { paths: ['keys.ts'] })).rejects.toThrow(
+      /not in this review/,
+    );
+    await expect(f.apply(review.operationId, { paths: ['../escape'] })).rejects.toThrow(
+      /not in this review/,
+    );
+    await expect(f.apply(review.operationId, { paths: [] })).rejects.toThrow(/Invalid request/);
+    expect((await f.apply(review.operationId, { paths: ['other.ts'] })).state).toBe('completed');
+  });
+
+  it('refuses when an unselected file changed after the review', async () => {
+    const f = await edited();
+    const review = await f.reviewOf();
+    await f.edit('Northwind.ts', 'changed after review of Northwind\n');
+    const done = await f.apply(review.operationId, { paths: ['other.ts'] });
+    expect(done.state).toBe('failed');
+    expect(done.code).toBe('stale');
+    expect(await f.read('other.ts')).toBe('class AcmeOther {}\n');
+  });
+
+  it('applies a selection to a new worktree, leaving the rest pending', async () => {
+    const f = await edited();
+    const review = await f.reviewOf({ kind: 'new-worktree', branch: 'part' });
+    const done = await f.apply(review.operationId, { paths: ['other.ts'] });
+    expect(done.state).toBe('completed');
+    const tree = done.result?.warnings.join() ?? '';
+    const worktree = /New worktree: (.*?) \(/.exec(tree)?.[1] ?? '';
+    expect(await f.read('other.ts', worktree)).toContain('edit()');
+    expect(await f.read('Acme.ts', worktree)).not.toContain('edit one');
+    expect(paths(await f.reviewOf())).toEqual(['Northwind.ts', 'NorthwindNew.ts', 'gone.ts']);
+  });
+});
+
+describe('post-check', () => {
+  const put = (f: Awaited<ReturnType<typeof fixture>>, body: unknown) =>
+    fetch(`${f.base}/post-check`, {
+      method: 'PUT',
+      headers: f.headers,
+      body: JSON.stringify(body),
+    });
+  const view = async (f: Awaited<ReturnType<typeof fixture>>) =>
+    (await (await fetch(`${f.base}/post-check`, { headers: f.headers })).json()) as PostCheckView;
+  const run = (f: Awaited<ReturnType<typeof fixture>>, command: string) =>
+    f.post('/post-check/run', { confirmed: true, command });
+  async function finished(f: Awaited<ReturnType<typeof fixture>>) {
+    for (let tries = 0; tries < 200; tries++) {
+      const { run: current } = await view(f);
+      if (current && current.state !== 'running') return current;
+      await new Promise((done) => setTimeout(done, 50));
+    }
+    throw new Error('The post-check did not finish');
+  }
+  /** The audit event lands just after the run shows as finished. */
+  async function auditEvent(f: Awaited<ReturnType<typeof fixture>>) {
+    for (let tries = 0; tries < 100; tries++) {
+      const events = (await f.dashboard.sync.audit.list()).events;
+      const found = events.find((event) => event.detail?.startsWith('Post-check '));
+      if (found && !found.detail?.startsWith('Post-check set')) return found;
+      await new Promise((done) => setTimeout(done, 50));
+    }
+    throw new Error('No audit event');
+  }
+  async function pushed(command: string, timeoutSeconds = 30) {
+    const f = await fixture();
+    expect((await put(f, { command, timeoutSeconds })).status).toBe(200);
+    await f.edit('Northwind.ts', editedLines(f.lines, 1, 'edit'));
+    const review = await f.reviewOf();
+    expect((await f.apply(review.operationId)).state).toBe('completed');
+    return f;
+  }
+
+  it('never runs on its own: not at push, and not before a confirmed request', async () => {
+    const marker = 'post-check-ran';
+    const f = await pushed(`touch ${marker}`);
+    expect(await view(f)).toMatchObject({ command: `touch ${marker}`, canRun: true, run: null });
+    await expect(readFile(join(f.source, marker))).rejects.toThrow();
+    const notConfirmed = [
+      await f.post('/post-check/run', { command: `touch ${marker}` }),
+      await f.post('/post-check/run', { confirmed: false, command: `touch ${marker}` }),
+      await f.post('/post-check/run', { confirmed: 'true', command: `touch ${marker}` }),
+      await f.post('/post-check/run', { confirmed: true }),
+    ];
+    for (const response of notConfirmed) expect(response.status).toBe(400);
+    await expect(readFile(join(f.source, marker))).rejects.toThrow();
+  });
+
+  it('refuses before any push, a changed command, and when nothing is configured', async () => {
+    const f = await fixture();
+    expect((await run(f, 'echo x')).ok).toBe(false);
+    await put(f, { command: 'echo configured' });
+    expect((await view(f)).canRun).toBe(false);
+    const early = await run(f, 'echo configured');
+    expect(early.status).toBe(409);
+    expect(((await early.json()) as { error: string }).error).toContain('after a push');
+    await f.edit('Northwind.ts', editedLines(f.lines, 1, 'edit'));
+    await f.apply((await f.reviewOf()).operationId);
+    expect((await run(f, 'echo something else')).status).toBe(409);
+    expect((await view(f)).run).toBeNull();
+  });
+
+  it('runs in the target worktree and shows the output, without secrets', async () => {
+    const f = await pushed(`pwd; env; cat keys.ts`);
+    expect((await run(f, 'pwd; env; cat keys.ts')).status).toBe(200);
+    const result = await finished(f);
+    expect(result.state).toBe('passed');
+    expect(result.output).toContain(f.source);
+    expect(result.output).not.toContain('test-token');
+    expect(result.output).not.toContain('REPO_CLOAK');
+    expect(result.output).toContain('const key = "[secret]"');
+    expect(result.output).not.toContain(secret);
+  });
+
+  it('runs in the worktree the push went to, not the one pulled from', async () => {
+    const f = await fixture();
+    const other = join(f.root, 'other');
+    await f.git(f.source, 'worktree', 'add', '-b', 'other', other);
+    await put(f, { command: 'pwd' });
+    await f.edit('Northwind.ts', editedLines(f.lines, 1, 'edit'));
+    await f.apply((await f.reviewOf({ kind: 'worktree', path: other })).operationId);
+    await run(f, 'pwd');
+    expect((await finished(f)).output.trim()).toBe(other);
+  });
+
+  it('audits the outcome only, never the command or output', async () => {
+    const f = await pushed('echo THE-OUTPUT; exit 7 # THE-COMMAND');
+    await run(f, 'echo THE-OUTPUT; exit 7 # THE-COMMAND');
+    const result = await finished(f);
+    expect(result).toMatchObject({ state: 'failed', exitCode: 7 });
+    expect(result.output).toContain('THE-OUTPUT');
+    const event = await auditEvent(f);
+    expect(event).toMatchObject({
+      op: 'push',
+      outcome: 'failed',
+      detail: 'Post-check failed (exit 7)',
+    });
+    const log = await f.dashboard.sync.audit.list();
+    expect(JSON.stringify(log)).not.toContain('THE-OUTPUT');
+    expect(JSON.stringify(log)).not.toContain('THE-COMMAND');
+    const saved = await readFile(join(f.root, 'store', 'repos', f.repoId, 'repo.json'), 'utf8');
+    expect(saved).not.toContain('THE-COMMAND');
+  });
+
+  it('times out by the configured limit, and audits that', async () => {
+    const f = await pushed('sleep 30', 1);
+    await run(f, 'sleep 30');
+    expect(await finished(f)).toMatchObject({ state: 'timed-out', exitCode: null });
+    expect((await auditEvent(f)).detail).toBe('Post-check timed out');
+  });
+
+  it('runs one at a time, and an undo takes the permission away', async () => {
+    const f = await pushed('sleep 1');
+    expect((await run(f, 'sleep 1')).status).toBe(200);
+    expect((await run(f, 'sleep 1')).status).toBe(409);
+    await finished(f);
+    const [backup] = await f.backups();
+    await f.post(`/backups/${backup?.id}/undo`);
+    expect((await view(f)).canRun).toBe(false);
+    expect((await run(f, 'sleep 1')).status).toBe(409);
+  });
+
+  it('refuses when the pushed worktree no longer exists', async () => {
+    const f = await fixture();
+    const other = join(f.root, 'other');
+    await f.git(f.source, 'worktree', 'add', '-b', 'other', other);
+    await put(f, { command: 'pwd' });
+    await f.edit('Northwind.ts', editedLines(f.lines, 1, 'edit'));
+    await f.apply((await f.reviewOf({ kind: 'worktree', path: other })).operationId);
+    await f.git(f.source, 'worktree', 'remove', '--force', other);
+    const refused = await run(f, 'pwd');
+    expect(refused.ok).toBe(false);
+    expect((await view(f)).run).toBeNull();
+  });
+
+  it('keeps the setting across a push and clears it, validating input', async () => {
+    const f = await pushed('echo kept');
+    expect((await view(f)).command).toBe('echo kept');
+    const invalid = [
+      await put(f, { command: '' }),
+      await put(f, {}),
+      await put(f, { command: 'x', timeoutSeconds: 0 }),
+      await put(f, { command: 'x', timeoutSeconds: 3601 }),
+      await put(f, { command: 'x', extra: true }),
+    ];
+    for (const response of invalid) expect(response.status).toBe(400);
+    expect(await (await put(f, { command: null })).json()).toMatchObject({
+      command: null,
+      canRun: false,
+    });
+    const events = (await f.dashboard.sync.audit.list()).events;
+    expect(events.some((event) => event.detail?.startsWith('Post-check cleared'))).toBe(true);
+    expect(JSON.stringify(events)).not.toContain('echo kept');
+  });
+
+  it('needs a session token', async () => {
+    const f = await fixture();
+    expect((await fetch(`${f.base}/post-check`)).status).toBe(401);
+    const anonymous = await fetch(`${f.base}/post-check/run`, {
+      method: 'POST',
+      body: JSON.stringify({ confirmed: true, command: 'x' }),
+    });
+    expect(anonymous.status).toBe(401);
+  });
 });
