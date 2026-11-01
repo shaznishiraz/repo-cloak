@@ -2,10 +2,10 @@ import { open, lstat } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { z } from 'zod';
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { version } from '../package.js';
 import { checkDestinationPath } from './files.js';
+import { createMcpServer } from './mcp-stdio.js';
+import type { McpTool } from './mcp-stdio.js';
 
 export function createAgentMcp(
   workspace: string,
@@ -13,14 +13,6 @@ export function createAgentMcp(
   request: typeof fetch = fetch,
 ) {
   workspace = resolve(workspace);
-  const server = new McpServer(
-    { name: 'repo-cloak', version },
-    {
-      instructions:
-        'This is an anonymized selected workspace. Probe exact anonymized paths, request only necessary files, tell the user the request ID and wait for dashboard approval. No approval, source search, raw read, pull or push tool exists.',
-      maxToolInputElements: 250,
-    },
-  );
   async function call(route: string, body?: unknown) {
     try {
       if (!(await lstat(workspace)).isDirectory()) throw new Error('Invalid workspace');
@@ -99,51 +91,51 @@ export function createAgentMcp(
     }
   }
   const paths = z.array(z.string().min(1).max(1024)).min(1);
-  server.registerTool(
-    'cloak_workspace_info',
+  const tools: McpTool[] = [
     {
+      name: 'cloak_workspace_info',
       description: 'Get this cloak workspace identity, connection and public limits.',
-      inputSchema: {},
+      input: z.object({}),
       annotations: { readOnlyHint: true, openWorldHint: false },
+      run: () => call('info'),
     },
-    () => call('info'),
-  );
-  server.registerTool(
-    'cloak_probe_files',
     {
+      name: 'cloak_probe_files',
       description: 'Probe exact anonymized paths; availability never grants access.',
-      inputSchema: { paths: paths.max(100) },
+      input: z.object({ paths: paths.max(100) }),
       annotations: { readOnlyHint: true, openWorldHint: false },
+      run: (input: unknown) => call('probe', input),
     },
-    (input) => call('probe', input),
-  );
-  server.registerTool(
-    'cloak_request_files',
     {
+      name: 'cloak_request_files',
       description:
         'Queue necessary files for owner approval. Tell the user the returned request ID and wait for pulled status.',
-      inputSchema: {
+      input: z.object({
         paths: paths.max(20),
         reason: z.string().min(1).max(500),
         clientRequestId: z.string().min(1).max(100),
-      },
+      }),
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+      run: (input: unknown) => call('requests', input),
     },
-    (input) => call('requests', input),
-  );
-  server.registerTool(
-    'cloak_request_status',
     {
+      name: 'cloak_request_status',
       description: 'Check per-file status for a request in this workspace.',
-      inputSchema: { requestId: z.uuid() },
+      input: z.object({ requestId: z.uuid() }),
       annotations: { readOnlyHint: true, openWorldHint: false },
+      run: ({ requestId }: { requestId: string }) => call(`requests/${requestId}`),
     },
-    ({ requestId }) => call(`requests/${requestId}`),
-  );
-  return server;
+  ];
+  return createMcpServer({
+    name: 'repo-cloak',
+    version,
+    instructions:
+      'This is an anonymized selected workspace. Probe exact anonymized paths, request only necessary files, tell the user the request ID and wait for dashboard approval. No approval, source search, raw read, pull or push tool exists.',
+    tools,
+    maxInputElements: 250,
+    maxMessageBytes: 1024 * 1024,
+  });
 }
 export async function runAgentMcp(workspace: string, workspaceId: string) {
-  await createAgentMcp(workspace, workspaceId).connect(
-    new StdioServerTransport(process.stdin, process.stdout, { maxBufferSize: 1024 * 1024 }),
-  );
+  await createAgentMcp(workspace, workspaceId).connect(process.stdin, process.stdout);
 }
