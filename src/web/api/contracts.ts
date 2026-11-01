@@ -413,7 +413,6 @@ export type DashboardSettings = {
   workspacesRoot: string;
   postCreateCommands: string[];
   security: SecuritySettings;
-  supplyChain: SupplyChainReport | null;
 };
 
 /* ---------- Route map: `METHOD path` to its query, body and response ---------- */

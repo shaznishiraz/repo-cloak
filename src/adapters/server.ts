@@ -19,6 +19,7 @@ const assets = new Map([
   ['/app.css', ['app.css', 'text/css; charset=utf-8']],
   ['/favicon.svg', ['favicon.svg', 'image/svg+xml']],
   ['/favicon.ico', ['favicon.ico', 'image/x-icon']],
+  ['/supply-chain.json', ['supply-chain.json', 'application/json; charset=utf-8']],
 ]);
 export function createDashboardServer(
   dashboard: Dashboard,

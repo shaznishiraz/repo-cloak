@@ -24,6 +24,21 @@ it('keeps JS, CSS and HTML within the 160 KB shipped-asset budget', async () => 
   expect(sizes.reduce((sum, size) => sum + size, 0)).toBeLessThanOrEqual(budget);
 });
 
+it('emits the supply-chain report Settings reads', async () => {
+  const report = JSON.parse(await readFile(join(out, 'supply-chain.json'), 'utf8')) as Record<
+    string,
+    unknown
+  >;
+  expect(report).toMatchObject({
+    installScriptsAllowed: false,
+    pinned: true,
+    integrityHashes: true,
+  });
+  expect(report.bundledBrowserPackages).toEqual(
+    expect.arrayContaining([expect.stringMatching(/^preact@\d/)]),
+  );
+});
+
 it('references only same-origin assets so the page works under CSP self', async () => {
   const html = await readFile(join(out, 'index.html'), 'utf8');
   const css = await readFile(join(out, 'app.css'), 'utf8');

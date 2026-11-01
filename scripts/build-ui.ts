@@ -2,6 +2,7 @@ import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { build } from 'tsup';
 import { minify } from 'terser';
+import { readSupplyChainReport } from './supply-chain.js';
 
 /** Reuse the CLI's build tool to keep shipped browser assets small. */
 export async function buildUi(destination: string) {
@@ -48,6 +49,10 @@ export async function buildWeb(destination: string) {
   await Promise.all([
     copyFile(join(source, 'favicon.svg'), join(destination, 'favicon.svg')),
     copyFile(join(source, 'favicon.ico'), join(destination, 'favicon.ico')),
+    writeFile(
+      join(destination, 'supply-chain.json'),
+      `${JSON.stringify(await readSupplyChainReport(), null, 2)}\n`,
+    ),
     writeFile(
       join(destination, 'index.html'),
       html

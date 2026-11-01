@@ -1,4 +1,4 @@
-import type { RouteParams, V2Api, V2Route } from './contracts.js';
+import type { RouteParams, SupplyChainReport, V2Api, V2Route } from './contracts.js';
 
 export class ApiError extends Error {
   constructor(
@@ -72,6 +72,15 @@ export function createClient(token: string, request: typeof fetch = (...args) =>
   return { call };
 }
 export type ApiClient = ReturnType<typeof createClient>;
+
+/** Generated at build time and served with the page, so it needs no session token. */
+export async function loadSupplyChain(
+  request: typeof fetch = (...args) => fetch(...args),
+): Promise<SupplyChainReport> {
+  const response = await request('/supply-chain.json');
+  if (!response.ok) throw new ApiError(response.status, 'Supply chain report unavailable');
+  return (await response.json()) as SupplyChainReport;
+}
 
 /**
  * Refreshes on an interval without overlapping requests, and pauses while the tab is hidden.

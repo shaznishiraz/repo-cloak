@@ -1,5 +1,5 @@
 import { expect, it, vi } from 'vitest';
-import { ApiError, createClient, poll } from '../../src/web/api/client.js';
+import { ApiError, createClient, loadSupplyChain, poll } from '../../src/web/api/client.js';
 
 function fakeFetch(status: number, body: unknown) {
   return vi.fn<typeof fetch>(
@@ -72,4 +72,11 @@ it('polls without overlap, reports errors and stops cleanly', async () => {
   } finally {
     vi.useRealTimers();
   }
+});
+
+it('loads the build-time supply-chain report without a token', async () => {
+  const request = fakeFetch(200, { directDependencies: 11 });
+  expect(await loadSupplyChain(request)).toEqual({ directDependencies: 11 });
+  expect(request.mock.calls[0]).toEqual(['/supply-chain.json']);
+  await expect(loadSupplyChain(fakeFetch(404, ''))).rejects.toBeInstanceOf(ApiError);
 });
