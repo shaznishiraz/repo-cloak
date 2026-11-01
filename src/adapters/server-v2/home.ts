@@ -29,7 +29,7 @@ import { readSourceFiles } from '../files.js';
 import { repoState, runGit } from '../git.js';
 import { createStatusIO } from '../status.js';
 import { OperationError } from '../ui-operations.js';
-import type { PreparedOperation, PreviewSummary, SyncResult } from '../ui-operations.js';
+import type { PreviewSummary } from '../ui-operations.js';
 import { RequestError, route } from './router.js';
 import type { Route, RouteContext } from './router.js';
 
@@ -626,185 +626,13 @@ async function groupView(dashboard: Dashboard, id: string) {
   );
 }
 
-/* ---------- Bulk runs with rules the engine's group batch does not have ---------- */
-type RunMember = {
-  repoId: string;
-  workspaceId: string;
-  worktree: string;
-  operation?: PreparedOperation;
-  /** Written by an earlier attempt whose commit failed; a retry must still commit them. */
-  uncommitted?: string[];
-  state: GroupOperationView['members'][number]['state'];
-  error?: string;
-};
-type Run = {
-  groupId: string;
-  input: z.infer<typeof bulkSchema>;
-  members: RunMember[];
-};
-const runs = new Map<string, Run>();
-
-function pruneRuns(dashboard: Dashboard) {
-  for (const id of runs.keys()) {
-    try {
-      dashboard.sync.operations.status(id);
-    } catch {
-      runs.delete(id);
-    }
-  }
-}
-
-async function commitMember(worktree: string, paths: string[], commitMessage: string) {
-  if (!paths.length) return;
-  await runGit(worktree, ['add', '-A', '--', ...paths]);
-  await runGit(worktree, ['commit', '-m', commitMessage, '--', ...paths]);
-}
-
-function emptyResult(status: string, workspace: string, workspaceId: string): SyncResult {
-  return {
-    status,
-    workspace,
-    workspaceId,
-    writes: [],
-    deletes: [],
-    replacements: 0,
-    skipped: 0,
-    warnings: [],
-    profileChanges: [],
-  };
-}
-
-/**
- * The engine's group batch is all-or-nothing, for every member and without commits. These rules
- * need more: a checked subset, skipping members that fail their guards, and a shared commit.
- * Each member still goes through the engine's own prepared operation and rechecks.
- */
-async function prepareRun(
-  dashboard: Dashboard,
-  group: SavedGroup,
-  input: z.infer<typeof bulkSchema>,
-  selected: Pick<RunMember, 'repoId' | 'workspaceId' | 'worktree' | 'uncommitted'>[],
-) {
-  const intent = input.direction === 'pull' ? 'refresh' : 'restore';
-  const members: RunMember[] = [];
-  const blocked: string[] = [];
-  for (const member of selected) {
-    const entry: RunMember = {
-      repoId: member.repoId,
-      workspaceId: member.workspaceId,
-      worktree: member.worktree,
-      ...(member.uncommitted ? { uncommitted: member.uncommitted } : {}),
-      state: 'pending',
-    };
-    members.push(entry);
-    try {
-      const operation = await dashboard.sync.prepareOperation({
-        repoId: member.repoId,
-        workspaceId: member.workspaceId,
-        worktree: member.worktree,
-        intent,
-      });
-      if (operation.summary.canApply) entry.operation = operation;
-      else {
-        entry.state = 'unattempted';
-        entry.error = `${plural(operation.summary.conflicts.length, 'conflict')}: ${operation.summary.conflicts.slice(0, 3).join(', ')}`;
-      }
-    } catch (error) {
-      entry.state = 'unattempted';
-      entry.error = message(error);
-    }
-    if (entry.error) blocked.push(`Skipped ${basename(member.worktree)}: ${entry.error}`);
-  }
-  const ready = members.filter((member) => member.operation);
-  const summaries = ready.flatMap((member) => (member.operation ? [member.operation.summary] : []));
-  const first = summaries[0];
-  const summary: PreviewSummary = {
-    intent,
-    source: first?.source ?? { path: group.name, branch: null },
-    destination: first?.destination ?? { path: group.name, branch: null },
-    writes: summaries.flatMap((item) => item.writes),
-    deletes: summaries.flatMap((item) => item.deletes),
-    warnings: [...blocked, ...summaries.flatMap((item) => item.warnings)],
-    conflicts: summaries.flatMap((item) => item.conflicts),
-    profileChanges: summaries.flatMap((item) => item.profileChanges),
-    replacements: summaries.reduce((sum, item) => sum + item.replacements, 0),
-    canApply: ready.length > 0 && (!input.stopOnGuardFailure || !blocked.length),
-    forced: false,
-    redactions: summaries.reduce((sum, item) => sum + item.redactions, 0),
-    postCreateCommands: [],
-  };
-  const flat = await dashboard.sync.operations.preview(() =>
-    Promise.resolve({
-      summary,
-      bytes: ready.reduce((sum, member) => sum + (member.operation?.bytes ?? 0), 0),
-      async apply() {
-        await requireRevision(dashboard, group);
-        for (const member of ready) await member.operation?.recheck?.();
-        const total = emptyResult('written', group.name, group.id);
-        let failed = 0;
-        for (const [index, member] of ready.entries()) {
-          if (!member.operation) continue;
-          member.state = 'running';
-          try {
-            const result = await member.operation.apply();
-            if (input.direction === 'push' && input.commitMessage) {
-              const paths = [
-                ...new Set([...(member.uncommitted ?? []), ...result.writes, ...result.deletes]),
-              ];
-              member.uncommitted = paths;
-              await commitMember(member.worktree, paths, input.commitMessage);
-              delete member.uncommitted;
-            }
-            member.state = 'completed';
-            total.writes.push(...result.writes);
-            total.deletes.push(...result.deletes);
-            total.warnings.push(...result.warnings);
-            total.replacements += result.replacements;
-            total.skipped += result.skipped;
-          } catch (error) {
-            member.state = 'failed';
-            member.error = message(error);
-            failed++;
-            if (input.stopOnGuardFailure) {
-              for (const rest of ready.slice(index + 1)) rest.state = 'unattempted';
-              break;
-            }
-          }
-        }
-        if (failed) throw new Error(`${plural(failed, 'member')} failed`);
-        return total;
-      },
-    }),
-  );
-  pruneRuns(dashboard);
-  runs.set(flat.operationId, { groupId: group.id, input, members });
-  return flat;
-}
-
-async function requireRevision(dashboard: Dashboard, group: SavedGroup) {
-  const current = await requireGroup(dashboard, group.id);
-  if (current.revision !== group.revision)
-    throw new OperationError('stale', 'Group changed; refresh and review again');
-}
-
-function memberStates(
-  members: readonly { repoId: string; state: RunMember['state']; error?: string | undefined }[],
-) {
+/* ---------- Bulk runs: the engine owns the sequence, this only validates and shapes ---------- */
+function memberStates(members: GroupOperationView['members']) {
   return members.map(({ repoId, state, error }) => ({
     repoId,
     state,
     ...(error ? { error } : {}),
   }));
-}
-function runStatusView(dashboard: Dashboard, id: string, run: Run): GroupOperationView {
-  const state = dashboard.sync.operations.status(id);
-  return {
-    operationId: id,
-    state: state.state,
-    expiresAt: state.expiresAt,
-    members: memberStates(run.members),
-    ...(state.error ? { error: state.error } : {}),
-  };
 }
 function batchStatusView(dashboard: Dashboard, id: string): GroupOperationView {
   const state = dashboard.groups.status(id);
@@ -816,58 +644,16 @@ function batchStatusView(dashboard: Dashboard, id: string): GroupOperationView {
     ...(state.error ? { error: state.error } : {}),
   };
 }
-function operationView(dashboard: Dashboard, id: string) {
-  const run = runs.get(id);
-  return run ? runStatusView(dashboard, id, run) : batchStatusView(dashboard, id);
-}
-
-async function applyRun(dashboard: Dashboard, id: string, run: Run, value: unknown) {
-  const { members: acks } = check(groupAckSchema, value);
-  const ack = { deletions: false, profiles: false, force: false };
-  for (const member of run.members) {
-    const summary = member.operation?.summary;
-    if (!summary) continue;
-    const given = acks.find((item) => item.repoId === member.repoId);
-    if (summary.deletes.length && !given?.deletions)
-      throw new OperationError('validation', `Confirm deletions for ${member.repoId}`);
-    if (summary.profileChanges.length && !given?.profiles)
-      throw new OperationError('validation', `Confirm changed profiles for ${member.repoId}`);
-    if (summary.deletes.length) ack.deletions = true;
-    if (summary.profileChanges.length) ack.profiles = true;
-  }
-  await dashboard.sync.operations.apply(id, ack);
-  return runStatusView(dashboard, id, run);
-}
-
-async function retryRun(dashboard: Dashboard, id: string, run: Run): Promise<GroupOperationView> {
-  if (dashboard.sync.operations.status(id).state !== 'failed')
-    throw new OperationError('validation', 'Only a failed batch can be retried');
-  const group = await requireGroup(dashboard, run.groupId);
-  const remaining = run.members.filter((member) => member.state !== 'completed');
-  const flat = await prepareRun(dashboard, group, run.input, remaining);
-  const next = runs.get(flat.operationId);
-  if (!next) throw new OperationError('unknown', 'Retry could not be prepared');
-  return runStatusView(dashboard, flat.operationId, next);
-}
-
 async function bulk(dashboard: Dashboard, id: string, value: unknown) {
-  const input = check(bulkSchema, value);
-  const group = await requireGroup(dashboard, id);
-  if (group.revision !== input.revision)
-    throw new OperationError('stale', 'Group changed; refresh and review again');
-  const commits = input.direction === 'push' && input.commitMessage;
-  if (input.stopOnGuardFailure && !commits && !input.members)
-    return toPreview(
-      await dashboard.groups.preview(id, {
-        revision: input.revision,
-        intent: input.direction === 'pull' ? 'refresh' : 'restore',
-      }),
-    );
-  const selected = input.members
-    ? group.members.filter((member) => input.members?.includes(member.repoId))
-    : group.members;
-  if (!selected.length) throw new OperationError('validation', 'Choose at least one group member');
-  return toPreview(await prepareRun(dashboard, group, input, selected));
+  const { direction, commitMessage, ...input } = check(bulkSchema, value);
+  await requireGroup(dashboard, id);
+  return toPreview(
+    await dashboard.groups.preview(id, {
+      ...input,
+      intent: direction === 'pull' ? 'refresh' : 'restore',
+      ...(direction === 'push' && commitMessage ? { commitMessage } : {}),
+    }),
+  );
 }
 
 /* ---------- Commit export ---------- */
@@ -1017,30 +803,20 @@ export const homeRoutes: Route[] = [
     bulk(dashboard, check(uuidSchema, params.id), await body()),
   ),
   route('GET /api/v2/group-operations/:id', ({ dashboard, params }) =>
-    operationView(dashboard, check(uuidSchema, params.id)),
+    batchStatusView(dashboard, check(uuidSchema, params.id)),
   ),
   route('POST /api/v2/group-operations/:id/apply', async ({ dashboard, params, body }) => {
     const id = check(uuidSchema, params.id);
-    const run = runs.get(id);
-    if (run) return applyRun(dashboard, id, run, await body());
     await dashboard.groups.apply(id, check(groupAckSchema, await body()));
     return batchStatusView(dashboard, id);
   }),
   route('POST /api/v2/group-operations/:id/retry', async ({ dashboard, params }) => {
-    const id = check(uuidSchema, params.id);
-    const run = runs.get(id);
-    if (run) return retryRun(dashboard, id, run);
-    const batch = await dashboard.groups.retry(id);
+    const batch = await dashboard.groups.retry(check(uuidSchema, params.id));
     return batchStatusView(dashboard, batch.operationId);
   }),
   route('DELETE /api/v2/group-operations/:id', ({ dashboard, params }) => {
     const id = check(uuidSchema, params.id);
-    const run = runs.get(id);
-    if (!run) {
-      dashboard.groups.cancel(id);
-      return batchStatusView(dashboard, id);
-    }
-    dashboard.sync.operations.cancel(id);
-    return runStatusView(dashboard, id, run);
+    dashboard.groups.cancel(id);
+    return batchStatusView(dashboard, id);
   }),
 ];

@@ -1,7 +1,10 @@
 import { randomUUID } from 'node:crypto';
+import { basename } from 'node:path';
 import { z } from 'zod';
 import { createStore } from '../adapters/store.js';
+import { commitPaths } from '../adapters/git.js';
 import { createGroupStore } from '../adapters/groups.js';
+import type { GroupLock } from '../adapters/groups.js';
 import { createGroupFolder } from '../adapters/group-folder.js';
 import { canonicalPath } from '../adapters/files.js';
 import { isWithin } from '../adapters/locations.js';
@@ -13,31 +16,46 @@ import type { createDashboardSync } from './dashboard-sync.js';
 
 type GroupSync = Pick<
   ReturnType<typeof createDashboardSync>,
-  'operations' | 'prepareOperation' | 'worktrees' | 'workspaceTarget'
+  'audit' | 'operations' | 'prepareOperation' | 'worktrees' | 'workspaceTarget'
 >;
 type SavedGroup = NonNullable<Awaited<ReturnType<ReturnType<typeof createGroupStore>['read']>>>;
 type MemberState = GroupMember & {
-  summary: PreviewSummary;
+  /** Absent when the member was skipped because it could not be prepared. */
+  summary?: PreviewSummary;
   state: 'pending' | 'running' | 'completed' | 'failed' | 'unattempted';
   result?: SyncResult;
+  /** Written by an attempt whose commit failed; a retry must still commit them. */
+  uncommitted?: string[];
   error?: string;
 };
-type Batch = {
+type RunRules = { stopOnGuardFailure: boolean; commitMessage?: string };
+type Batch = RunRules & {
   groupId: string;
   revision: string;
   intent: 'refresh' | 'restore';
   members: MemberState[];
 };
+const repoIdSchema = z.string().regex(/^[a-f0-9]{16}$/);
 const previewSchema = z
-  .object({ revision: z.string().min(1), intent: z.enum(['refresh', 'restore']) })
-  .strict();
+  .object({
+    revision: z.string().min(1),
+    intent: z.enum(['refresh', 'restore']),
+    members: z.array(repoIdSchema).min(1).max(8).optional(),
+    stopOnGuardFailure: z.boolean().optional(),
+    commitMessage: z.string().trim().min(1).max(2000).optional(),
+  })
+  .strict()
+  .refine((input) => !input.commitMessage || input.intent === 'restore', {
+    message: 'Only a push can commit',
+    path: ['commitMessage'],
+  });
 const ackSchema = z
   .object({
     members: z
       .array(
         z
           .object({
-            repoId: z.string().regex(/^[a-f0-9]{16}$/),
+            repoId: repoIdSchema,
             deletions: z.boolean().optional(),
             profiles: z.boolean().optional(),
             force: z.boolean().optional(),
@@ -52,6 +70,9 @@ export function createDashboardGroups(store: ReturnType<typeof createStore>, syn
   const groups = createGroupStore(store);
   const folders = createGroupFolder(store);
   const batches = new Map<string, Batch>();
+  // Only one run at a time holds the lock, so one slot is enough.
+  let runLock: GroupLock | undefined;
+  let releasing: Promise<void> = Promise.resolve();
   async function requireGroup(id: string, revision?: string) {
     const group = await groups.read(id);
     if (!group) throw new OperationError('validation', 'Group no longer exists');
@@ -108,56 +129,120 @@ export function createDashboardGroups(store: ReturnType<typeof createStore>, syn
     const batch = getBatch(id);
     return { ...sync.operations.status(id), ...structuredClone(batch) };
   }
+  async function commitMember(member: MemberState, result: SyncResult, message: string) {
+    const paths = [
+      ...new Set([...(member.uncommitted ?? []), ...result.writes, ...result.deletes]),
+    ];
+    member.uncommitted = paths;
+    const { commit, warnings } = await commitPaths(member.worktree, paths, message);
+    delete member.uncommitted;
+    if (commit)
+      await sync.audit.record({
+        op: 'push',
+        outcome: 'ok',
+        workspace: {
+          repoId: member.repoId,
+          id: member.workspaceId,
+          name: basename(result.workspace),
+        },
+        detail: `Committed ${commit}`,
+      });
+    return { ...result, warnings: [...result.warnings, ...warnings] };
+  }
   async function previewGroup(
     group: SavedGroup,
     intent: Batch['intent'],
-    selected = group.members,
+    selected: (GroupMember & Pick<MemberState, 'uncommitted'>)[],
+    rules: RunRules,
   ) {
-    const members = await validateMembers(selected);
-    const batch: Batch = { groupId: group.id, revision: group.revision, intent, members: [] };
+    const stop = rules.stopOnGuardFailure;
+    if (stop) await validateMembers(selected);
+    const batch: Batch = {
+      groupId: group.id,
+      revision: group.revision,
+      intent,
+      ...rules,
+      members: [],
+    };
     const preview = await sync.operations.preview(async () => {
-      const prepared: PreparedOperation[] = [];
-      for (const member of members) {
-        const operation = await sync.prepareOperation({ ...member, intent });
-        prepared.push(operation);
-        batch.members.push({ ...member, summary: operation.summary, state: 'pending' });
+      const ready: { member: MemberState; operation: PreparedOperation }[] = [];
+      const skipped: string[] = [];
+      for (const choice of selected) {
+        const member: MemberState = { ...choice, state: 'pending' };
+        batch.members.push(member);
+        try {
+          const [valid] = await validateMembers([choice]);
+          if (valid) member.worktree = valid.worktree;
+          const operation = await sync.prepareOperation({
+            repoId: member.repoId,
+            workspaceId: member.workspaceId,
+            worktree: member.worktree,
+            intent,
+          });
+          const { summary } = operation;
+          if (!stop && !summary.canApply)
+            throw new Error(`conflicts in ${summary.conflicts.slice(0, 3).join(', ')}`);
+          member.summary = summary;
+          ready.push({ member, operation });
+        } catch (error) {
+          if (stop) throw error;
+          member.state = 'unattempted';
+          member.error = error instanceof Error ? error.message : 'Could not prepare';
+          skipped.push(`Skipped ${basename(member.worktree)}: ${member.error}`);
+        }
       }
+      await validateMembers(ready.map(({ member }) => member));
       await requireGroup(group.id, group.revision);
-      const first = prepared[0];
-      if (!first) throw new OperationError('validation', 'Choose at least one group member');
-      const summaries = prepared.map((operation) => operation.summary);
+      if (stop && !ready.length)
+        throw new OperationError('validation', 'Choose at least one group member');
+      const summaries = ready.map(({ operation }) => operation.summary);
       const summary: PreviewSummary = {
-        ...first.summary,
+        intent,
+        source: { path: group.name, branch: null },
+        destination: { path: group.name, branch: null },
+        postCreateCommands: [],
+        ...summaries[0],
         writes: summaries.flatMap((item) => item.writes),
         deletes: summaries.flatMap((item) => item.deletes),
         conflicts: summaries.flatMap((item) => item.conflicts),
-        warnings: summaries.flatMap((item) => item.warnings),
+        warnings: [...skipped, ...summaries.flatMap((item) => item.warnings)],
         profileChanges: summaries.flatMap((item) => item.profileChanges),
         replacements: summaries.reduce((sum, item) => sum + item.replacements, 0),
         redactions: summaries.reduce((sum, item) => sum + item.redactions, 0),
-        canApply: summaries.every((item) => item.canApply),
+        canApply: ready.length > 0 && summaries.every((item) => item.canApply),
         forced: summaries.some((item) => item.forced),
       };
       return {
         owner: 'group' as const,
         summary,
-        bytes: prepared.reduce((sum, operation) => sum + operation.bytes, 0),
+        bytes: ready.reduce((sum, { operation }) => sum + operation.bytes, 0),
         async apply() {
+          const unattempted = (from: number) => {
+            for (const { member } of ready.slice(from)) member.state = 'unattempted';
+          };
           try {
             await requireGroup(group.id, group.revision);
-            await validateMembers(members);
-            for (const operation of prepared) await operation.recheck?.();
+            await validateMembers(ready.map(({ member }) => member));
+            for (const { operation } of ready) await operation.recheck?.();
           } catch (error) {
-            for (const member of batch.members) member.state = 'unattempted';
+            unattempted(0);
             throw error;
           }
           let total: SyncResult | undefined;
-          for (const [index, operation] of prepared.entries()) {
-            const member = batch.members[index];
-            if (!member) throw new Error('Group operation has no matching member');
+          let failed = 0;
+          for (const [index, { member, operation }] of ready.entries()) {
+            try {
+              runLock?.assertHeld();
+            } catch (error) {
+              unattempted(index);
+              throw error;
+            }
             member.state = 'running';
             try {
-              const result = await operation.apply();
+              const written = await operation.apply();
+              const result = rules.commitMessage
+                ? await commitMember(member, written, rules.commitMessage)
+                : written;
               member.result = result;
               member.state = 'completed';
               total = total
@@ -174,14 +259,16 @@ export function createDashboardGroups(store: ReturnType<typeof createStore>, syn
             } catch (error) {
               member.state = 'failed';
               member.error = error instanceof Error ? error.message : 'Sync failed';
-              for (const remaining of batch.members.slice(index + 1))
-                remaining.state = 'unattempted';
+              failed++;
+              if (!stop) continue;
+              unattempted(index + 1);
               throw new Error(
-                `${index} succeeded / 1 failed / ${prepared.length - index - 1} unattempted: ${member.error}`,
+                `${index} succeeded / 1 failed / ${ready.length - index - 1} unattempted: ${member.error}`,
                 { cause: error },
               );
             }
           }
+          if (failed) throw new Error(`${failed} member${failed === 1 ? '' : 's'} failed`);
           if (!total) throw new Error('Group has no completed members');
           return total;
         },
@@ -273,7 +360,19 @@ export function createDashboardGroups(store: ReturnType<typeof createStore>, syn
     },
     async preview(id: string, value: unknown) {
       const input = previewSchema.parse(value);
-      return previewGroup(await requireGroup(id, input.revision), input.intent);
+      const group = await requireGroup(id, input.revision);
+      const chosen = input.members;
+      if (chosen?.some((repoId) => !group.members.some((item) => item.repoId === repoId)))
+        throw new OperationError('validation', 'A chosen member is not in this group');
+      return previewGroup(
+        group,
+        input.intent,
+        chosen ? group.members.filter((item) => chosen.includes(item.repoId)) : group.members,
+        {
+          stopOnGuardFailure: input.stopOnGuardFailure ?? true,
+          ...(input.commitMessage ? { commitMessage: input.commitMessage } : {}),
+        },
+      );
     },
     async apply(id: string, value: unknown) {
       const batch = getBatch(id);
@@ -286,17 +385,34 @@ export function createDashboardGroups(store: ReturnType<typeof createStore>, syn
         throw new OperationError('validation', 'Acknowledgements must name unique batch members');
       for (const member of batch.members) {
         const ack = input.members.find((item) => item.repoId === member.repoId);
-        if (member.summary.deletes.length && !ack?.deletions)
+        const { summary } = member;
+        if (!summary) continue;
+        if (summary.deletes.length && !ack?.deletions)
           throw new OperationError('validation', `Confirm deletions for ${member.repoId}`);
-        if (member.summary.profileChanges.length && !ack?.profiles)
+        if (summary.profileChanges.length && !ack?.profiles)
           throw new OperationError('validation', `Confirm changed profiles for ${member.repoId}`);
-        if (member.summary.forced && !ack?.force)
+        if (summary.forced && !ack?.force)
           throw new OperationError('validation', `Confirm forced overwrites for ${member.repoId}`);
       }
-      await groups.locked(async () => {
+      // operations.apply only schedules the run, so the hold is released when the run settles.
+      const held = await groups.acquire();
+      try {
         await requireGroup(batch.groupId, batch.revision);
+        runLock = held;
         await sync.operations.apply(id, { deletions: true, profiles: true, force: true }, 'group');
-      });
+      } catch (error) {
+        runLock = undefined;
+        await held.release();
+        throw error;
+      }
+      releasing = sync.operations
+        .wait(id)
+        .then(() => {
+          runLock = undefined;
+          return held.release();
+        })
+        // An unreleased lock goes stale by itself, and the run's own result is what matters.
+        .catch(() => undefined);
       return status(id);
     },
     status,
@@ -308,6 +424,7 @@ export function createDashboardGroups(store: ReturnType<typeof createStore>, syn
     async wait(id: string) {
       getBatch(id);
       await sync.operations.wait(id);
+      await releasing;
       return status(id);
     },
     async retry(id: string) {
@@ -319,7 +436,16 @@ export function createDashboardGroups(store: ReturnType<typeof createStore>, syn
       return previewGroup(
         group,
         batch.intent,
-        remaining.map(({ repoId, workspaceId, worktree }) => ({ repoId, workspaceId, worktree })),
+        remaining.map(({ repoId, workspaceId, worktree, uncommitted }) => ({
+          repoId,
+          workspaceId,
+          worktree,
+          ...(uncommitted ? { uncommitted } : {}),
+        })),
+        {
+          stopOnGuardFailure: batch.stopOnGuardFailure,
+          ...(batch.commitMessage ? { commitMessage: batch.commitMessage } : {}),
+        },
       );
     },
   };

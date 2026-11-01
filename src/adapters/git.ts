@@ -1,5 +1,7 @@
 import { execFile } from 'node:child_process';
-import { realpath } from 'node:fs/promises';
+import { lstat, realpath } from 'node:fs/promises';
+import { devNull } from 'node:os';
+import { join } from 'node:path';
 import { resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { repoId } from '../core/identity.js';
@@ -177,4 +179,61 @@ export async function recentCommits(root: string, offset = 0) {
     if (id && subject !== undefined) commits.push({ id, subject });
   }
   return commits;
+}
+
+/**
+ * Bulk commits run no repository hooks: a run holds the group lock and the sync queue with no
+ * timeout, and one click should not execute code from every member. Drop this to run them.
+ */
+const commitConfig = ['-c', `core.hooksPath=${devNull}`, '--literal-pathspecs'];
+
+/** Stage and commit exactly these paths. Whatever else the user has staged stays out. */
+export async function commitPaths(root: string, paths: string[], message: string) {
+  const warnings: string[] = [];
+  if (!paths.length) return { warnings };
+  const fields = (text: string) => text.split('\0').filter(Boolean);
+  const ignored = new Set(
+    fields(
+      await runGit(root, [
+        ...commitConfig,
+        'ls-files',
+        '-z',
+        '--others',
+        '--ignored',
+        '--exclude-standard',
+        '--',
+        ...paths,
+      ]),
+    ),
+  );
+  const tracked = new Set(
+    fields(await runGit(root, [...commitConfig, 'ls-files', '-z', '--', ...paths])),
+  );
+  const present = async (path: string) =>
+    lstat(join(root, path)).then(
+      () => true,
+      () => false,
+    );
+  const eligible: string[] = [];
+  for (const path of paths)
+    if (tracked.has(path) || (!ignored.has(path) && (await present(path)))) eligible.push(path);
+  if (ignored.size)
+    warnings.push(
+      `${ignored.size} ignored file${ignored.size === 1 ? ' was' : 's were'} not staged`,
+    );
+  if (!eligible.length) return { warnings };
+  await runGit(root, [...commitConfig, 'add', '-A', '--', ...eligible]);
+  // A retry, or content that already matches HEAD, leaves nothing to commit.
+  const changed = await runGit(root, [
+    ...commitConfig,
+    'diff',
+    '--cached',
+    '--name-only',
+    '-z',
+    '--',
+    ...eligible,
+  ]);
+  if (!changed) return { warnings };
+  await runGit(root, [...commitConfig, 'commit', '--only', '-m', message, '--', ...eligible]);
+  return { warnings, commit: (await runGit(root, ['rev-parse', '--short', 'HEAD'])).trim() };
 }
