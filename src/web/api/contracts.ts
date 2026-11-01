@@ -360,6 +360,9 @@ export type ProfileListItem = {
   scope: ProfileScopeRef;
   ruleCount: number;
   exclusionCount: number;
+  /** Why this saved profile cannot be used any more; it still opens so it can be fixed. */
+  problem?: string;
+  extends?: string[];
 };
 export type LockedExclusion = { pattern: string; source: 'policy' | 'global' };
 export type ProfileDetail = {
@@ -369,6 +372,8 @@ export type ProfileDetail = {
   /** The stored document, validated by the server's profile schema. */
   document: unknown;
   hits: Record<string, number>;
+  /** Why this profile cannot be used, or why `hits` is incomplete. */
+  hitsError?: string;
   lockedExclusions: LockedExclusion[];
   usedBy: number;
 };
@@ -592,8 +597,14 @@ export type V2Api = {
   'GET /api/v2/profiles/:id': R<ProfileDetail, never, { repo?: string }>;
   'PUT /api/v2/profiles/:id': R<ProfileDetail, { revision: string; document: unknown }>;
   'DELETE /api/v2/profiles/:id': R<{ deleted: string }, { revision: string }>;
-  'POST /api/v2/profiles/validate': R<{ problems: ProfileProblem[] }, { document: unknown }>;
-  'POST /api/v2/profiles/test': R<ProfileTestResult, { document: unknown; text: string }>;
+  'POST /api/v2/profiles/validate': R<
+    { problems: ProfileProblem[] },
+    { document: unknown; scope?: ProfileScopeRef; id?: string }
+  >;
+  'POST /api/v2/profiles/test': R<
+    ProfileTestResult,
+    { document: unknown; text: string; scope?: ProfileScopeRef; id?: string }
+  >;
   'POST /api/v2/profiles/check': R<
     { profiles: number; rules: number },
     { id: string; scope: ProfileScopeRef }[]

@@ -99,8 +99,10 @@ function ProfileNav({ selected, repoIds }: { selected: string | undefined; repoI
                 <span class="pf-note">
                   {item.ruleCount} rule{item.ruleCount === 1 ? '' : 's'} · {item.exclusionCount}{' '}
                   exclusion{item.exclusionCount === 1 ? '' : 's'}
+                  {item.extends ? ` · extends ${item.extends.join(', ')}` : ''}
                   {edited && isDirty(edited) ? ' · unsaved' : ''}
                 </span>
+                {item.problem && <span class="pf-row-error">{item.problem}</span>}
               </span>
             </Row>
           );
@@ -139,7 +141,7 @@ export function ProfilesScreen({
   const draft = key ? drafts.value[key] : undefined;
   const doc = draft && docOf(draft);
   const repo = targetRepo(draft);
-  const problems = useProblems(draft?.text);
+  const problems = useProblems(draft?.text, draft);
   const errors = draft ? problems.filter(isError).length : 0;
   const [missing, setMissing] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -444,6 +446,7 @@ export function ProfilesScreen({
                   <ProfileForm
                     doc={doc}
                     hits={draft.hits}
+                    hitsError={draft.hitsError}
                     hitsIn={repoName(repo)}
                     locked={draft.locked}
                     problems={problems}
@@ -477,7 +480,7 @@ export function ProfilesScreen({
               </>
             ) : (
               <>
-                <Tester text={draft.text} />
+                <Tester text={draft.text} scope={draft.scope} id={draft.id} />
                 <Suggestions repo={repo} repoName={repoName(repo)} doc={doc} onAdd={addSuggested} />
                 <p class="pf-side pf-note">
                   Profile file is sealed at rest. Export writes plain JSON on purpose, with a

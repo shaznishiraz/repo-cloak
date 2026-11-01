@@ -8,6 +8,7 @@ export default {
     'new-cloak.e2e.ts',
     'push.e2e.ts',
     'profiles.e2e.ts',
+    'hardening-63-profiles.e2e.ts',
     'admin.e2e.ts',
     'integration.e2e.ts',
     '62-push.e2e.ts',

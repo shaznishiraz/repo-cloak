@@ -1,24 +1,23 @@
-import { lstat, readFile } from 'node:fs/promises';
-import { join } from 'node:path';
 import { z } from 'zod';
 import type { Dashboard } from '../../application/dashboard.js';
 import { hashJson } from '../../core/hash.js';
-import { compilePatterns } from '../../core/patterns.js';
-import type { SavedProfile } from '../../core/profiles.js';
+import type { ProfileScope, SavedProfile } from '../../core/profiles.js';
 import { createReplacer } from '../../core/replacer.js';
-import { validateProfile, validateRule } from '../../core/rules.js';
+import { mergeProfiles } from '../../core/merge.js';
+import { expandProfiles, extendsDirectly, rootProblem } from '../../core/profile-graph.js';
+import { unsafeRegex, validateProfile, validateRule } from '../../core/rules.js';
 import type { Rule } from '../../core/rules.js';
 import { documentKinds, documentSchema, jsonSchema, ruleSchema } from '../../core/schemas.js';
-import { entropy, secretDetectors } from '../../core/secrets.js';
+import { secretDetectors } from '../../core/secrets.js';
 import { ruleWarnings } from '../../core/variants.js';
 import type {
   LockedExclusion,
   ProfileDetail,
   ProfileListItem,
   ProfileProblem,
-  ProfileSuggestion,
 } from '../../web/api/contracts.js';
-import { runGit, runGitBytes } from '../git.js';
+import { contentPatterns, createRegexScan } from '../regex-worker.js';
+import { countHits, detectSecret, scanSuggestions } from './profile-scan.js';
 import { RequestError, route } from './router.js';
 import type { Route } from './router.js';
 
@@ -37,8 +36,13 @@ const revision = z.string().min(1).max(200);
 const createBody = z.strictObject({ scope: scopeSchema, document: z.unknown() });
 const updateBody = z.strictObject({ revision, document: z.unknown() });
 const deleteBody = z.strictObject({ revision });
-const validateBody = z.strictObject({ document: z.unknown() });
-const testBody = z.strictObject({ document: z.unknown(), text: z.string().max(64 * 1024) });
+const placement = { scope: scopeSchema.optional(), id: profileId.optional() };
+const validateBody = z.strictObject({ document: z.unknown(), ...placement });
+const testBody = z.strictObject({
+  document: z.unknown(),
+  text: z.string().max(64 * 1024),
+  ...placement,
+});
 const checkBody = z
   .array(z.strictObject({ id: profileId, scope: scopeSchema }))
   .min(1)
@@ -47,18 +51,6 @@ const checkBody = z
 export type ProblemView = ProfileProblem;
 const isError = (problem: ProblemView) => problem.severity !== 'warning';
 
-function detectSecret(text: string): string | undefined {
-  for (const detector of secretDetectors) {
-    const flags = detector.pattern.flags.includes('g')
-      ? detector.pattern.flags
-      : `${detector.pattern.flags}g`;
-    for (const match of text.matchAll(new RegExp(detector.pattern.source, flags))) {
-      const value = match.groups?.secret ?? match[0];
-      if (!detector.entropy || entropy(value) >= detector.entropy) return detector.name;
-    }
-  }
-  return undefined;
-}
 /** Messages can quote a pattern or an id, so a secret must never travel back inside one. */
 function scrub(message: string) {
   let result = message;
@@ -151,8 +143,18 @@ export function documentProblems(document: unknown): ProblemView[] {
     if (rule.type === 'regex') {
       const message = regexProblems(rule);
       if (message) problems.push({ path: `${path}.replace`, message });
+      const unsafe = unsafeRegex(rule);
+      if (unsafe) problems.push({ path: `${path}.match`, message: `Refused: ${unsafe}.` });
     }
   });
+  shape.data.allowRoots?.forEach((root, index) => {
+    const message = rootProblem(root);
+    if (message) problems.push({ path: `allowRoots.${index}`, message: scrub(message) });
+  });
+  if (shape.data.schemaVersion < 2)
+    for (const key of ['extends', 'allowRoots'] as const)
+      if (shape.data[key] !== undefined)
+        problems.push({ path: key, message: `${key} needs "schemaVersion": 2.` });
   if (!problems.some(isError)) {
     try {
       validateProfile(document);
@@ -205,182 +207,63 @@ function overlapWarnings(document: unknown, others: SavedProfile[]): ProblemView
   return problems;
 }
 
-function requireValid(document: unknown) {
+type Placement = { scope?: ProfileScope | undefined; id?: string | undefined };
+
+/** The document as a saved profile with its parents, resolved against what its scope can see. */
+async function chainOfDocument(dashboard: Dashboard, document: unknown, place: Placement) {
+  const scope = place.scope ?? { kind: 'global' };
+  const known = await dashboard.profiles(scope.kind === 'repo' ? scope.repoId : undefined);
+  const id = place.id ?? 'pf_unsaved';
+  const draft: SavedProfile = { id, scope, profile: documentSchema.profile.parse(document) };
+  const others = known.filter((saved) => !(saved.id === id && saved.scope.kind === scope.kind));
+  return expandProfiles([draft], [...others, draft]);
+}
+/** Parent problems: missing, ambiguous, cycle, depth, or a conflict with what it inherits. */
+async function graphProblems(
+  dashboard: Dashboard,
+  document: unknown,
+  place: Placement,
+): Promise<ProblemView[]> {
+  try {
+    mergeProfiles(await chainOfDocument(dashboard, document, place));
+    return [];
+  } catch (error) {
+    if (error instanceof z.ZodError) return [];
+    const message = error instanceof Error ? error.message : 'Invalid parents';
+    return [{ path: 'extends', message: scrub(message) }];
+  }
+}
+async function requireValid(dashboard: Dashboard, document: unknown, place: Placement) {
   const errors = documentProblems(document).filter(isError);
+  if (!errors.length) errors.push(...(await graphProblems(dashboard, document, place)));
   if (errors.length)
     throw new RequestError(
       400,
       errors.map((problem) => problem.message).join(' ') || 'Invalid profile',
     );
 }
-
-/* ---------- Scanning the registered source for hits and suggestions ---------- */
-const skipped = compilePatterns([
-  'node_modules/',
-  'dist/',
-  'build/',
-  'vendor/',
-  'package-lock.json',
-  'yarn.lock',
-  'pnpm-lock.yaml',
-  '*.min.js',
-  '*.map',
-]);
-const scanLimits = { files: 3000, fileBytes: 256 * 1024, totalBytes: 24 * 1024 * 1024 };
-
-/** Regular text files only. A tracked symlink could otherwise read outside the repository. */
-async function* scanFiles(root: string, excluded: (path: string) => boolean) {
-  const listing = await runGitBytes(root, [
-    'ls-files',
-    '-z',
-    '--cached',
-    '--others',
-    '--exclude-standard',
-  ]);
-  let files = 0;
-  let total = 0;
-  for (const path of listing.toString('utf8').split('\0')) {
-    if (!path || skipped(path) || excluded(path)) continue;
-    if (files >= scanLimits.files || total >= scanLimits.totalBytes) return;
-    const full = join(root, path);
-    const info = await lstat(full).catch(() => undefined);
-    if (!info?.isFile() || info.size > scanLimits.fileBytes) continue;
-    const bytes = await readFile(full).catch(() => undefined);
-    if (!bytes || bytes.includes(0)) continue;
-    files += 1;
-    total += bytes.length;
-    yield bytes.toString('utf8');
+/** Deleting or renaming a parent would break its children, so it names them instead. */
+async function requireNoChildren(dashboard: Dashboard, saved: SavedProfile, verb: string) {
+  const children = (await visibleProfiles(dashboard)).filter((other) =>
+    extendsDirectly(other, saved),
+  );
+  if (children.length)
+    throw new RequestError(
+      409,
+      `Cannot ${verb} ${saved.profile.name}: ${children.map((item) => item.profile.name).join(', ')} extend it.`,
+    );
+}
+/** Why a saved profile cannot be used any more. It stays listed so it can be fixed. */
+function savedProblem(saved: SavedProfile) {
+  try {
+    validateProfile(saved.profile);
+    return undefined;
+  } catch (error) {
+    return scrub(error instanceof Error ? error.message : 'Invalid profile').replace(
+      /^profile: /,
+      '',
+    );
   }
-}
-
-type Cached<T> = { at: number; value: T };
-const scanCache = new Map<string, Cached<unknown>>();
-async function cachedScan<T>(key: string, compute: () => Promise<T>): Promise<T> {
-  const found = scanCache.get(key);
-  if (found && Date.now() - found.at < 60_000) return found.value as T;
-  const value = await compute();
-  if (scanCache.size >= 32) scanCache.clear();
-  scanCache.set(key, { at: Date.now(), value });
-  return value;
-}
-async function headOf(root: string) {
-  return (await runGit(root, ['rev-parse', '--verify', '--quiet', 'HEAD']).catch(() => '')).trim();
-}
-async function repoPath(dashboard: Dashboard, id: string) {
-  const repo = (await dashboard.overview()).find((item) => item.id === id);
-  return repo && !repo.missing ? repo.path : undefined;
-}
-
-async function excludedBy(dashboard: Dashboard, id: string, profiles: SavedProfile[]) {
-  const [security, repo] = await Promise.all([
-    dashboard.settings.effective(),
-    dashboard.sync.exclusions(id),
-  ]);
-  return compilePatterns([
-    ...security.lockedExclusions,
-    ...repo.patterns,
-    ...profiles.flatMap((saved) => saved.profile.exclude ?? []),
-  ]);
-}
-
-/** Replacements per rule id across the repo's text files, as a pull would apply them. */
-async function countHits(dashboard: Dashboard, saved: SavedProfile, id: string) {
-  const root = await repoPath(dashboard, id);
-  if (!root) return {};
-  const key = `hits:${root}:${await headOf(root)}:${hashJson(saved.profile)}`;
-  return cachedScan(key, async () => {
-    const hits: Record<string, number> = {};
-    const replacer = createReplacer(saved.profile.rules);
-    for await (const text of scanFiles(root, await excludedBy(dashboard, id, [saved]))) {
-      try {
-        for (const match of replacer.anonymize(text).preview)
-          if (match.status === 'replaced') hits[match.ruleId] = (hits[match.ruleId] ?? 0) + 1;
-      } catch {
-        // A pull would stop on this file and report it. Hits are only an estimate.
-      }
-    }
-    return hits;
-  });
-}
-
-const commonHosts = new Set([
-  'github.com',
-  'gitlab.com',
-  'npmjs.com',
-  'www.npmjs.com',
-  'registry.npmjs.org',
-  'example.com',
-  'www.example.com',
-  'schema.org',
-  'www.w3.org',
-  'w3.org',
-  'nodejs.org',
-  'stackoverflow.com',
-  'google.com',
-  'www.google.com',
-  'microsoft.com',
-  'docs.microsoft.com',
-  'mozilla.org',
-  'developer.mozilla.org',
-  'opensource.org',
-  'json-schema.org',
-  'unpkg.com',
-]);
-const commonWords = new Set(
-  'abstract action api app application array async auth base buffer build builder button cache card channel class client code column command component config connection console container content context control controller core create custom data database date debug default delete detail dialog document dom error event exception factory field file filter form format function get group handler header helper home http id image index info input invalid item json key layout link list load local log logger login main manager map menu message method mock model module name node number object option order output page panel param parent password path plugin post project promise property provider public query read record request resource response result role root route router rule run save schema screen script search select send server service session set settings source state status store string style system tab table task test text theme time token tool type update url user util value view web window work write'
-    .split(' ')
-    .map((word) => word),
-);
-const commonAcronyms = new Set(
-  'API APIS CLI CPU CSS CSV DOM DTO EOF ESM FAQ GET GIF GPU GUI HEAD HTML HTTP HTTPS IDE JPEG JSON JWT LICENSE MIME MIT NOTE NPM OAUTH ORM PATCH PDF PNG POST PUT RAM README REST SDK SHA SQL SSH SSL SVG TCP TLS TODO FIXME TSX UDP UI URI URL USB UTC UTF UUID WARN XML YAML ZIP AND THE NOT FOR NULL TRUE FALSE'.split(
-    ' ',
-  ),
-);
-
-/** Names worth a rule: found by shape, ranked by hits, minus what rules already cover. */
-export function collectSuggestions(
-  texts: Iterable<string>,
-  covered: readonly string[],
-): ProfileSuggestion[] {
-  const hosts = new Map<string, number>();
-  const prefixes = new Map<string, { hits: number; tokens: Set<string> }>();
-  const acronyms = new Map<string, number>();
-  const add = (map: Map<string, number>, key: string) => map.set(key, (map.get(key) ?? 0) + 1);
-  for (const text of texts) {
-    for (const [host] of text.matchAll(
-      /\b(?:[a-z0-9][a-z0-9-]*\.)+(?:com|net|org|io|internal|local|corp|lan|cloud)\b/g,
-    ))
-      if (!commonHosts.has(host)) add(hosts, host);
-    for (const [host] of text.matchAll(/\b[a-z]{2,}-(?:prod|staging|dev|qa|uat)-[a-z0-9-]+\b/g))
-      add(hosts, host);
-    for (const [token, prefix = ''] of text.matchAll(/\b([A-Z][a-z]{2,})(?:[A-Z][a-z0-9]+)+\b/g)) {
-      if (commonWords.has(prefix.toLowerCase())) continue;
-      const entry = prefixes.get(prefix) ?? { hits: 0, tokens: new Set<string>() };
-      entry.hits += 1;
-      entry.tokens.add(token);
-      prefixes.set(prefix, entry);
-    }
-    for (const [word] of text.matchAll(/\b[A-Z]{3,6}\b/g))
-      if (!commonAcronyms.has(word)) add(acronyms, word);
-  }
-  const known = covered.map((name) => name.toLowerCase());
-  const isCovered = (text: string) => {
-    const lower = text.toLowerCase();
-    return known.some((name) => lower.includes(name) || name.includes(lower));
-  };
-  const suggestions: ProfileSuggestion[] = [
-    ...[...hosts].map(([text, hits]) => ({ text, reason: 'host', hits })),
-    ...[...prefixes]
-      .filter(([, entry]) => entry.tokens.size >= 2)
-      .map(([text, entry]) => ({ text, reason: 'PascalCase prefix', hits: entry.hits })),
-    ...[...acronyms]
-      .filter(([, hits]) => hits >= 3)
-      .map(([text, hits]) => ({ text, reason: 'business acronym', hits })),
-  ];
-  return suggestions
-    .filter((item) => !isCovered(item.text) && !detectSecret(item.text))
-    .sort((a, b) => b.hits - a.hits || a.text.localeCompare(b.text))
-    .slice(0, 8);
 }
 
 /* ---------- Lookups ---------- */
@@ -401,7 +284,10 @@ async function locate(dashboard: Dashboard, id: string, repo?: string) {
 }
 
 function listItem(saved: SavedProfile): ProfileListItem {
+  const problem = savedProblem(saved);
   return {
+    ...(problem ? { problem } : {}),
+    ...(saved.profile.extends?.length ? { extends: saved.profile.extends } : {}),
     id: saved.id,
     name: saved.profile.name,
     scope: saved.scope,
@@ -431,12 +317,15 @@ async function detail(
 ): Promise<ProfileDetailView> {
   const target = repo ?? (saved.scope.kind === 'repo' ? saved.scope.repoId : undefined);
   const repos = await dashboard.overview();
+  const scan = target ? await countHits(dashboard, saved, target) : { hits: {} };
+  const hitsError = savedProblem(saved) ?? (scan.error && scrub(scan.error));
   return {
     id: saved.id,
     scope: saved.scope,
     revision: hashJson(saved.profile),
     document: saved.profile,
-    hits: target ? await countHits(dashboard, saved, target) : {},
+    hits: scan.hits,
+    ...(hitsError ? { hitsError } : {}),
     lockedExclusions: await lockedExclusions(dashboard, target),
     usedBy: repos
       .filter((item) => saved.scope.kind === 'global' || item.id === saved.scope.repoId)
@@ -468,7 +357,7 @@ export const profilesRoutes: Route[] = [
   }),
   route('POST /api/v2/profiles', async ({ dashboard, body }) => {
     const input = createBody.parse(await body());
-    requireValid(input.document);
+    await requireValid(dashboard, input.document, { scope: input.scope });
     const saved = await serial(() =>
       dashboard.saveProfile({ scope: input.scope, profile: input.document }),
     );
@@ -479,35 +368,34 @@ export const profilesRoutes: Route[] = [
   route('GET /api/v2/profiles/suggestions', async ({ dashboard, query }) => {
     const { repo } = requiredRepoQuery.parse(Object.fromEntries(query));
     const profiles = await dashboard.profiles(repo);
-    const root = await repoPath(dashboard, repo);
-    if (!root) return { suggestions: [] };
     const covered = profiles.flatMap((saved) =>
       saved.profile.rules.flatMap((rule) =>
         rule.type === 'literal' ? [rule.match, rule.replace] : [],
       ),
     );
-    const key = `suggest:${root}:${await headOf(root)}:${hashJson(covered)}`;
-    const suggestions = await cachedScan(key, async () => {
-      const texts: string[] = [];
-      for await (const text of scanFiles(root, await excludedBy(dashboard, repo, [])))
-        texts.push(text);
-      return collectSuggestions(texts, covered);
-    });
-    return { suggestions };
+    return { suggestions: await scanSuggestions(dashboard, repo, covered) };
   }),
   route('POST /api/v2/profiles/validate', async ({ dashboard, body }) => {
-    const { document } = validateBody.parse(await body());
+    const { document, ...place } = validateBody.parse(await body());
     const problems = documentProblems(document);
     if (problems.some(isError)) return { problems };
+    const graph = await graphProblems(dashboard, document, place);
+    if (graph.length) return { problems: graph };
     return { problems: overlapWarnings(document, await visibleProfiles(dashboard)) };
   }),
-  route('POST /api/v2/profiles/test', async ({ body }) => {
-    const { document, text } = testBody.parse(await body());
+  route('POST /api/v2/profiles/test', async ({ dashboard, body }) => {
+    const { document, text, ...place } = testBody.parse(await body());
     const errors = documentProblems(document).filter(isError);
+    if (!errors.length) errors.push(...(await graphProblems(dashboard, document, place)));
     if (errors.length) return { cloaked: '', restored: '', roundTrips: false, problems: errors };
-    const rules = (document as { rules: unknown[] }).rules.map((rule) => ruleSchema.parse(rule));
+    const rules = (document as { extends?: unknown[] }).extends?.length
+      ? mergeProfiles(await chainOfDocument(dashboard, document, place))
+      : (document as { rules: unknown[] }).rules.map((rule) => ruleSchema.parse(rule));
+    const patterns = contentPatterns(rules);
+    const scan = patterns.length ? createRegexScan(patterns) : undefined;
     try {
-      const replacer = createReplacer(rules);
+      await scan?.prepare(text);
+      const replacer = createReplacer(rules, scan?.engine);
       const { text: cloaked, ledger } = replacer.anonymize(text);
       const restored = replacer.restore(cloaked, ledger).text;
       return { cloaked, restored, roundTrips: restored === text, problems: [] };
@@ -520,6 +408,8 @@ export const profilesRoutes: Route[] = [
           { path: '', message: scrub(error instanceof Error ? error.message : 'Test failed') },
         ],
       };
+    } finally {
+      scan?.close();
     }
   }),
   route('POST /api/v2/profiles/check', async ({ dashboard, body }) =>
@@ -539,10 +429,12 @@ export const profilesRoutes: Route[] = [
   route('PUT /api/v2/profiles/:id', async ({ dashboard, params, body }) => {
     const id = profileId.parse(params.id);
     const input = updateBody.parse(await body());
-    requireValid(input.document);
     const saved = await serial(async () => {
       const current = await locate(dashboard, id);
+      await requireValid(dashboard, input.document, { scope: current.scope, id });
       requireRevision(current, input.revision);
+      const { name } = documentSchema.profile.parse(input.document);
+      if (name !== current.profile.name) await requireNoChildren(dashboard, current, 'rename');
       return dashboard.saveProfile({ id, scope: current.scope, profile: input.document });
     });
     await recordSave(dashboard, 'Saved profile', saved.id);
@@ -554,6 +446,7 @@ export const profilesRoutes: Route[] = [
     const deleted = await serial(async () => {
       const current = await locate(dashboard, id);
       requireRevision(current, input.revision);
+      await requireNoChildren(dashboard, current, 'delete');
       return dashboard.deleteProfile({ id, scope: current.scope });
     });
     await recordSave(dashboard, 'Deleted profile', id);

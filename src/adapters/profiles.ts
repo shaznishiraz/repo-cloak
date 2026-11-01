@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { lock } from 'proper-lockfile';
 import type { ProfileScope, SavedProfile } from '../core/profiles.js';
 import { scopeName } from '../core/profiles.js';
-import { validateProfile } from '../core/rules.js';
+import { readProfile, validateProfile } from '../core/rules.js';
 import type { Profile } from '../core/rules.js';
 import type { createStore } from './store.js';
 
@@ -34,7 +34,7 @@ export function createProfileStore(store: ReturnType<typeof createStore>): Profi
       profiles.push({
         id,
         scope,
-        profile: validateProfile(await store.readSealed(path, 'profile'), path),
+        profile: readProfile(await store.readSealed(path, 'profile'), path),
       });
     }
     return profiles.sort((a, b) => a.profile.name.localeCompare(b.profile.name));

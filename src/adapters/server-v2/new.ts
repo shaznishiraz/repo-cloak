@@ -2,10 +2,12 @@ import { basename, join, resolve } from 'node:path';
 import pLimit from 'p-limit';
 import { z } from 'zod';
 import type { Dashboard } from '../../application/dashboard.js';
+import { firstRunPresets } from '../../core/exclusion-presets.js';
 import { mergeProfiles } from '../../core/merge.js';
 import type { PreviewMatch } from '../../core/ledger.js';
 import { anonymizePaths, validateRelativePath } from '../../core/paths.js';
 import { compilePatterns } from '../../core/patterns.js';
+import { assertWithinRoots, expandProfiles, isAllowedPath } from '../../core/profile-graph.js';
 import { createReplacer } from '../../core/replacer.js';
 import type { Profile, Rule } from '../../core/rules.js';
 import { documentSchema } from '../../core/schemas.js';
@@ -83,20 +85,7 @@ type Selection = z.infer<typeof selectionSchema>;
  * profile and repository exclusions. It is added to every new cloak, whichever chips are on.
  */
 const neverPullName = 'Never pull';
-const presets = [
-  {
-    id: 'schemas',
-    name: 'Schemas & migrations',
-    patterns: ['*.schema.json', '*.sql', 'migrations/', '*DbContext.cs'],
-  },
-  {
-    id: 'lockfiles',
-    name: 'Lockfiles',
-    patterns: ['package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'Cargo.lock', 'poetry.lock'],
-  },
-  { id: 'env', name: 'Env files', patterns: ['.env', '.env.*'] },
-  { id: 'keys', name: 'Keys & certificates', patterns: ['*.pem', '*.key', '*.p12', '*.pfx'] },
-];
+const presets = firstRunPresets;
 const presetIds = presets.map((preset) => preset.id) as [string, ...string[]];
 const setupSchema = z
   .object({
@@ -145,7 +134,10 @@ function exclusionRules(paths: string[], profiles: Profile[], repoExcludes: stri
     ...new Set([...profiles.flatMap((profile) => profile.exclude ?? []), ...repoExcludes]),
   ].map((pattern) => ({ pattern, matches: compilePatterns([pattern]) }));
   return (path: string): string | null =>
-    kept.has(path) ? null : (named.find((rule) => rule.matches(path))?.pattern ?? 'global');
+    kept.has(path)
+      ? null
+      : (named.find((rule) => rule.matches(path))?.pattern ??
+        (isAllowedPath(path, profiles) ? 'global' : 'allowRoots'));
 }
 
 async function workingChanges(root: string): Promise<Omit<UncommittedFile, 'excluded'>[]> {
@@ -328,12 +320,13 @@ async function selectedProfiles(dashboard: Dashboard, input: Selection) {
     if (!found) throw new OperationError('validation', 'Profile no longer exists');
     return found;
   });
+  const expanded = expandProfiles(selected, available);
   const neverPull = available.find(
     (saved) =>
       isNeverPull(saved.profile) &&
-      !selected.some((item) => item.id === saved.id && item.scope.kind === saved.scope.kind),
+      !expanded.some((item) => item.id === saved.id && item.scope.kind === saved.scope.kind),
   );
-  return { chosen: selected, all: neverPull ? [...selected, neverPull] : selected };
+  return { chosen: selected, all: neverPull ? [...expanded, neverPull] : expanded };
 }
 
 /** Resolves the three sources into one deduplicated list, keeping out what the rules hold back. */
@@ -392,6 +385,7 @@ async function reviewSelection(dashboard: Dashboard, input: Selection): Promise<
   const rules = mergeProfiles(selection.all);
   const replacer = createReplacer(rules);
   const { files } = await readSourceFiles(selection.root, selection.kept, 16);
+  assertWithinRoots(files, selection.all);
   const present = files.filter((file) => file.bytes);
   const mapped = anonymizePaths(
     present.map((file) => file.path),

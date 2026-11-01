@@ -1,4 +1,5 @@
 import { compileVariants } from './variants.js';
+import { expandProfiles } from './profile-graph.js';
 import { scopeName } from './profiles.js';
 import type { SavedProfile } from './profiles.js';
 import { ruleKey, validateProfile } from './rules.js';
@@ -7,6 +8,8 @@ import type { Rule } from './rules.js';
 type RuleSource = { rule: Rule; label: string };
 
 export function mergeProfiles(profiles: SavedProfile[]): Rule[] {
+  // A parent missing from the list must fail, or its rules would quietly not apply.
+  expandProfiles(profiles, profiles);
   const selected = new Set<string>();
   const labels = new Map<Rule, string>();
   const rules = new Map<string, Rule>();

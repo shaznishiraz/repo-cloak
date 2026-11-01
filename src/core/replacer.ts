@@ -4,6 +4,8 @@ import { findDynamicMatches } from './dynamic.js';
 import { addToLedger, secretPlaceholder, validateLedger } from './ledger.js';
 import type { Ledger, PreviewMatch, Replacement, TextContext } from './ledger.js';
 import { createMatcher, selectMatches } from './matcher.js';
+import { currentRegexEngine } from './regex-engine.js';
+import type { RegexEngine } from './regex-engine.js';
 import { applyMatches, maskSecretPreview, previewMatch } from './replacement.js';
 import { restoreText } from './restore.js';
 import { validateRule } from './rules.js';
@@ -13,9 +15,14 @@ import { createLocator } from './text.js';
 import { ruleWarnings } from './variants.js';
 
 const defaultContext: TextContext = { file: 'input', scope: 'content' };
-export function createReplacer(input: Rule[]) {
+/**
+ * Deliberately no regex safety check: restoring runs no user regex and a sealed manifest must
+ * keep restoring. Anonymizing is bounded by the engine; `validateProfile` guards new selections.
+ */
+export function createReplacer(input: Rule[], engine: RegexEngine = currentRegexEngine()) {
   const rules = input.map((rule) => ruleSchema.parse(rule));
   for (const rule of rules) validateRule(rule);
+  const run = engine();
   const scopes = { content: compileScope(rules, 'content'), paths: compileScope(rules, 'paths') };
 
   function restore(text: string, ledger: Ledger, context: TextContext = defaultContext) {
@@ -76,6 +83,7 @@ export function createReplacer(input: Rule[]) {
       literalMatches.accepted,
       context,
       locate,
+      run,
     );
     preview.push(...dynamicMatches.preview);
     const accepted = [...literalMatches.accepted, ...dynamicMatches.accepted].sort(

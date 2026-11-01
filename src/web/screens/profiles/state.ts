@@ -23,6 +23,7 @@ export type Draft = {
   savedText: string;
   text: string;
   hits: Record<string, number>;
+  hitsError?: string;
   locked: LockedExclusion[];
   usedBy: number;
   stale: boolean;
@@ -109,6 +110,7 @@ function fromDetail(detail: ProfileDetail, previous?: Draft): Draft {
     savedText: keep ? previous.savedText : savedText,
     text: keep ? previous.text : savedText,
     hits: detail.hits,
+    ...(detail.hitsError ? { hitsError: detail.hitsError } : {}),
     locked: detail.lockedExclusions,
     usedBy: detail.usedBy,
     stale: false,

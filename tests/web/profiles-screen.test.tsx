@@ -141,6 +141,38 @@ it('lists profiles with scope and counts, and shows presets', async () => {
   expect(nav?.textContent).toContain('Lockfiles');
 });
 
+it('shows why a saved profile cannot be used, its parents and its roots', async () => {
+  routes['GET /api/v2/profiles'] = () => ({
+    json: {
+      profiles: [
+        {
+          id: 'pf_a',
+          name: 'contoso',
+          scope: { kind: 'global' },
+          ruleCount: 2,
+          exclusionCount: 1,
+          problem: 'contoso/bad: unsafe regex: an unbounded quantifier is nested in another',
+          extends: ['base'],
+        },
+      ],
+    },
+  });
+  routes['GET /api/v2/profiles/pf_a'] = () => ({
+    json: {
+      ...detail({ ...docA, schemaVersion: 2, extends: ['base'], allowRoots: ['src/'] }),
+      hitsError: 'Hits are incomplete: regex did not finish within 2s',
+    },
+  });
+  await show('pf_a');
+  const nav = root.querySelector('nav[aria-label="Profiles"]');
+  expect(nav?.textContent).toContain('extends base');
+  expect(nav?.querySelector('.pf-row-error')?.textContent).toContain('unsafe regex');
+  const panels = root.querySelector('.pf-panels');
+  expect(panels?.textContent).toContain('Hits are incomplete');
+  expect(panels?.textContent).toContain('Extends base.');
+  expect(panels?.textContent).toContain('Files only from src/');
+});
+
 it('shows the rules table with type, find, replace, case and hits', async () => {
   await show();
   const table = root.querySelector('[role="table"]');

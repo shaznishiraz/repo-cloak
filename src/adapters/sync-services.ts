@@ -10,8 +10,11 @@ import { createSyncStore } from './sync-store.js';
 import { createWorkspaceWriter } from './workspace.js';
 import { createSourceWriter } from './source-writer.js';
 import { createAgentStore } from './agent-store.js';
+import { installRegexWorker } from './regex-worker.js';
 
 export function createSyncServices(cwd = process.cwd(), store = createStore()) {
+  // Every production path reaches a replacer through these services.
+  installRegexWorker();
   return {
     cwd: resolve(cwd),
     agentAccess: createAgentStore(store),

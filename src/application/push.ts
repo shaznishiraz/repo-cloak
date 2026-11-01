@@ -71,7 +71,7 @@ export async function preparePushRun(
     ).filter((profile) => profile !== undefined);
   const selectedProfiles = await eligibilityProfiles();
   const eligibility = (profiles: typeof selectedProfiles) =>
-    profiles.map(({ include, exclude }) => ({ include, exclude }));
+    profiles.map(({ include, exclude, allowRoots }) => ({ include, exclude, allowRoots }));
   const profileEligibilityHash = hashJson(eligibility(selectedProfiles));
   const isRepoExcluded = compilePatterns([
     ...(repoRecord?.exclude ?? []),

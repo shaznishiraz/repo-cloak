@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'preact/hooks';
+import type { ProfileScopeRef } from '../../api/contracts.js';
 import { api } from '../../shell/load.js';
 import { lineOfPath, parseProblem } from './document.js';
 import type { Problem } from './state.js';
@@ -7,7 +8,11 @@ export type LocatedProblem = Problem & { line?: number };
 export const isError = (problem: Problem) => problem.severity !== 'warning';
 
 /** Parse errors at once; everything else from the server, debounced while typing. */
-export function useProblems(text: string | undefined, delayMs = 250) {
+export function useProblems(
+  text: string | undefined,
+  place: { scope: ProfileScopeRef; id: string | null } | undefined,
+  delayMs = 250,
+) {
   const [problems, setProblems] = useState<LocatedProblem[]>([]);
   useEffect(() => {
     if (text === undefined) {
@@ -24,7 +29,11 @@ export function useProblems(text: string | undefined, delayMs = 250) {
       void (async () => {
         try {
           const result = await api().call('POST /api/v2/profiles/validate', {
-            body: { document: JSON.parse(text) as unknown },
+            body: {
+              document: JSON.parse(text) as unknown,
+              ...(place ? { scope: place.scope } : {}),
+              ...(place?.id ? { id: place.id } : {}),
+            },
           });
           if (!live) return;
           setProblems(

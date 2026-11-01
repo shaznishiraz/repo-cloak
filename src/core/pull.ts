@@ -6,6 +6,7 @@ import type { ManifestData, PlainManifest, Snapshot } from './manifest.js';
 import { mergeProfiles } from './merge.js';
 import { anonymizePaths, checkPathCollisions } from './paths.js';
 import type { SavedProfile } from './profiles.js';
+import { assertWithinRoots } from './profile-graph.js';
 import { createReplacer } from './replacer.js';
 import {
   instructionFiles,
@@ -16,6 +17,8 @@ import {
 
 export type SourceFile = {
   path: string;
+  /** Where the path really leads, when a symlink takes it somewhere else in the repository. */
+  realPath?: string;
   bytes?: Uint8Array;
   text?: string;
   binary: boolean;
@@ -51,6 +54,7 @@ export function pullTargetPaths(
   profiles: SavedProfile[],
   previous?: Snapshot,
 ): string[] {
+  assertWithinRoots(files, profiles);
   const replacer = createReplacer(mergeProfiles(profiles));
   const ledger = changedProfiles(profiles, previous).length ? [] : (previous?.data.ledger ?? []);
   return anonymizePaths(
@@ -62,6 +66,7 @@ export function pullTargetPaths(
 
 export function planPull(input: PullInput) {
   const { previous, repo } = input;
+  assertWithinRoots(input.files, input.profiles);
   const profileChanges = changedProfiles(input.profiles, previous);
   const workspaceChanged = (path: string) => {
     const bytes = input.workspace[path];

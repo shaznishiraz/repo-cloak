@@ -135,6 +135,7 @@ async function fixture() {
   }
   return {
     root,
+    store,
     source,
     git,
     commit,
@@ -336,6 +337,59 @@ it('reviews files, lines, held-back rules, hits, path preview and the CLI line',
     cloaked: 'src/Acme/Service.ts',
   });
   expect(review.cli).toBe('repo-cloak pull --working --paths src,db -p contoso');
+});
+
+it('holds back files outside allowRoots, naming that as the reason', async () => {
+  const { call, selection, dashboard } = await fixture();
+  const scoped = await dashboard.saveProfile({
+    scope: { kind: 'global' },
+    profile: { kind: 'profile', schemaVersion: 2, name: 'scoped', rules: [], allowRoots: ['db/'] },
+  });
+  const review = await call<NewCloakReview>(
+    '/api/v2/new/review',
+    'POST',
+    selection({
+      paths: ['src/Contoso/Service.ts'],
+      profiles: [{ id: scoped.id, scope: { kind: 'global' } }],
+    }),
+  );
+  expect(review.files).toBe(0);
+  expect(review.heldBack).toEqual([{ path: 'src/Contoso/Service.ts', rule: 'allowRoots' }]);
+});
+
+it('selecting a child also selects its parent, in rules and exclusions', async () => {
+  const { call, selection, dashboard } = await fixture();
+  const child = await dashboard.saveProfile({
+    scope: { kind: 'global' },
+    profile: { kind: 'profile', schemaVersion: 2, name: 'child', rules: [], extends: ['contoso'] },
+  });
+  const review = await call<NewCloakReview>(
+    '/api/v2/new/review',
+    'POST',
+    selection({
+      paths: ['src', 'db'],
+      profiles: [{ id: child.id, scope: { kind: 'global' } }],
+    }),
+  );
+  expect(review.heldBack).toContainEqual({ path: 'db/ContosoDbContext.cs', rule: '*DbContext.cs' });
+  expect(review.replacements[0]).toMatchObject({ find: 'Contoso', replace: 'Acme' });
+});
+
+it('a review names a saved profile whose regex is now refused', async () => {
+  const { raw, selection, store } = await fixture();
+  await store.writeSealed('profiles/pf_old.json', 'pf_old', 'profile', {
+    kind: 'profile',
+    schemaVersion: 1,
+    name: 'old',
+    rules: [{ id: 'evil', type: 'regex', match: '(a+)+$', replace: 'x$&' }],
+  });
+  const response = await raw(
+    '/api/v2/new/review',
+    'POST',
+    selection({ profiles: [{ id: 'pf_old', scope: { kind: 'global' } }] }),
+  );
+  expect(response.status).toBe(400);
+  expect(((await response.json()) as { error: string }).error).toMatch(/old\/evil: unsafe regex/);
 });
 
 it('merges and dedupes the three sources', async () => {
