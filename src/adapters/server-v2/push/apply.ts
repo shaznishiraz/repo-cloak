@@ -6,8 +6,10 @@ import { exists } from '../../files.js';
 import { runGit } from '../../git.js';
 import { OperationError } from '../../ui-operations.js';
 import type { PreparedOperation, SyncResult } from '../../ui-operations.js';
-import { commonDirOf, readBackups, saveBackup } from './backups.js';
+import { commonDirOf, createBackupSession, journalIds, readBackups } from './backups.js';
+import type { BackupSession } from './backups.js';
 import type { Inspection } from './inspect.js';
+import { noticesFor, pushedTo } from './state.js';
 import type { Options, Pending } from './state.js';
 
 function describeError(error: unknown) {
@@ -59,18 +61,26 @@ export function chooseReviewed(
   paths: string[] | undefined,
 ): PreparedOperation {
   if (!reviewed.select) throw new Error('This operation cannot be narrowed');
-  const { merges, options } = pending;
+  const { merges, options, repoId, workspaceId, workspace, isNewTree } = pending;
   const landing = new Set(paths?.map((path) => pending.files.get(path)));
   const selected = (path: string) => !paths || landing.has(path);
   const merged = new Map<string, Uint8Array>();
   if (options.mergeMode === 'merge')
     for (const [path, bytes] of merges) if (bytes && selected(path)) merged.set(path, bytes);
-  const chosen = reviewed.select({ paths, merged });
+  const session = createBackupSession(dashboard, {
+    repoId,
+    workspaceId,
+    workspace,
+    root: reviewed.summary.destination.path,
+    newTree: isNewTree,
+    mode: options.mode,
+  });
+  const chosen = reviewed.select({ paths, merged, beforeWrite: session.begin });
   const forced = options.mergeMode === 'overwrite' && [...merges.keys()].some(selected);
   return {
     ...chosen,
     summary: { ...chosen.summary, forced },
-    apply: () => runPush(dashboard, pending.workspace, pending, chosen, pending.isNewTree, merged),
+    apply: () => runPush(dashboard, workspace, pending, chosen, session, merged),
   };
 }
 async function runPush(
@@ -78,7 +88,7 @@ async function runPush(
   workspace: string,
   pending: Pick<Pending, 'repoId' | 'workspaceId' | 'options'>,
   prepared: PreparedOperation,
-  isNewTree: boolean,
+  session: BackupSession,
   merged: ReadonlyMap<string, Uint8Array>,
 ): Promise<SyncResult> {
   const { repoId, workspaceId, options } = pending;
@@ -86,17 +96,18 @@ async function runPush(
   const root = summary.destination.path;
   const commonDir = await commonDirOf(dashboard, repoId);
   const touched = [...new Set([...summary.writes, ...summary.deletes])];
-  const vault = await dashboard.sync.vault();
-  await readBackups(vault, commonDir, workspaceId);
-  const backup =
-    isNewTree || !touched.length
-      ? undefined
-      : await saveBackup(vault, commonDir, workspaceId, workspace, root, touched);
+  await readBackups(await dashboard.sync.vault(), commonDir, workspaceId);
+  if ((await journalIds(commonDir, workspaceId)).length)
+    throw new OperationError(
+      'conflict',
+      'An earlier push was interrupted and has not been recovered yet. Review this push again.',
+    );
   let result: SyncResult;
   try {
     result = await prepared.apply();
   } catch (error) {
-    await backup?.discard();
+    // A journal it cannot settle stays on disk, so the next run decides.
+    await session.settle().catch(() => {});
     throw error;
   }
   const warnings = [...result.warnings];
@@ -141,7 +152,14 @@ async function runPush(
       warnings.push(`Files were written, but the re-pull failed: ${describeError(error)}`);
     }
   }
-  await backup?.finish();
+  try {
+    await session.finish();
+  } catch (error) {
+    // The journal is still there, so the next review finishes this and offers undo.
+    warnings.push(`Undo is not available yet: ${describeError(error)}`);
+  }
+  noticesFor(dashboard).delete(workspaceId);
+  pushedTo(dashboard).set(workspaceId, root);
   if (options.includeGroupMembers)
     warnings.push(...(await pushMembers(dashboard, repoId, workspaceId, options)));
   return { ...result, warnings };
@@ -192,6 +210,14 @@ async function pushMembers(
               { file: 'commit message', scope: 'content' },
             ).text;
       if (!prepared.select) throw new Error('This operation cannot be narrowed');
+      const session = createBackupSession(dashboard, {
+        repoId: member.repoId,
+        workspaceId: member.workspaceId,
+        workspace: target.path,
+        root: summary.destination.path,
+        newTree: false,
+        mode: options.mode,
+      });
       await runPush(
         dashboard,
         target.path,
@@ -200,8 +226,8 @@ async function pushMembers(
           workspaceId: member.workspaceId,
           options: { ...options, message, includeGroupMembers: false },
         },
-        prepared.select({}),
-        false,
+        prepared.select({ beforeWrite: session.begin }),
+        session,
         new Map(),
       );
       notes.push(`${name}: ${summary.writes.length} files pushed`);

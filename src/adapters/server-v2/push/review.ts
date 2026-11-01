@@ -19,6 +19,7 @@ import { diffLines, linesOf, wordAround } from './diff.js';
 import { baselineOf, inspect, readOne } from './inspect.js';
 import type { Baseline, Inspection, RestoredFile } from './inspect.js';
 import { planMerges } from './merge.js';
+import { recoverInterrupted } from './recovery.js';
 import { defaultOptions, pendingFor } from './state.js';
 import type { Pending } from './state.js';
 
@@ -117,6 +118,7 @@ export async function review(
   workspaceId: string,
   target: PushTarget,
 ): Promise<PushReview> {
+  const recovery = await recoverInterrupted(dashboard, repoId, workspaceId);
   const inspection = await inspect(dashboard, repoId, workspaceId);
   const { snapshot, problems } = inspection;
   const baselines = new Map<string, Baseline | undefined>();
@@ -162,6 +164,7 @@ export async function review(
         leaks[0]?.message ??
         `${terms.slice(0, 2).join(' / ') || 'all rules'}: 0 hits after restore`,
     },
+    ...recovery,
   ];
   const finish = (
     files: PushFile[],
@@ -291,7 +294,9 @@ export async function review(
   ))
     checks.push({ id: `warning:${checks.length}`, state: 'warning', title: warning });
   const readOnly = target.kind === 'dry-run' || target.kind === 'patch';
-  if (readOnly || !files.length) return finish(files, null, false);
+  // Writing is refused while an earlier push is still unaccounted for.
+  if (readOnly || !files.length || recovery.some((check) => check.state === 'blocked'))
+    return finish(files, null, false);
 
   const pending: Pending = {
     repoId,

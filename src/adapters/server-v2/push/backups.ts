@@ -5,6 +5,7 @@ import { lock } from 'proper-lockfile';
 import { z } from 'zod';
 import { hashBytes, hashJson } from '../../../core/hash.js';
 import { validateRelativePath } from '../../../core/paths.js';
+import { classifyInterrupted } from '../../../core/push-recovery.js';
 import type { Dashboard } from '../../../application/dashboard.js';
 import { writeAtomic } from '../../atomic.js';
 import {
@@ -15,7 +16,9 @@ import {
 } from '../../files.js';
 import { resolveRepo } from '../../git.js';
 import { OperationError } from '../../ui-operations.js';
+import type { PushSelection } from '../../ui-operations.js';
 import { RequestError } from '../router.js';
+import { forgetPush, noticesFor } from './state.js';
 
 const dayMs = 24 * 60 * 60 * 1000;
 const backupDays = 7;
@@ -39,9 +42,39 @@ const backupIndexSchema = z.object({
         .nullable(),
       mode: z.number().int().nullable(),
       after: z.string().nullable(),
+      /** Absent on a backup from before sealing. */
+      before: z.string().nullable().optional(),
+    }),
+  ),
+  manifestBefore: z.string().optional(),
+});
+const journalSchema = z.object({
+  id: backupIdSchema,
+  repoId: z.string().min(1),
+  workspaceId: z.string().min(1),
+  workspace: z.string().min(1),
+  root: z.string().min(1),
+  createdAt: z.string(),
+  mode: z.enum(['write', 'stage', 'commit']),
+  newTree: z.boolean(),
+  manifestBefore: z.string(),
+  manifestAfter: z.string(),
+  /** Workspace paths the commit would stage; a crash can leave them in its index. */
+  checkpoint: z.array(z.string()),
+  files: z.array(
+    z.object({
+      path: z.string().min(1),
+      blob: z
+        .string()
+        .regex(/^f\d+$/)
+        .nullable(),
+      mode: z.number().int().nullable(),
+      before: z.string().nullable(),
+      after: z.string().nullable(),
     }),
   ),
 });
+export type Journal = z.infer<typeof journalSchema>;
 export type BackupIndex = z.infer<typeof backupIndexSchema>;
 export type Vault = Awaited<ReturnType<Dashboard['sync']['vault']>>;
 
@@ -111,65 +144,164 @@ export async function commonDirOf(dashboard: Dashboard, repoId: string) {
 export function backupRoot(commonDir: string, workspaceId: string) {
   return { base: commonDir, relative: `repo-cloak-backups/${hashJson(workspaceId).slice(7, 39)}` };
 }
-export async function saveBackup(
-  vault: Vault,
-  commonDir: string,
-  workspaceId: string,
-  workspace: string,
-  root: string,
-  paths: string[],
-) {
+export type BackupContext = {
+  repoId: string;
+  workspaceId: string;
+  workspace: string;
+  root: string;
+  newTree: boolean;
+  mode: Journal['mode'];
+};
+type Changes = Parameters<NonNullable<PushSelection['beforeWrite']>>[1];
+
+/**
+ * One push's backup and write-ahead journal. `begin` runs under the writer's locks just before the
+ * first file changes; the journal is written last, so one on disk has everything recovery needs.
+ */
+export function createBackupSession(dashboard: Dashboard, context: BackupContext) {
   const id = randomUUID();
-  const { base, relative } = backupRoot(commonDir, workspaceId);
-  const directory = join(base, relative, id);
-  await checkDestinationPath(base, `${relative}/${id}`);
-  const entries: { path: string; blob: string | null; mode: number | null }[] = [];
-  for (const [index, path] of paths.entries()) {
-    await checkSourceDestination(root, path);
-    const target = join(root, ...path.split('/'));
-    if (await exists(target)) {
-      const blob = `f${index}`;
-      await writePart(vault, directory, id, blob, encodeBytes(await readFile(target)));
-      entries.push({ path, blob, mode: (await lstat(target)).mode & 0o777 });
-    } else entries.push({ path, blob: null, mode: null });
-  }
-  await checkDestinationPath(workspace, '.repo-cloak/manifest.json');
-  await writePart(
-    vault,
-    directory,
-    id,
-    'manifest',
-    openManifest(vault, await readFile(join(workspace, '.repo-cloak', 'manifest.json'))),
-  );
+  let journal: Journal | undefined;
+  const placeOf = async () => {
+    const commonDir = await commonDirOf(dashboard, context.repoId);
+    const { base, relative } = backupRoot(commonDir, context.workspaceId);
+    return { base, relative, directory: join(base, relative, id) };
+  };
+  const discard = async () => rm((await placeOf()).directory, { recursive: true, force: true });
   return {
-    discard: () => rm(directory, { recursive: true, force: true }),
-    /** Written last: a backup without an index was never finished and cannot be undone. */
-    async finish() {
-      const createdAt = new Date();
-      const files = await Promise.all(
-        entries.map(async (entry) => {
-          const target = join(root, ...entry.path.split('/'));
-          return {
-            ...entry,
-            after: (await exists(target)) ? hashBytes(await readFile(target)) : null,
-          };
-        }),
-      );
-      const index: BackupIndex = {
+    id,
+    discard,
+    async begin(manifest: Uint8Array, changes: Changes) {
+      const vault = await dashboard.sync.vault();
+      const { base, relative, directory } = await placeOf();
+      await checkDestinationPath(base, `${relative}/${id}`);
+      const after = new Map<string, string | null>(changes.deletes.map((path) => [path, null]));
+      for (const file of changes.writes) after.set(file.path, hashBytes(file.bytes));
+      const files: Journal['files'] = [];
+      for (const [index, [path, hash]] of [...after].entries()) {
+        const target = join(context.root, ...path.split('/'));
+        if (!context.newTree) await checkSourceDestination(context.root, path);
+        if (!context.newTree && (await exists(target))) {
+          const bytes = await readFile(target);
+          await writePart(vault, directory, id, `f${index}`, encodeBytes(bytes));
+          files.push({
+            path,
+            blob: `f${index}`,
+            mode: (await lstat(target)).mode & 0o777,
+            before: hashBytes(bytes),
+            after: hash,
+          });
+        } else files.push({ path, blob: null, mode: null, before: null, after: hash });
+      }
+      await checkDestinationPath(context.workspace, '.repo-cloak/manifest.json');
+      const current = await readFile(join(context.workspace, '.repo-cloak', 'manifest.json'));
+      await writePart(vault, directory, id, 'manifest', openManifest(vault, current));
+      const entry: Journal = {
         id,
-        workspaceId,
-        root,
-        createdAt: createdAt.toISOString(),
-        expiresAt: new Date(createdAt.getTime() + backupDays * dayMs).toISOString(),
-        manifestAfter: manifestFingerprint(
-          vault,
-          await readFile(join(workspace, '.repo-cloak', 'manifest.json')),
-        ),
+        repoId: context.repoId,
+        workspaceId: context.workspaceId,
+        workspace: context.workspace,
+        root: context.root,
+        createdAt: new Date().toISOString(),
+        mode: context.mode,
+        newTree: context.newTree,
+        manifestBefore: manifestFingerprint(vault, current),
+        manifestAfter: manifestFingerprint(vault, manifest),
+        checkpoint: changes.checkpoint,
         files,
       };
-      await writePart(vault, directory, id, 'index', index);
+      await writePart(vault, directory, id, 'journal', entry);
+      journal = entry;
+    },
+    /** The push is over: from here its files can be undone, and nothing needs recovering. */
+    async finish() {
+      if (!journal) return;
+      const vault = await dashboard.sync.vault();
+      await finishBackup(vault, (await placeOf()).directory, journal);
+    },
+    /** After a failed write: drop what changed nothing, keep undo for what landed, else recover. */
+    async settle() {
+      if (!journal) return discard();
+      const vault = await dashboard.sync.vault();
+      const state = classifyInterrupted(
+        await manifestHashes(vault, journal),
+        await fileHashes(journal),
+      );
+      if (state === 'nothing') await discard();
+      else if (state === 'landed') await finishBackup(vault, (await placeOf()).directory, journal);
     },
   };
+}
+export type BackupSession = ReturnType<typeof createBackupSession>;
+
+export async function hashOnDisk(root: string, path: string) {
+  await checkSourceDestination(root, path);
+  const target = join(root, ...path.split('/'));
+  return (await exists(target)) ? hashBytes(await readFile(target)) : null;
+}
+/** A file that cannot be examined counts as changed: nothing is decided from a guess. */
+export function fileHashes(journal: Journal) {
+  return Promise.all(
+    journal.files.map(async (file) => ({
+      before: file.before,
+      after: file.after,
+      current: await hashOnDisk(journal.root, file.path).catch(() => 'unreadable'),
+    })),
+  );
+}
+export async function manifestHashes(vault: Vault, journal: Journal) {
+  const bytes = await readFile(join(journal.workspace, '.repo-cloak', 'manifest.json'));
+  return {
+    before: journal.manifestBefore,
+    after: journal.manifestAfter,
+    current: manifestFingerprint(vault, bytes),
+  };
+}
+/** Index first, journal second: finding both means this already finished. */
+export async function finishBackup(
+  vault: Vault,
+  directory: string,
+  journal: Journal,
+  currentHashes?: (string | null)[],
+) {
+  if (journal.newTree || !journal.files.length) {
+    await rm(directory, { recursive: true, force: true });
+    return;
+  }
+  const createdAt = new Date(journal.createdAt);
+  const manifest = await readFile(join(journal.workspace, '.repo-cloak', 'manifest.json'));
+  const index: BackupIndex = {
+    id: journal.id,
+    workspaceId: journal.workspaceId,
+    root: journal.root,
+    createdAt: journal.createdAt,
+    expiresAt: new Date(createdAt.getTime() + backupDays * dayMs).toISOString(),
+    manifestAfter: manifestFingerprint(vault, manifest),
+    manifestBefore: journal.manifestBefore,
+    files: journal.files.map(({ path, blob, mode, before, after }, at) => ({
+      path,
+      blob,
+      mode,
+      before,
+      after: currentHashes ? (currentHashes[at] ?? null) : after,
+    })),
+  };
+  await writePart(vault, directory, journal.id, 'index', index);
+  await rm(join(directory, 'journal.json'), { force: true });
+}
+export async function readJournal(vault: Vault, directory: string, id: string) {
+  return journalSchema.parse(await readPart(vault, directory, id, 'journal'));
+}
+/** Backups in this workspace with a journal on disk, whichever process wrote it. */
+export async function journalIds(commonDir: string, workspaceId: string) {
+  const { base, relative } = backupRoot(commonDir, workspaceId);
+  const parent = join(base, relative);
+  const names = await readdir(parent).catch(() => [] as string[]);
+  const found = await Promise.all(
+    names.map(async (name) =>
+      (await exists(join(parent, name, 'journal.json'))) ? name : undefined,
+    ),
+  );
+  return found.filter((name) => name !== undefined);
 }
 /** A plaintext backup from before sealing. Rewriting the index is the commit point. */
 async function sealLegacy(vault: Vault, directory: string, index: BackupIndex) {
@@ -233,6 +365,8 @@ export async function readBackups(vault: Vault, commonDir: string, workspaceId: 
   const backups: BackupIndex[] = [];
   for (const name of names) {
     const directory = join(parent, name);
+    // Recovery decides these; an index beside a journal means it stopped just short of removing it.
+    if (await exists(join(directory, 'journal.json'))) continue;
     let index: BackupIndex | undefined;
     try {
       index = await readIndex(vault, directory, name);
@@ -303,9 +437,12 @@ export async function undo(
           'Files changed after this push, so undo would overwrite newer work. Nothing was changed.',
         );
       const manifestNow = await readFile(manifestPath);
-      // A backup from before sealing recorded the bytes' hash.
+      const fingerprint = manifestFingerprint(vault, manifestNow);
+      // A backup from before sealing recorded the bytes' hash. Finding `before` means an undo
+      // was interrupted after it wrote the manifest, so this one is finishing the same job.
       if (
-        manifestFingerprint(vault, manifestNow) !== index.manifestAfter &&
+        fingerprint !== index.manifestAfter &&
+        fingerprint !== index.manifestBefore &&
         hashBytes(manifestNow) !== index.manifestAfter
       )
         throw moved();
@@ -316,7 +453,9 @@ export async function undo(
         const target = join(index.root, ...path.split('/'));
         const present = await exists(target);
         const current = present ? hashBytes(await readFile(target)) : null;
-        if (current !== file.after) throw moved();
+        // A file already back at `before` was restored by an undo that did not finish.
+        if (current !== file.after && (file.before === undefined || current !== file.before))
+          throw moved();
         plan.push({
           path,
           target,
@@ -344,6 +483,8 @@ export async function undo(
         files: plan.map((item) => ({ path: item.path })),
         detail: 'Undid a push from its backup',
       });
+      noticesFor(dashboard).delete(workspaceId);
+      forgetPush(dashboard, workspaceId);
       return { restored: plan.length };
     }),
   );

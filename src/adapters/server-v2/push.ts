@@ -7,6 +7,7 @@ import { backupIdSchema, commonDirOf, readBackups, undo } from './push/backups.j
 import { diffLines, linesOf, maskSecrets } from './push/diff.js';
 import { baselineOf, inspect } from './push/inspect.js';
 import { review } from './push/review.js';
+import { recoverInterrupted } from './push/recovery.js';
 import { pendingFor } from './push/state.js';
 import { RequestError, route } from './router.js';
 import type { Route } from './router.js';
@@ -145,6 +146,7 @@ export const pushRoutes: Route[] = [
   route('GET /api/v2/push/:repoId/:id/backups', async ({ dashboard, params }) => {
     const { repoId, workspaceId } = ids(params);
     await dashboard.sync.workspaceTarget(repoId, workspaceId);
+    await recoverInterrupted(dashboard, repoId, workspaceId);
     const backups = await readBackups(
       await dashboard.sync.vault(),
       await commonDirOf(dashboard, repoId),
@@ -161,6 +163,10 @@ export const pushRoutes: Route[] = [
   }),
   route('POST /api/v2/push/:repoId/:id/backups/:backupId/undo', async ({ dashboard, params }) => {
     const { repoId, workspaceId } = ids(params);
-    return undo(dashboard, repoId, workspaceId, backupIdSchema.parse(params.backupId));
+    const backupId = backupIdSchema.parse(params.backupId);
+    const recovery = await recoverInterrupted(dashboard, repoId, workspaceId);
+    if (recovery.some((check) => check.state === 'blocked'))
+      throw new RequestError(409, 'An earlier push is still running or was interrupted; try again');
+    return undo(dashboard, repoId, workspaceId, backupId);
   }),
 ];
