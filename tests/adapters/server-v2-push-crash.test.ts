@@ -172,6 +172,10 @@ it('rolls back a partial write, restoring the upstream edit and leaving edits pe
   const [journal] = await journalPaths(f.source);
   expect(journal).toBeDefined();
   expect(await sourceState(f.source)).not.toEqual(before);
+  // A real kill strands writeAtomic's temporary next to its target; a user's file is not touched.
+  const stranded = join(f.source, `.cloak-${crypto.randomUUID()}.tmp`);
+  await writeFile(stranded, 'real bytes');
+  await writeFile(join(f.source, '.cloak-mine.tmp'), 'not ours');
 
   await f.restart();
   const review = await f.reviewOf();
@@ -179,6 +183,9 @@ it('rolls back a partial write, restoring the upstream edit and leaving edits pe
     { state: 'warning', title: 'An interrupted push was rolled back' },
   ]);
   expect(await sourceState(f.source)).toEqual(before);
+  await expect(readFile(stranded)).rejects.toThrow();
+  expect(await readFile(join(f.source, '.cloak-mine.tmp'), 'utf8')).toBe('not ours');
+  await rm(join(f.source, '.cloak-mine.tmp'));
   await expect(readdir(dirname(journal ?? ''))).rejects.toThrow();
   expect(filePaths(review)).toEqual(pendingFiles);
   expect(review.canApply).toBe(true);

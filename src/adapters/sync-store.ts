@@ -148,6 +148,25 @@ export function createSyncStore(store: ReturnType<typeof createStore>) {
         await release();
       }
     },
+    async saveRepoPostCheck(
+      repoId: string,
+      postCheck: { command: string; timeoutSeconds: number } | null,
+    ): Promise<void> {
+      const directory = join(store.root, 'repos', repoId);
+      const release = await lock(directory, {
+        retries: { retries: 8, minTimeout: 25, maxTimeout: 100 },
+      });
+      try {
+        const record = await readRepoRecord(repoId);
+        if (!record) throw new Error('Repository is not registered');
+        const next: Document<'repo'> = { ...record };
+        if (postCheck) next.postCheck = postCheck;
+        else delete next.postCheck;
+        await store.writeSealed(`repos/${repoId}/repo.json`, repoId, 'repo', next);
+      } finally {
+        await release();
+      }
+    },
     async findWorkspace(cwd: string): Promise<string | undefined> {
       for (let root = cwd; ; root = dirname(root)) {
         if (await exists(join(root, '.repo-cloak', 'manifest.json'))) return root;

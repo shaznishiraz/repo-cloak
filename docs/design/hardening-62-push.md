@@ -47,8 +47,11 @@ stage/commit ─ re-pull ─ index.json written, journal removed   <- journal's 
 
 ### Recovery
 
-`recoverInterrupted` runs first in review, the backups list, undo and apply. It runs only when a
-`journal.json` exists, inside `operations.exclusive` and both locks, so it cannot race a live push.
+`recoverInterrupted` runs first in review and undo, and `runPush` refuses while a journal exists.
+It does work only when a `journal.json` exists, inside `operations.exclusive` and both locks, so it
+cannot race a live push. The backups list skips journalled directories; the screen reloads the list
+when a review reports a recovery. (Not in the list route too: the screen loads both at once, and
+the loser would see "busy" and block a review for no reason.)
 
 `classifyInterrupted` compares current hashes with those the journal recorded:
 
@@ -66,12 +69,14 @@ otherwise     something else changed       foreign     touch nothing, keep copie
   reported as landed.
 - A new-worktree push has no pre-images: `landed` drops the journal; otherwise the source is
   untouched and the report names the leftover worktree to remove by hand.
+- Every outcome removes `.cloak-*.tmp` beside the journal's targets: a real SIGKILL strands
+  `writeAtomic`'s temporary, which holds real bytes, in the source folder.
 - `landed` unstages paths that a crash between `git add` and `git commit` left in the workspace
   index, because the next sync would otherwise refuse them.
 - Every outcome writes an audit event and a `recovery:<id>` guard check. The check stays on the
   review until the next push or undo in this process.
 - If locks are held, because a push is live or a dead process's lock is not stale yet (10s), the
-  review is blocked with a check saying so. `runPush` also refuses while a journal exists.
+  review is blocked with a check saying so.
 - An unreadable journal, whether damaged or under a lost key, is renamed `journal.unreadable`,
   reported, and expires with the directory. It does not block pushing forever. A key that cannot
   be loaded at all fails the request and renames nothing.
@@ -98,7 +103,10 @@ review classifies it.
 - `store.sealer()` / `store.opener()`, AES-256-GCM. `{kind, backupId, part}` is the AAD, so a part
   cannot be swapped between backups or renamed. Paths, root and timestamps are inside the seal.
 - Key rotation: the envelope has the shape `rotateStoreKey` reseals. Its scan gains these files for
-  each registered repo, so undo survives a rotation.
+  each registered repo, so undo survives a rotation. A manifest's bytes change with each seal and
+  rotation reseals it, so a backup stores the manifest opened, inside its own seal, compares
+  manifests by what they say (`manifestFingerprint`), and seals the copy under the current key on
+  undo. A damaged part stops a rotation with its path, like any other unreadable sealed file.
 - Plaintext backups from before this change: the first read seals the parts, commits by rewriting
   `index.json`, then deletes the plaintext. A crash at any point is redone or cleaned up by the
   next read.

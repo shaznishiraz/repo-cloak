@@ -1,5 +1,5 @@
-import { chmod, rename, rm, unlink } from 'node:fs/promises';
-import { basename, join } from 'node:path';
+import { chmod, readdir, rename, rm, unlink } from 'node:fs/promises';
+import { basename, dirname, join } from 'node:path';
 import { hashJson } from '../../../core/hash.js';
 import { validateRelativePath } from '../../../core/paths.js';
 import { classifyInterrupted } from '../../../core/push-recovery.js';
@@ -51,8 +51,19 @@ async function unstage(journal: Journal) {
     ...journal.checkpoint,
   ]).catch(() => {});
 }
+/** A killed `writeAtomic` strands its temporary, which holds real bytes, beside the target. */
+async function removeTemporaries(journal: Journal) {
+  const folders = new Set([
+    join(journal.workspace, '.repo-cloak'),
+    ...journal.files.map((file) => dirname(join(journal.root, ...file.path.split('/')))),
+  ]);
+  for (const folder of folders)
+    for (const name of await readdir(folder).catch(() => [] as string[]))
+      if (/^\.cloak-[0-9a-f-]+\.tmp$/.test(name)) await rm(join(folder, name), { force: true });
+}
 async function settle(vault: Vault, directory: string, journal: Journal) {
   const id = `recovery:${journal.id}`;
+  await removeTemporaries(journal);
   const manifest = await manifestHashes(vault, journal);
   const files = await fileHashes(journal);
   const state = classifyInterrupted(manifest, files);

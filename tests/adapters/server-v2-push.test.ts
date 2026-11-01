@@ -12,7 +12,7 @@ import {
   writePart,
 } from '../../src/adapters/server-v2/push/backups.js';
 import { hashBytes } from '../../src/core/hash.js';
-import type { PushReview } from '../../src/web/api/contracts.js';
+import type { PostCheckView, PushReview } from '../../src/web/api/contracts.js';
 import { cleanupFixtures, editedLines, fixture, secret } from '../support/push-fixture.js';
 
 // Each test drives real Git through several previews.
@@ -873,5 +873,176 @@ describe('per-file push', () => {
     expect(await f.read('other.ts', worktree)).toContain('edit()');
     expect(await f.read('Acme.ts', worktree)).not.toContain('edit one');
     expect(paths(await f.reviewOf())).toEqual(['Northwind.ts', 'NorthwindNew.ts', 'gone.ts']);
+  });
+});
+
+describe('post-check', () => {
+  const put = (f: Awaited<ReturnType<typeof fixture>>, body: unknown) =>
+    fetch(`${f.base}/post-check`, {
+      method: 'PUT',
+      headers: f.headers,
+      body: JSON.stringify(body),
+    });
+  const view = async (f: Awaited<ReturnType<typeof fixture>>) =>
+    (await (await fetch(`${f.base}/post-check`, { headers: f.headers })).json()) as PostCheckView;
+  const run = (f: Awaited<ReturnType<typeof fixture>>, command: string) =>
+    f.post('/post-check/run', { confirmed: true, command });
+  async function finished(f: Awaited<ReturnType<typeof fixture>>) {
+    for (let tries = 0; tries < 200; tries++) {
+      const { run: current } = await view(f);
+      if (current && current.state !== 'running') return current;
+      await new Promise((done) => setTimeout(done, 50));
+    }
+    throw new Error('The post-check did not finish');
+  }
+  /** The audit event lands just after the run shows as finished. */
+  async function auditEvent(f: Awaited<ReturnType<typeof fixture>>) {
+    for (let tries = 0; tries < 100; tries++) {
+      const events = (await f.dashboard.sync.audit.list()).events;
+      const found = events.find((event) => event.detail?.startsWith('Post-check '));
+      if (found && !found.detail?.startsWith('Post-check set')) return found;
+      await new Promise((done) => setTimeout(done, 50));
+    }
+    throw new Error('No audit event');
+  }
+  async function pushed(command: string, timeoutSeconds = 30) {
+    const f = await fixture();
+    expect((await put(f, { command, timeoutSeconds })).status).toBe(200);
+    await f.edit('Northwind.ts', editedLines(f.lines, 1, 'edit'));
+    const review = await f.reviewOf();
+    expect((await f.apply(review.operationId)).state).toBe('completed');
+    return f;
+  }
+
+  it('never runs on its own: not at push, and not before a confirmed request', async () => {
+    const marker = 'post-check-ran';
+    const f = await pushed(`touch ${marker}`);
+    expect(await view(f)).toMatchObject({ command: `touch ${marker}`, canRun: true, run: null });
+    await expect(readFile(join(f.source, marker))).rejects.toThrow();
+    const notConfirmed = [
+      await f.post('/post-check/run', { command: `touch ${marker}` }),
+      await f.post('/post-check/run', { confirmed: false, command: `touch ${marker}` }),
+      await f.post('/post-check/run', { confirmed: 'true', command: `touch ${marker}` }),
+      await f.post('/post-check/run', { confirmed: true }),
+    ];
+    for (const response of notConfirmed) expect(response.status).toBe(400);
+    await expect(readFile(join(f.source, marker))).rejects.toThrow();
+  });
+
+  it('refuses before any push, a changed command, and when nothing is configured', async () => {
+    const f = await fixture();
+    expect((await run(f, 'echo x')).ok).toBe(false);
+    await put(f, { command: 'echo configured' });
+    expect((await view(f)).canRun).toBe(false);
+    const early = await run(f, 'echo configured');
+    expect(early.status).toBe(409);
+    expect(((await early.json()) as { error: string }).error).toContain('after a push');
+    await f.edit('Northwind.ts', editedLines(f.lines, 1, 'edit'));
+    await f.apply((await f.reviewOf()).operationId);
+    expect((await run(f, 'echo something else')).status).toBe(409);
+    expect((await view(f)).run).toBeNull();
+  });
+
+  it('runs in the target worktree and shows the output, without secrets', async () => {
+    const f = await pushed(`pwd; env; cat keys.ts`);
+    expect((await run(f, 'pwd; env; cat keys.ts')).status).toBe(200);
+    const result = await finished(f);
+    expect(result.state).toBe('passed');
+    expect(result.output).toContain(f.source);
+    expect(result.output).not.toContain('test-token');
+    expect(result.output).not.toContain('REPO_CLOAK');
+    expect(result.output).toContain('const key = "[secret]"');
+    expect(result.output).not.toContain(secret);
+  });
+
+  it('runs in the worktree the push went to, not the one pulled from', async () => {
+    const f = await fixture();
+    const other = join(f.root, 'other');
+    await f.git(f.source, 'worktree', 'add', '-b', 'other', other);
+    await put(f, { command: 'pwd' });
+    await f.edit('Northwind.ts', editedLines(f.lines, 1, 'edit'));
+    await f.apply((await f.reviewOf({ kind: 'worktree', path: other })).operationId);
+    await run(f, 'pwd');
+    expect((await finished(f)).output.trim()).toBe(other);
+  });
+
+  it('audits the outcome only, never the command or output', async () => {
+    const f = await pushed('echo THE-OUTPUT; exit 7 # THE-COMMAND');
+    await run(f, 'echo THE-OUTPUT; exit 7 # THE-COMMAND');
+    const result = await finished(f);
+    expect(result).toMatchObject({ state: 'failed', exitCode: 7 });
+    expect(result.output).toContain('THE-OUTPUT');
+    const event = await auditEvent(f);
+    expect(event).toMatchObject({
+      op: 'push',
+      outcome: 'failed',
+      detail: 'Post-check failed (exit 7)',
+    });
+    const log = await f.dashboard.sync.audit.list();
+    expect(JSON.stringify(log)).not.toContain('THE-OUTPUT');
+    expect(JSON.stringify(log)).not.toContain('THE-COMMAND');
+    const saved = await readFile(join(f.root, 'store', 'repos', f.repoId, 'repo.json'), 'utf8');
+    expect(saved).not.toContain('THE-COMMAND');
+  });
+
+  it('times out by the configured limit, and audits that', async () => {
+    const f = await pushed('sleep 30', 1);
+    await run(f, 'sleep 30');
+    expect(await finished(f)).toMatchObject({ state: 'timed-out', exitCode: null });
+    expect((await auditEvent(f)).detail).toBe('Post-check timed out');
+  });
+
+  it('runs one at a time, and an undo takes the permission away', async () => {
+    const f = await pushed('sleep 1');
+    expect((await run(f, 'sleep 1')).status).toBe(200);
+    expect((await run(f, 'sleep 1')).status).toBe(409);
+    await finished(f);
+    const [backup] = await f.backups();
+    await f.post(`/backups/${backup?.id}/undo`);
+    expect((await view(f)).canRun).toBe(false);
+    expect((await run(f, 'sleep 1')).status).toBe(409);
+  });
+
+  it('refuses when the pushed worktree no longer exists', async () => {
+    const f = await fixture();
+    const other = join(f.root, 'other');
+    await f.git(f.source, 'worktree', 'add', '-b', 'other', other);
+    await put(f, { command: 'pwd' });
+    await f.edit('Northwind.ts', editedLines(f.lines, 1, 'edit'));
+    await f.apply((await f.reviewOf({ kind: 'worktree', path: other })).operationId);
+    await f.git(f.source, 'worktree', 'remove', '--force', other);
+    const refused = await run(f, 'pwd');
+    expect(refused.ok).toBe(false);
+    expect((await view(f)).run).toBeNull();
+  });
+
+  it('keeps the setting across a push and clears it, validating input', async () => {
+    const f = await pushed('echo kept');
+    expect((await view(f)).command).toBe('echo kept');
+    const invalid = [
+      await put(f, { command: '' }),
+      await put(f, {}),
+      await put(f, { command: 'x', timeoutSeconds: 0 }),
+      await put(f, { command: 'x', timeoutSeconds: 3601 }),
+      await put(f, { command: 'x', extra: true }),
+    ];
+    for (const response of invalid) expect(response.status).toBe(400);
+    expect(await (await put(f, { command: null })).json()).toMatchObject({
+      command: null,
+      canRun: false,
+    });
+    const events = (await f.dashboard.sync.audit.list()).events;
+    expect(events.some((event) => event.detail?.startsWith('Post-check cleared'))).toBe(true);
+    expect(JSON.stringify(events)).not.toContain('echo kept');
+  });
+
+  it('needs a session token', async () => {
+    const f = await fixture();
+    expect((await fetch(`${f.base}/post-check`)).status).toBe(401);
+    const anonymous = await fetch(`${f.base}/post-check/run`, {
+      method: 'POST',
+      body: JSON.stringify({ confirmed: true, command: 'x' }),
+    });
+    expect(anonymous.status).toBe(401);
   });
 });

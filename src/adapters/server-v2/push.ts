@@ -7,6 +7,7 @@ import { backupIdSchema, commonDirOf, readBackups, undo } from './push/backups.j
 import { diffLines, linesOf, maskSecrets } from './push/diff.js';
 import { baselineOf, inspect } from './push/inspect.js';
 import { review } from './push/review.js';
+import { postCheckView, startPostCheck } from './push/post-check.js';
 import { recoverInterrupted } from './push/recovery.js';
 import { pendingFor } from './push/state.js';
 import { RequestError, route } from './router.js';
@@ -42,6 +43,15 @@ const applySchema = z
     message: 'Enter a commit message',
     path: ['commitMessage'],
   });
+const postCheckSaveSchema = z
+  .object({
+    command: z.string().trim().min(1).max(4000).nullable(),
+    timeoutSeconds: z.number().int().min(1).max(3600).default(600),
+  })
+  .strict();
+const postCheckRunSchema = z
+  .object({ confirmed: z.literal(true), command: z.string().min(1).max(4000) })
+  .strict();
 const diffQuerySchema = z.object({ path: z.string().min(1).max(4096) }).strict();
 
 function ids(params: Record<string, string>) {
@@ -146,7 +156,6 @@ export const pushRoutes: Route[] = [
   route('GET /api/v2/push/:repoId/:id/backups', async ({ dashboard, params }) => {
     const { repoId, workspaceId } = ids(params);
     await dashboard.sync.workspaceTarget(repoId, workspaceId);
-    await recoverInterrupted(dashboard, repoId, workspaceId);
     const backups = await readBackups(
       await dashboard.sync.vault(),
       await commonDirOf(dashboard, repoId),
@@ -168,5 +177,22 @@ export const pushRoutes: Route[] = [
     if (recovery.some((check) => check.state === 'blocked'))
       throw new RequestError(409, 'An earlier push is still running or was interrupted; try again');
     return undo(dashboard, repoId, workspaceId, backupId);
+  }),
+  route('GET /api/v2/push/:repoId/:id/post-check', async ({ dashboard, params }) => {
+    const { repoId, workspaceId } = ids(params);
+    await dashboard.sync.workspaceTarget(repoId, workspaceId);
+    return postCheckView(dashboard, repoId, workspaceId);
+  }),
+  route('PUT /api/v2/push/:repoId/:id/post-check', async ({ dashboard, params, body }) => {
+    const { repoId, workspaceId } = ids(params);
+    await dashboard.sync.workspaceTarget(repoId, workspaceId);
+    const { command, timeoutSeconds } = postCheckSaveSchema.parse(await body());
+    await dashboard.sync.savePostCheck(repoId, command ? { command, timeoutSeconds } : null);
+    return postCheckView(dashboard, repoId, workspaceId);
+  }),
+  route('POST /api/v2/push/:repoId/:id/post-check/run', async ({ dashboard, params, body }) => {
+    const { repoId, workspaceId } = ids(params);
+    const { command } = postCheckRunSchema.parse(await body());
+    return startPostCheck(dashboard, repoId, workspaceId, command);
   }),
 ];

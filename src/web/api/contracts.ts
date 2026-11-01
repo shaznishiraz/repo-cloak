@@ -333,6 +333,21 @@ export type PushApply = {
   confirmOverwrites?: string[];
 };
 export type PushBackup = { id: string; createdAt: string; expiresAt: string; files: number };
+export type PostCheckRun = {
+  state: 'running' | 'passed' | 'failed' | 'timed-out';
+  exitCode: number | null;
+  durationMs: number;
+  /** The end of the captured output, with known secrets masked. Never stored or audited. */
+  output: string;
+  truncated: boolean;
+};
+export type PostCheckView = {
+  command: string | null;
+  timeoutSeconds: number;
+  /** A completed push in this session has a worktree to run in. */
+  canRun: boolean;
+  run: PostCheckRun | null;
+};
 
 /* ---------- 40-profiles ---------- */
 export type ProfileScopeRef = { kind: 'global' } | { kind: 'repo'; repoId: string };
@@ -558,6 +573,15 @@ export type V2Api = {
   'POST /api/v2/push/:repoId/:id/apply': R<OperationState, PushApply>;
   'GET /api/v2/push/:repoId/:id/backups': R<{ backups: PushBackup[] }>;
   'POST /api/v2/push/:repoId/:id/backups/:backupId/undo': R<{ restored: number }>;
+  'GET /api/v2/push/:repoId/:id/post-check': R<PostCheckView>;
+  'PUT /api/v2/push/:repoId/:id/post-check': R<
+    PostCheckView,
+    { command: string | null; timeoutSeconds?: number }
+  >;
+  'POST /api/v2/push/:repoId/:id/post-check/run': R<
+    PostCheckRun,
+    { confirmed: true; command: string }
+  >;
   // 40-profiles
   'GET /api/v2/profiles': R<{ profiles: ProfileListItem[] }, never, { repo?: string }>;
   'POST /api/v2/profiles': R<ProfileDetail, { scope: ProfileScopeRef; document: unknown }>;

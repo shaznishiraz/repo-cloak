@@ -560,6 +560,23 @@ export function createDashboardSync(
     },
     saveExclusions: (repoId: string, value: unknown) =>
       operations.exclusive(() => saveExclusions(repoId, value)),
+    async postCheck(repoId: string) {
+      return (await registered(repoId)).postCheck ?? null;
+    },
+    savePostCheck: (
+      repoId: string,
+      postCheck: { command: string; timeoutSeconds: number } | null,
+    ) =>
+      operations.exclusive(async () => {
+        await registered(repoId);
+        await services.store.saveRepoPostCheck(repoId, postCheck);
+        // Names the field only: a command can contain anything.
+        await audit.record({
+          op: 'settings',
+          outcome: 'ok',
+          detail: `Post-check ${postCheck ? 'set' : 'cleared'} for ${repoId}`,
+        });
+      }),
     async commits(repoId: string, path: string, offset: unknown = 0, ref?: string) {
       return commitPage(await worktree(repoId, path), offset, ref);
     },
