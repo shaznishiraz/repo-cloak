@@ -488,3 +488,35 @@ it('audits agent request approvals and denials with paths only', async () => {
   expect(JSON.stringify(events)).not.toContain('class ');
   expect(await f.dashboard.sync.audit.verify()).toMatchObject({ ok: true });
 });
+
+it('audits only the files a denial actually changed', async () => {
+  const f = await fixture();
+  const request = (await f.dashboard.agents.agentCall(f.doc, 'requests', {
+    clientRequestId: 'audit-deny',
+    paths: ['NorthwindContext.ts', 'more.ts'],
+    reason: 'Need types',
+  })) as { id: string };
+  const preview = await f.dashboard.agents.preview(f.repoId, f.workspaceId, request.id, {
+    paths: ['NorthwindContext.ts'],
+  });
+  await f.dashboard.agents.apply(f.repoId, f.workspaceId, preview.operationId);
+  await f.dashboard.sync.wait(preview.operationId);
+  await f.dashboard.agents.reject(f.repoId, f.workspaceId, request.id, {
+    paths: ['NorthwindContext.ts', 'more.ts', 'never-requested.ts'],
+  });
+  const { events } = await f.dashboard.sync.audit.list();
+  expect(events.find((event) => event.op === 'agent-deny')?.files).toEqual([{ path: 'more.ts' }]);
+});
+
+it('still shows queued requests when the workspace context is broken', async () => {
+  const f = await fixture();
+  const request = (await f.dashboard.agents.agentCall(f.doc, 'requests', {
+    clientRequestId: 'broken-context',
+    paths: ['more.ts'],
+    reason: 'Need types',
+  })) as { id: string };
+  await f.dashboard.deleteProfile({ id: f.profile.id, scope: f.profile.scope });
+  const info = await f.dashboard.agents.info(f.repoId, f.workspaceId);
+  expect(info.requests.map((item) => item.id)).toContain(request.id);
+  await f.dashboard.agents.reject(f.repoId, f.workspaceId, request.id, { paths: ['more.ts'] });
+});

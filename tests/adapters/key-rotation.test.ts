@@ -1,4 +1,14 @@
-import { mkdir, mkdtemp, readFile, realpath, rename, rm, stat, writeFile } from 'node:fs/promises';
+import {
+  chmod,
+  mkdir,
+  mkdtemp,
+  readFile,
+  realpath,
+  rename,
+  rm,
+  stat,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, expect, it, vi } from 'vitest';
@@ -187,4 +197,73 @@ it('refuses migration while a rotation is unfinished, and audits a finished migr
   expect(events[0]).toMatchObject({ op: 'key-migrate', detail: 'Moved key to keychain' });
   await f.store.keys.beginRotation(Buffer.alloc(32, 1));
   await expect(f.dashboard.security.migrateKey('file')).rejects.toThrow(/rotation/);
+});
+
+const edit = (f: Awaited<ReturnType<typeof fixture>>, description: string) =>
+  f.dashboard.saveProfile({
+    id: f.profile.id,
+    scope: f.profile.scope,
+    profile: { ...f.profile.profile, description },
+  });
+
+it('keeps a write that lands after the key switch instead of resealing an older copy', async () => {
+  const f = await fixture();
+  const begin = f.store.keys.beginRotation.bind(f.store.keys);
+  vi.spyOn(f.store.keys, 'beginRotation').mockImplementation(async (key) => {
+    await begin(key);
+    await edit(f, 'written during rotation');
+  });
+  await f.dashboard.security.rotateKey();
+  expect((await f.dashboard.profiles())[0]?.profile.description).toBe('written during rotation');
+});
+
+it('reseals a document written under the old key after the first scan', async () => {
+  const f = await fixture();
+  const begin = f.store.keys.beginRotation.bind(f.store.keys);
+  vi.spyOn(f.store.keys, 'beginRotation').mockImplementation(async (key) => {
+    await edit(f, 'still on the old key');
+    await begin(key);
+  });
+  const result = await f.dashboard.security.rotateKey();
+  expect(await f.store.keys.retired()).toBeUndefined();
+  expect(result.pending).toEqual([]);
+  expect((await f.dashboard.profiles())[0]?.profile.description).toBe('still on the old key');
+});
+
+it.skipIf(process.platform === 'win32' || process.getuid?.() === 0)(
+  'stops with the old key intact when a sealed file cannot be read',
+  async () => {
+    const f = await fixture();
+    const before = await f.store.keyStatus();
+    const manifest = join(f.destination, '.repo-cloak/manifest.json');
+    await chmod(manifest, 0o000);
+    try {
+      await expect(f.dashboard.security.rotateKey()).rejects.toThrow(/cannot read/);
+      expect(await f.store.keyStatus()).toEqual(before);
+    } finally {
+      await chmod(manifest, 0o600);
+    }
+    expect((await f.dashboard.security.rotateKey()).pending).toEqual([]);
+    expect(await manifestKey(f.destination)).toBe((await f.store.keyStatus()).keyId);
+  },
+);
+
+it('stops rather than skipping a store document that is not valid JSON', async () => {
+  const f = await fixture();
+  const before = await f.store.keyStatus();
+  await writeFile(join(f.store.root, 'profiles', 'damaged.json'), '{');
+  await expect(f.dashboard.security.rotateKey()).rejects.toThrow(/not valid JSON/);
+  expect(await f.store.keyStatus()).toEqual(before);
+});
+
+it('asks the keychain for a missing retired key only once', async () => {
+  const f = await fixture(true);
+  await f.store.keys.retired();
+  f.fake.state.calls = 0;
+  await f.store.keys.retired();
+  await f.dashboard.profiles();
+  await f.dashboard.overview();
+  expect(f.fake.state.calls).toBe(0);
+  await f.dashboard.security.rotateKey();
+  expect(await f.store.keys.retired()).toBeUndefined();
 });

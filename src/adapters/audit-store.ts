@@ -118,8 +118,8 @@ export function createAuditStore(
         const event = auditEventSchema.parse(openLine(record.sealed, eventAad(seq ?? -1)));
         log.events.push({ line, event });
       } catch {
-        log.firstBad = { line, seq, reason: 'Line cannot be authenticated' };
-        break;
+        // Later events stay readable; verify(), prune and reseal all still see the damage.
+        log.firstBad ??= { line, seq, reason: 'Line cannot be authenticated' };
       }
     }
     return log;
@@ -205,10 +205,17 @@ export function createAuditStore(
     };
   }
   async function pruneIfDue() {
-    const days = await options.retentionDays?.();
-    if (!days || now().getTime() - lastPruned < dayMs) return;
-    lastPruned = now().getTime();
-    await prune(days);
+    try {
+      const days = await options.retentionDays?.();
+      if (!days || now().getTime() - lastPruned < dayMs) return;
+      await prune(days);
+      lastPruned = now().getTime();
+    } catch (error) {
+      // The event itself is safely written, so this is not an audit write failure.
+      process.stderr.write(
+        `repo-cloak: audit retention did not run: ${error instanceof Error ? error.message : String(error)}\n`,
+      );
+    }
   }
   return {
     /** Records an event; a failure is counted and reported, never thrown at the caller. */
@@ -244,7 +251,11 @@ export function createAuditStore(
     async verify(): Promise<AuditVerification> {
       const log = await parse(await readBytes());
       const count = log.events.length;
-      if (log.firstBad) return { ok: false, count, firstBroken: log.firstBad };
+      if (log.firstBad) {
+        const { line } = log.firstBad;
+        const intact = log.events.filter((event) => event.line < line).length;
+        return { ok: false, count: intact, firstBroken: log.firstBad };
+      }
       let head: AuditHead | undefined;
       try {
         head = await readHead();

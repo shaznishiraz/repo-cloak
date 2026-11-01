@@ -8,12 +8,12 @@ import { errorCode, writeAtomic } from './atomic.js';
 import { keyId, open, seal } from './crypto.js';
 import { defaultKeyStorage } from './key-storage.js';
 import type { KeyStorage, KeyStorageSetting } from './key-storage.js';
-import { loadPolicy } from './policy.js';
+import { cachedPolicy, loadPolicy } from './policy.js';
 import type { LoadedPolicy } from '../core/policy.js';
 
 const defaultRoot = () => resolve(homedir(), '.repo-cloak');
 
-let machinePolicy: Promise<LoadedPolicy> | undefined;
+const machinePolicy = cachedPolicy(() => loadPolicy());
 
 /**
  * The OS keychain and machine policy apply to the real store. A store anywhere else (tests,
@@ -27,7 +27,7 @@ export function createStore(
   const policy =
     options.policy ??
     (root === defaultRoot()
-      ? () => (machinePolicy ??= loadPolicy())
+      ? machinePolicy
       : () => Promise.resolve<LoadedPolicy>({ status: 'none' }));
   const keys =
     options.keys ??

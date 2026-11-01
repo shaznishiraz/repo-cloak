@@ -12,17 +12,14 @@ import { createSyncStore } from './sync-store.js';
 type Store = ReturnType<typeof createStore>;
 type SealedFile = { path: string; plain: Record<string, unknown>; sealed: unknown };
 
-/** Sealed documents anywhere in the store. The audit log reseals itself. */
-async function storeDocuments(root: string): Promise<SealedFile[]> {
-  const found: SealedFile[] = [];
+/** Paths of sealed documents anywhere in the store. The audit log reseals itself. */
+async function storeDocuments(root: string): Promise<string[]> {
+  const found: string[] = [];
   async function walk(directory: string) {
     for (const entry of await readdir(directory, { withFileTypes: true })) {
       const path = join(directory, entry.name);
       if (entry.isDirectory() && entry.name !== 'audit') await walk(path);
-      else if (entry.isFile() && entry.name.endsWith('.json')) {
-        const parsed = await readSealedFile(path);
-        if (parsed) found.push(parsed);
-      }
+      else if (entry.isFile() && entry.name.endsWith('.json')) found.push(path);
     }
   }
   try {
@@ -32,16 +29,43 @@ async function storeDocuments(root: string): Promise<SealedFile[]> {
   }
   return found;
 }
+/**
+ * Undefined only for a file that is gone or was never sealed. Anything else must stop the
+ * rotation: skipping a sealed file would strand it under a key that is about to be destroyed.
+ */
 async function readSealedFile(path: string): Promise<SealedFile | undefined> {
+  let text: string;
+  try {
+    text = await readFile(path, 'utf8');
+  } catch (error) {
+    if (errorCode(error) === 'ENOENT') return undefined;
+    throw new Error(`Key rotation stopped: cannot read ${path}`, { cause: error });
+  }
   let value: unknown;
   try {
-    value = JSON.parse(await readFile(path, 'utf8'));
-  } catch {
-    return undefined;
+    value = JSON.parse(text);
+  } catch (error) {
+    throw new Error(`Key rotation stopped: ${path} is not valid JSON`, { cause: error });
   }
   if (!value || typeof value !== 'object' || !('sealed' in value)) return undefined;
   const { sealed, ...plain } = value as Record<string, unknown>;
   return { path, plain, sealed };
+}
+/** Everything to reseal right now, and registered workspaces that cannot be reached. */
+async function scan(store: Store) {
+  const records = createSyncStore(store);
+  const manifests: string[] = [];
+  const pending: string[] = [];
+  for (const id of await store.listDirectories('repos')) {
+    const repo = await records.readRepo(id);
+    for (const workspace of Object.values(repo?.workspaces ?? {})) {
+      if (await exists(join(workspace.path, '.repo-cloak', 'manifest.json'))) {
+        await checkDestinationPath(workspace.path, '.repo-cloak/manifest.json');
+        manifests.push(join(workspace.path, '.repo-cloak', 'manifest.json'));
+      } else pending.push(workspace.path);
+    }
+  }
+  return { paths: [...(await storeDocuments(store.root)), ...manifests], pending };
 }
 
 export type RotationResult = {
@@ -57,30 +81,20 @@ export type RotationResult = {
  * the old one stays available for reading. A crash leaves a readable mix of both, and running
  * this again finishes the job. The old key is only destroyed once nothing depends on it.
  *
- * The caller must hold the dashboard's exclusive operation lock.
+ * The caller must hold the dashboard's exclusive operation lock, but not every writer takes it:
+ * agent requests, profile saves and a second launcher can write at any moment. So each file is
+ * re-read immediately before it is resealed, never resealed from an earlier copy, and scanning
+ * repeats until a whole pass finds nothing on the old key. The only remaining race is a write
+ * landing between that read and its reseal.
  */
 export async function rotateStoreKey(store: Store, audit: AuditStore): Promise<RotationResult> {
   const keys = store.keys;
-  const records = createSyncStore(store);
-  const manifests: string[] = [];
-  const pending: string[] = [];
-  for (const id of await store.listDirectories('repos')) {
-    const repo = await records.readRepo(id);
-    for (const workspace of Object.values(repo?.workspaces ?? {})) {
-      if (await exists(join(workspace.path, '.repo-cloak', 'manifest.json'))) {
-        await checkDestinationPath(workspace.path, '.repo-cloak/manifest.json');
-        manifests.push(join(workspace.path, '.repo-cloak', 'manifest.json'));
-      } else pending.push(workspace.path);
-    }
-  }
-  const files = await storeDocuments(store.root);
-  for (const path of manifests) {
-    const file = await readSealedFile(path);
-    if (file) files.push(file);
-  }
   // Nothing has changed yet, so anything unreadable aborts with the store untouched.
-  const open = await store.opener();
-  const contents = files.map((file) => ({ ...file, value: open(file.sealed, file.plain) }));
+  const preflight = await store.opener();
+  for (const path of (await scan(store)).paths) {
+    const file = await readSealedFile(path);
+    if (file) preflight(file.sealed, file.plain);
+  }
   const health = await audit.verify();
   if (!health.ok)
     throw new Error(
@@ -101,12 +115,24 @@ export async function rotateStoreKey(store: Store, audit: AuditStore): Promise<R
   const newId = keyId(key);
 
   const seal = await store.sealer();
+  const open = await store.opener();
   let resealed = 0;
-  for (const file of contents) {
-    if (sealedSchema.parse(file.sealed).keyId === newId) continue;
-    const sealed = seal(file.value, file.plain);
-    await writeAtomic(file.path, `${JSON.stringify({ ...file.plain, sealed }, null, 2)}\n`);
-    resealed += 1;
+  let pending: string[] = [];
+  for (let pass = 0; pass < 5; pass += 1) {
+    const found = await scan(store);
+    pending = found.pending;
+    let changed = 0;
+    for (const path of found.paths) {
+      const file = await readSealedFile(path);
+      if (!file || sealedSchema.parse(file.sealed).keyId === newId) continue;
+      const sealed = seal(open(file.sealed, file.plain), file.plain);
+      await writeAtomic(path, `${JSON.stringify({ ...file.plain, sealed }, null, 2)}\n`);
+      changed += 1;
+    }
+    resealed += changed;
+    if (!changed) break;
+    // Still changing after every pass: keep the old key and let a retry finish the job.
+    if (pass === 4) pending = [...pending, 'documents still being written'];
   }
   resealed += await audit.reseal();
   if (!pending.length) await keys.finishRotation();

@@ -75,3 +75,20 @@ export async function loadPolicy(directory = policyDirectory()): Promise<LoadedP
     return invalid(error instanceof Error ? error.message : 'The policy cannot be read');
   }
 }
+
+/** Reads happen on every repo load, so briefly reuse the result; admin changes apply within ttlMs. */
+export function cachedPolicy(
+  load: () => Promise<LoadedPolicy>,
+  ttlMs = 5000,
+  now: () => number = Date.now,
+): () => Promise<LoadedPolicy> {
+  let result: Promise<LoadedPolicy> | undefined;
+  let loadedAt = 0;
+  return () => {
+    if (!result || now() - loadedAt >= ttlMs) {
+      loadedAt = now();
+      result = load();
+    }
+    return result;
+  };
+}

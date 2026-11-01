@@ -42,6 +42,7 @@ export function createAgentRequests(
   const rates = new Map<string, { start: number; count: number }>();
   const previews = new Map<string, { workspaceId: string; requestId: string; revision: string }>();
   async function context(doc: AgentDocument) {
+    await records.requireUsablePolicy();
     const target = await sync.workspaceTarget(doc.repoId, doc.workspaceId);
     if (
       target.path !== (await canonicalPath(doc.path)) ||
@@ -280,10 +281,13 @@ export function createAgentRequests(
             requests: [],
           };
         await reconcile(doc);
-        const ctx = await context(doc);
+        // Advisory only: approving re-checks. A moved worktree or deleted profile must not stop
+        // the owner seeing and rejecting what is queued, so fall back to the repo's exclusions.
+        const ctx = await context(doc).catch(() => undefined);
+        const repo = ctx?.repo ?? (await records.readRepo(doc.repoId));
         const excluded = compilePatterns([
-          ...(ctx.repo.exclude ?? []),
-          ...ctx.selected.flatMap(({ profile }) => profile.exclude ?? []),
+          ...(repo?.exclude ?? []),
+          ...(ctx?.selected ?? []).flatMap(({ profile }) => profile.exclude ?? []),
         ]);
         return {
           enabled: doc.enabled,
@@ -341,14 +345,22 @@ export function createAgentRequests(
           if (doc.repoId !== repoId) throw new Error('Wrong repository');
           const request = doc.requests.find((item) => item.id === requestId);
           if (!request) throw new Error('Request unavailable');
+          const rejected: string[] = [];
           for (const item of request.files)
-            if (input.paths.includes(item.path) && item.state !== 'pulled') item.state = 'rejected';
+            if (
+              input.paths.includes(item.path) &&
+              item.state !== 'pulled' &&
+              item.state !== 'rejected'
+            ) {
+              item.state = 'rejected';
+              rejected.push(item.path);
+            }
           await access.write(doc);
           await sync.audit.record({
             op: 'agent-deny',
             outcome: 'ok',
             workspace: { repoId, id: workspaceId },
-            files: input.paths.map((path) => ({ path })),
+            files: rejected.map((path) => ({ path })),
             detail: `Request ${requestId}`,
           });
           return publicRequest(request);

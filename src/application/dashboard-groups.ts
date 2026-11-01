@@ -255,8 +255,9 @@ export function createDashboardGroups(store: ReturnType<typeof createStore>, syn
           'This group already contains a workspace for this repository; use Edit group to change it',
         );
       }
+      // A group with a folder moves the new member in; one without stays where everyone is.
       return saveGroup(
-        { name: group.name, members: [...group.members, member], moveWorkspaces: true },
+        { name: group.name, members: [...group.members, member] },
         id,
         input.revision,
       );

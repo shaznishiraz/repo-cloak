@@ -32,6 +32,17 @@ export function createSyncStore(store: ReturnType<typeof createStore>) {
     if (!locked.length) return repo;
     return { ...repo, exclude: [...new Set([...locked, ...(repo.exclude ?? [])])] };
   }
+  /**
+   * A policy that exists but cannot be trusted has unknown locked exclusions, so nothing may
+   * leave the source until it is fixed. Restoring into the source stays available.
+   */
+  async function requireUsablePolicy() {
+    const policy = await store.policy();
+    if (policy.status === 'invalid')
+      throw new Error(
+        `Machine policy at ${policy.path} is invalid, so files cannot leave the source until it is fixed: ${policy.message}`,
+      );
+  }
   async function readSnapshot(
     root: string,
   ): Promise<(Snapshot & { bytes: Uint8Array }) | undefined> {
@@ -50,6 +61,7 @@ export function createSyncStore(store: ReturnType<typeof createStore>) {
     };
   }
   return {
+    requireUsablePolicy,
     readConfig,
     readRepo,
     readRepoRecord,

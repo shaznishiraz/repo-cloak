@@ -36,6 +36,7 @@ export async function preparePull(
   direction: 'pull' | 'push',
   options: SyncOptions,
 ) {
+  await services.store.requireUsablePolicy();
   services = { ...services, cwd: await services.files.canonicalPath(services.cwd) };
   const currentWorkspace = await services.store.findWorkspace(services.cwd);
   if ((direction === 'push' && currentWorkspace) || (direction === 'pull' && !currentWorkspace))

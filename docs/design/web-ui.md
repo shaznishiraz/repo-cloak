@@ -130,7 +130,10 @@ an existing key file working until `dashboard.security.migrateKey`. A `key.ref` 
 stops a second key being generated when the keychain is unreachable.
 
 `rotateStoreKey` preflights, then reseals store documents, workspace manifests and the
-audit log, and can resume after interruption. If a workspace is unreachable the old key
+audit log, and can resume after interruption. Not every writer takes the operation lock, so
+each file is re-read immediately before resealing and scanning repeats until a pass finds
+nothing on the old key. A file that cannot be read or parsed stops the rotation with the old
+key intact. The remaining race is a write landing between that read and its reseal. If a workspace is unreachable the old key
 is retained in `key.previous` and the result lists it as `pending`. Manifests already
 committed to a workspace's Git history stay sealed under the old key.
 
@@ -147,7 +150,10 @@ setting is rejected.
 
 - Locked exclusions merge into `readRepo` and are never persisted. Writes use the raw
   record. A locked file cannot be overridden, even with `includeExcluded`.
-- An invalid policy fails closed on exclusion overrides and is reported in Settings.
+- An invalid policy has unknown locked exclusions, so it blocks create, pull, agent
+  probes and requests, and commit export until it is fixed. Status, history and restoring
+  into the source still work, and Settings reports it.
+- Changes apply within five seconds, without a restart.
 - A policy file this account can write is still applied, but flagged as not enforced
   by the OS.
 - `autoLockMinutes` is stored and reported only. Locking behaviour belongs to 50-admin.

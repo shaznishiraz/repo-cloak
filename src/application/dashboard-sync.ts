@@ -492,6 +492,7 @@ export function createDashboardSync(
     return services.git.recentCommits(root, start);
   }
   async function exportContext(repoId: string, id: string) {
+    await services.store.requireUsablePolicy();
     const { snapshot } = await workspace(repoId, id);
     const repo = await registered(repoId);
     if (snapshot.plain.source.repoId !== repo.repoId)

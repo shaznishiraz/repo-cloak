@@ -42,7 +42,12 @@ export function createKeyStorage(
   const id = createHash('sha256').update(root).digest('hex').slice(0, 16);
   const account = `store-${id}`;
   const retiredAccount = `store-${id}-previous`;
-  let cached: { current?: Buffer | undefined; retired?: Buffer | undefined } = {};
+  let cached: {
+    current?: Buffer | undefined;
+    retired?: Buffer | undefined;
+    /** Usually there is no retired key; without this every read would spawn a keychain process. */
+    retiredRead?: boolean;
+  } = {};
   let keychainUsable: Promise<boolean> | undefined;
 
   const usable = () => (keychainUsable ??= keychain?.available() ?? Promise.resolve(false));
@@ -91,7 +96,10 @@ export function createKeyStorage(
   async function retired(): Promise<Buffer | undefined> {
     if ((await location()) === 'file') return readFileKey(retiredPath);
     if ((await location()) === null) return undefined;
-    cached.retired ??= await fromKeychain(retiredAccount);
+    if (!cached.retiredRead) {
+      cached.retired = await fromKeychain(retiredAccount);
+      cached.retiredRead = true;
+    }
     return cached.retired;
   }
   async function locked<T>(action: () => Promise<T>): Promise<T> {
@@ -195,7 +203,7 @@ export function createKeyStorage(
           await keychain?.set(account, next);
           await writeMarker(next);
         }
-        cached = { current: next, retired: previous };
+        cached = { current: next, retired: previous, retiredRead: true };
       });
     },
     async finishRotation() {
@@ -206,6 +214,7 @@ export function createKeyStorage(
           });
         else await keychain?.remove(retiredAccount);
         cached.retired = undefined;
+        cached.retiredRead = true;
       });
     },
     /** Moves the same key, so nothing needs resealing. Verified before the old copy goes. */

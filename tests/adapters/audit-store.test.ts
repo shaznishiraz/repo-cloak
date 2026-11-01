@@ -182,3 +182,31 @@ it('pages newest first', async () => {
   expect(second.events.map((event) => event.seq)).toEqual([0]);
   expect(second.nextCursor).toBeNull();
 });
+
+it('lists events on both sides of a damaged line while verify still reports it', async () => {
+  const f = await fixture();
+  for (const path of ['a', 'b', 'c']) await f.audit.record(pull(path));
+  const lines = await f.lines();
+  lines[1] = 'garbage';
+  await writeFile(f.log, `${lines.join('\n')}\n`);
+  await f.audit.record(pull('d'));
+  const paths = (await f.audit.list()).events.flatMap((event) => event.files.map((x) => x.path));
+  expect(paths).toEqual(['d', 'c', 'a']);
+  expect(await f.audit.verify()).toMatchObject({ ok: false, firstBroken: { line: 2 } });
+});
+
+it('does not count a retention failure as a failed write, and retries it', async () => {
+  const stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+  let time = Date.parse('2026-01-01T00:00:00Z');
+  const f = await fixture({ now: () => new Date(time), retentionDays: async () => 30 });
+  await f.audit.record(pull('a'));
+  await writeFile(f.log, 'garbage\n');
+  time += 2 * 86_400_000;
+  expect(await f.audit.record(pull('b'))).toBeDefined();
+  expect(await f.audit.record(pull('c'))).toBeDefined();
+  expect(f.audit.failures()).toBe(0);
+  const warnings = stderr.mock.calls.filter(([text]) =>
+    String(text).includes('audit retention did not run'),
+  );
+  expect(warnings).toHaveLength(2);
+});

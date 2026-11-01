@@ -3,7 +3,7 @@ import { chmod, mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, expect, it } from 'vitest';
-import { loadPolicy, policyDirectory } from '../../src/adapters/policy.js';
+import { cachedPolicy, loadPolicy, policyDirectory } from '../../src/adapters/policy.js';
 import { createStore } from '../../src/adapters/store.js';
 import { createSyncServices } from '../../src/adapters/sync-services.js';
 import { createDashboard } from '../../src/application/dashboard.js';
@@ -216,15 +216,52 @@ it('never lets the exclusion override reach a policy-locked file', async () => {
   await expect(f.attempt('Secret.pem')).rejects.toThrow(/Machine policy excludes/);
 });
 
-it('honours a policy that forbids overrides, and fails closed on an invalid policy', async () => {
-  for (const loaded of [
-    active({ allowExclusionOverride: false }),
-    { status: 'invalid', path: '/x', message: 'bad' } as const,
-  ]) {
-    const f = await exportFixture(loaded);
-    await f.dashboard.sync.saveExclusions(f.repoId, { patterns: ['*.log'] });
-    await expect(f.attempt('Other.log')).rejects.toThrow(/override/);
-  }
+it('honours a policy that forbids overrides', async () => {
+  const f = await exportFixture(active({ allowExclusionOverride: false }));
+  await f.dashboard.sync.saveExclusions(f.repoId, { patterns: ['*.log'] });
+  await expect(f.attempt('Other.log')).rejects.toThrow(/override/);
+});
+
+it('stops files leaving the source while the policy is invalid, then recovers', async () => {
+  const loaded: LoadedPolicy = { status: 'none' };
+  const f = await exportFixture(loaded);
+  await expect(f.attempt('Acme.ts')).resolves.toBeDefined();
+  Object.assign(loaded, { status: 'invalid', path: '/x/policy.json', message: 'bad signature' });
+  await expect(f.attempt('Acme.ts')).rejects.toThrow(/policy.json is invalid.*bad signature/);
+  await expect(
+    f.dashboard.sync.preview({
+      intent: 'create',
+      repoId: f.repoId,
+      worktree: f.source,
+      destination: join(f.root, 'another'),
+      profiles: [{ id: f.profile.id, scope: f.profile.scope }],
+      files: ['Acme.ts'],
+    }),
+  ).rejects.toThrow(/invalid/);
+  // Reading state and restoring into the source do not move anything out.
+  await expect(f.dashboard.overview()).resolves.toHaveLength(1);
+  Object.assign(loaded, { status: 'none' });
+  await expect(f.attempt('Acme.ts')).resolves.toBeDefined();
+});
+
+it('picks up policy changes after the cache window, without re-reading on every call', async () => {
+  let time = 0;
+  let loads = 0;
+  const policy = cachedPolicy(
+    async (): Promise<LoadedPolicy> => {
+      loads += 1;
+      return { status: 'none' };
+    },
+    5000,
+    () => time,
+  );
+  await Promise.all([policy(), policy()]);
+  time = 4999;
+  await policy();
+  expect(loads).toBe(1);
+  time = 5000;
+  await policy();
+  expect(loads).toBe(2);
 });
 
 it('keeps the override working when no policy forbids it', async () => {

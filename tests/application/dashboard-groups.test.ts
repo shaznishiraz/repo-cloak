@@ -815,3 +815,28 @@ it('rejects overlapping targets and enforces preview memory limits and expiry fo
   expect(groups.status(batch.operationId).state).toBe('expired');
   expect((await groups.apply(batch.operationId, { members: [] })).state).toBe('expired');
 });
+
+it('joins a group that has no folder without creating one or moving anyone', async () => {
+  const f = await fixture();
+  const [backend, frontend] = f.members;
+  const { repoId, workspaceId, worktree } = backend;
+  const group = await f.dashboard.groups.save({
+    name: 'Loose',
+    members: [{ repoId, workspaceId, worktree }],
+  });
+  expect(group.folder).toBeUndefined();
+  const joined = await f.dashboard.groups.join(group.id, {
+    revision: group.revision,
+    member: {
+      repoId: frontend.repoId,
+      workspaceId: frontend.workspaceId,
+      worktree: frontend.worktree,
+    },
+  });
+  expect(joined.folder).toBeUndefined();
+  expect(joined.members).toHaveLength(2);
+  for (const member of f.members)
+    expect((await f.dashboard.sync.workspaceTarget(member.repoId, member.workspaceId)).path).toBe(
+      member.destination,
+    );
+});
