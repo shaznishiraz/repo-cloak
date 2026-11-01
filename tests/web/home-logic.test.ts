@@ -14,7 +14,7 @@ import {
   statCells,
   workspaceBadges,
 } from '../../src/web/screens/home/logic.js';
-import type { GroupDetailView, WorkspaceDetailView } from '../../src/web/screens/home/types.js';
+import type { GroupDetailView, WorkspaceDetailView } from '../../src/web/api/contracts.js';
 
 function workspace(extra: Partial<OverviewWorkspace> = {}): OverviewWorkspace {
   return {

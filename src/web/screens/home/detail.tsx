@@ -39,7 +39,7 @@ import {
   toPushCount,
 } from './logic.js';
 import { OperationDialog } from './operation-dialog.js';
-import type { TargetPreview, WorkspaceDetailView } from './types.js';
+import type { TargetPreview, WorkspaceDetailView } from '../../api/contracts.js';
 
 const guardIcons: Record<GuardCheck['state'], string> = {
   ok: '✓',
@@ -158,19 +158,21 @@ function RequestsPanel({
 }) {
   const [busy, setBusy] = useState<string | null>(null);
   const groups = groupRequests(detail.requests);
-  async function decide(id: string, decision: AgentDecision) {
-    setBusy(id);
+  /** The route decides one file at a time, keyed `request:path`; Home decides the whole request. */
+  async function decide(files: AgentRequest[], decision: AgentDecision) {
+    setBusy(files[0]?.id ?? null);
     try {
-      await api().call('POST /api/v2/requests/:workspaceId/:id', {
-        params: { workspaceId: detail.workspace.id, id },
-        body: decision,
-      });
+      for (const file of files)
+        await api().call('POST /api/v2/requests/:workspaceId/:id', {
+          params: { workspaceId: detail.workspace.id, id: `${file.id}:${file.path}` },
+          body: decision,
+        });
       toast(decision.decision === 'deny' ? 'Request denied' : 'Request approved', 'ok');
-      onChanged();
     } catch (error) {
       reportError(error);
     } finally {
       setBusy(null);
+      onChanged();
     }
   }
   return (
@@ -208,26 +210,20 @@ function RequestsPanel({
                     size="small"
                     variant="primary"
                     disabled={busy !== null}
-                    onClick={() => void decide(first.id, { decision: 'approve', mode: 'full' })}
-                  >
-                    Approve &amp; pull
-                  </Button>
-                )}
-                {blocked.length > 0 && (
-                  <Button
-                    size="small"
-                    disabled={busy !== null}
                     onClick={() =>
-                      void decide(first.id, { decision: 'approve', mode: 'signatures' })
+                      void decide(
+                        files.filter((file) => file.state !== 'blocked'),
+                        { decision: 'approve', mode: 'full' },
+                      )
                     }
                   >
-                    Send stub instead
+                    Approve &amp; pull
                   </Button>
                 )}
                 <Button
                   size="small"
                   disabled={busy !== null}
-                  onClick={() => void decide(first.id, { decision: 'deny' })}
+                  onClick={() => void decide(files, { decision: 'deny' })}
                 >
                   Deny
                 </Button>
@@ -558,6 +554,7 @@ export function WorkspaceDetailPanel({
   const pushHref = `#/ws/${encodeURIComponent(workspace.id)}/push`;
   const pullItems: MenuItem[] = shown
     ? [
+        { heading: 'Pull from' },
         ...pullEntries(shown).map((entry, index) => ({
           label: entry.label,
           hint: entry.hint,
@@ -572,6 +569,7 @@ export function WorkspaceDetailPanel({
     : [];
   const pushItems: MenuItem[] = shown
     ? [
+        { heading: 'Restore into' },
         ...pushEntries(shown).map((entry, index) => ({
           label: entry.label,
           hint: entry.hint,

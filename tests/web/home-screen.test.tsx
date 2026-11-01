@@ -8,7 +8,7 @@ import { commands } from '../../src/web/shell/commands.js';
 import { overview } from '../../src/web/shell/state.js';
 import { toasts } from '../../src/web/shell/ui/toast.js';
 import { HomeScreen } from '../../src/web/screens/home/index.js';
-import type { GroupDetailView, WorkspaceDetailView } from '../../src/web/screens/home/types.js';
+import type { GroupDetailView, WorkspaceDetailView } from '../../src/web/api/contracts.js';
 import { GroupScreen } from '../../src/web/screens/group/index.js';
 
 const workspaceA: OverviewWorkspace = {
@@ -402,9 +402,9 @@ it('picks another worktree and a new branch through prompts', async () => {
   });
 });
 
-it('approves and denies agent requests inline, and offers a stub for blocked files', async () => {
-  handlers['POST /api/v2/requests/w1/q1'] = () => ({});
-  handlers['POST /api/v2/requests/w1/q2'] = () => ({});
+it('approves and denies agent requests inline, one file at a time, with no stub on offer', async () => {
+  handlers[`POST /api/v2/requests/w1/${encodeURIComponent('q1:src/One.ts')}`] = () => ({});
+  handlers[`POST /api/v2/requests/w1/${encodeURIComponent('q2:src/Db.ts')}`] = () => ({});
   await showHome('w1');
   const waiting = root.querySelector('[data-request="q1"]');
   const blocked = root.querySelector('[data-request="q2"]');
@@ -412,15 +412,19 @@ it('approves and denies agent requests inline, and offers a stub for blocked fil
   expect(blocked?.textContent).not.toContain('Approve');
   act(() => waiting?.querySelector<HTMLButtonElement>('button')?.click());
   await settle();
-  expect(calls.find((call) => call.path.endsWith('/q1'))?.body).toEqual({
+  expect(
+    calls.find((call) => call.path.endsWith(encodeURIComponent('q1:src/One.ts')))?.body,
+  ).toEqual({
     decision: 'approve',
     mode: 'full',
   });
   const buttons = root.querySelectorAll<HTMLButtonElement>('[data-request="q2"] button');
-  expect([...buttons].map((button) => button.textContent)).toEqual(['Send stub instead', 'Deny']);
-  act(() => buttons[1]?.click());
+  expect([...buttons].map((button) => button.textContent)).toEqual(['Deny']);
+  act(() => buttons[0]?.click());
   await settle();
-  expect(calls.find((call) => call.path.endsWith('/q2'))?.body).toEqual({ decision: 'deny' });
+  expect(
+    calls.find((call) => call.path.endsWith(encodeURIComponent('q2:src/Db.ts')))?.body,
+  ).toEqual({ decision: 'deny' });
 });
 
 it('shows why a decision failed', async () => {

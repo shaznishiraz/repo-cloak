@@ -212,6 +212,25 @@ export type ExportFile = {
   excluded: boolean;
 };
 
+export type WorkspaceDetailView = WorkspaceDetail & {
+  profiles: string[];
+  /** Tracked source files changed since the last pull; the overview only has a boolean. */
+  sourceMovedFiles: number;
+  worktrees: WorktreeOption[];
+  main: { branch: string | null; sha: string | null } | null;
+};
+export type GroupMemberView = GroupMember & {
+  worktree: string;
+  tracked: number;
+  worktrees: WorktreeOption[];
+};
+export type GroupDetailView = Omit<GroupDetail, 'members'> & { members: GroupMemberView[] };
+/** A dry run or patch export carries the restored diff; it can never be applied. */
+export type TargetPreview = OperationPreview & { patch?: string };
+/** `members` narrows a bulk run to the checked rows; absent means every member. */
+export type GroupBulkView = GroupBulkRequest & { members?: string[] };
+export type GroupOperationView = GroupOperationState & { error?: string };
+
 /* ---------- 20-new-cloak ---------- */
 export type FolderListing = {
   path: string;
@@ -328,8 +347,15 @@ export type ProfileDetail = {
   document: unknown;
   hits: Record<string, number>;
   lockedExclusions: LockedExclusion[];
+  usedBy: number;
 };
-export type ProfileProblem = { line?: number; path: string; message: string };
+export type ProfileProblem = {
+  line?: number;
+  path: string;
+  message: string;
+  /** No severity means an error. 'secret' is an error the paste flow refuses outright. */
+  severity?: 'warning' | 'secret';
+};
 export type ProfileTestResult = {
   cloaked: string;
   restored: string;

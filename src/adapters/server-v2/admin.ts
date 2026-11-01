@@ -30,17 +30,6 @@ const folderPath = z.string().min(1).max(4096);
 
 /* ---------- Known repos ---------- */
 
-/**
- * The store has no field for this yet and this package cannot add one, so pins last as long as
- * the server does. Keyed by dashboard so test servers and stores never share them.
- */
-const pinnedByDashboard = new WeakMap<Dashboard, Set<string>>();
-function pins(dashboard: Dashboard) {
-  let set = pinnedByDashboard.get(dashboard);
-  if (!set) pinnedByDashboard.set(dashboard, (set = new Set()));
-  return set;
-}
-
 type LegacyRepo = Awaited<ReturnType<Dashboard['overview']>>[number];
 
 async function knownRepo(dashboard: Dashboard, repo: LegacyRepo): Promise<KnownRepo> {
@@ -51,7 +40,7 @@ async function knownRepo(dashboard: Dashboard, repo: LegacyRepo): Promise<KnownR
     path: repo.path,
     missing: repo.missing,
     workspaceCount: repo.workspaces.length,
-    pinned: pins(dashboard).has(repo.id),
+    pinned: repo.pinned,
     worktreeCount: trees.length,
     lastUsedAt: repo.workspaces[0]?.lastUsedAt ?? null,
   };
@@ -555,13 +544,13 @@ export const adminRoutes: Route[] = [
         throw new RequestError(501, 'Default profiles follow the last cloak and cannot be saved');
       await dashboard.sync.saveExclusions(repo.id, { patterns: input.rules.exclude });
     }
-    if (input.pinned === true) pins(dashboard).add(repo.id);
-    if (input.pinned === false) pins(dashboard).delete(repo.id);
+    if (input.pinned !== undefined) await dashboard.pinRepository(repo.id, input.pinned);
     return repoDetail(dashboard, await requireRepo(dashboard, repo.id));
   }),
   route('DELETE /api/v2/repos/:id', async ({ dashboard, params }) => {
-    const result = await dashboard.removeRepository(repoId.parse(params.id));
-    pins(dashboard).delete(result.removed);
+    const id = repoId.parse(params.id);
+    const result = await dashboard.removeRepository(id);
+    await dashboard.pinRepository(id, false);
     return result;
   }),
 

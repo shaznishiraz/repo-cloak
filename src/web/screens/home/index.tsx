@@ -16,7 +16,7 @@ import {
   workspaceBadges,
   workspaceDot,
 } from './logic.js';
-import type { GroupDetailView } from './types.js';
+import type { GroupDetailView } from '../../api/contracts.js';
 
 function WorkspaceRow({
   workspace,
@@ -82,13 +82,13 @@ export function HomeScreen({ workspaceId }: { workspaceId?: string | undefined }
 
   if (!data)
     return (
-      <main class="screen ws-loading" aria-label="Workspaces" data-placeholder="10-home">
+      <main class="screen ws-loading" aria-label="Workspaces">
         Loading workspaces…
       </main>
     );
   if (!data.workspaces.length)
     return (
-      <main class="screen" aria-label="Workspaces" data-placeholder="10-home">
+      <main class="screen" aria-label="Workspaces">
         <EmptyState
           title="No cloaked workspaces yet"
           action={
@@ -123,7 +123,7 @@ export function HomeScreen({ workspaceId }: { workspaceId?: string | undefined }
     : 'Select a workspace in a group to run its bulk sync';
 
   return (
-    <main class="screen ws-screen" aria-label="Workspaces" data-placeholder="10-home">
+    <main class="screen ws-screen" aria-label="Workspaces">
       <section class="ws-list" aria-label="Workspaces">
         <div class="ws-toolbar">
           <span class="ws-toolbar-title">Workspaces</span>

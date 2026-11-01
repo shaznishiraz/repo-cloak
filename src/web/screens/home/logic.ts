@@ -6,7 +6,7 @@ import type {
   PushTarget,
 } from '../../api/contracts.js';
 import type { BadgeTone } from '../../shell/ui/index.js';
-import type { GroupDetailView, WorkspaceDetailView } from './types.js';
+import type { GroupDetailView, WorkspaceDetailView } from '../../api/contracts.js';
 
 export const toPushCount = ({ counts }: Pick<OverviewWorkspace, 'counts'>) =>
   counts.modified + counts.added + counts.deleted;

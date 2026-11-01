@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { readSession } from '../../src/web/api/session.js';
+import { clearSession, readSession } from '../../src/web/api/session.js';
 
 function memory() {
   const items = new Map<string, string>();
@@ -35,4 +35,14 @@ it('survives corrupt stored launch data', () => {
   const storage = memory();
   storage.setItem('cloak-launch', '{nope');
   expect(readSession('#/', storage).launch).toEqual({});
+});
+
+it('forgets the token and launch context when a tab locks', () => {
+  const items = new Map([
+    ['cloak-token', 'abc'],
+    ['cloak-launch', '{}'],
+    ['other', 'kept'],
+  ]);
+  clearSession({ removeItem: (key: string) => void items.delete(key) });
+  expect([...items.keys()]).toEqual(['other']);
 });

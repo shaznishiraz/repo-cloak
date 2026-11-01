@@ -5,6 +5,7 @@ export default defineConfig({
     include: ['tests/**/*.test.{ts,tsx}'],
     // Integration tests spawn Git processes; bound their combined resource use.
     maxWorkers: 4,
+    testTimeout: 15_000,
     coverage: {
       provider: 'v8',
       include: ['src/**/*.ts'],

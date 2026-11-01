@@ -87,26 +87,25 @@ const key = (init: KeyboardEventInit, target: EventTarget = window) =>
   });
 
 it.each([
-  ['#/', 'Workspaces', '10-home'],
-  ['#/new', 'New cloak', '20-new-cloak'],
-  ['#/ws/w1', 'Workspaces', '10-home'],
-  ['#/ws/w1/push', 'Push review', '30-push'],
-  ['#/groups/g1', 'Group sync', '10-home'],
-  ['#/repos', 'Known repos', '50-admin'],
-  ['#/requests', 'Agent requests', '50-admin'],
-  ['#/profiles', 'Profiles', '40-profiles'],
-  ['#/profiles/p1', 'Profiles', '40-profiles'],
-  ['#/profiles/p1/json', 'Profiles', '40-profiles'],
-  ['#/history', 'History', '50-admin'],
-  ['#/settings', 'Settings', '50-admin'],
-  ['#/setup', 'First run', '20-new-cloak'],
-])('renders the %s placeholder', (hash, title, owner) => {
+  ['#/', 'Workspaces'],
+  ['#/new', 'New cloak'],
+  ['#/ws/w1', 'Workspaces'],
+  ['#/ws/w1/push', 'Push review'],
+  ['#/groups/g1', 'Group sync'],
+  ['#/repos', 'Known repos'],
+  ['#/requests', 'Agent requests'],
+  ['#/profiles', 'Profiles'],
+  ['#/profiles/p1', 'Profiles'],
+  ['#/profiles/p1/json', 'Profiles'],
+  ['#/history', 'History'],
+  ['#/settings', 'Settings'],
+  ['#/setup', 'First run'],
+])('renders the %s screen', (hash, title) => {
   act(() => {
     route.value = parseRoute(hash);
   });
   const screen = root.querySelector('main');
   expect(screen?.getAttribute('aria-label')).toBe(title);
-  expect(screen?.getAttribute('data-placeholder')).toBe(owner);
 });
 
 it('renders a recovery page for unknown routes', () => {
@@ -186,4 +185,23 @@ it('opens New cloak with N but never while typing', async () => {
   field.remove();
   key({ key: 'n' });
   await vi.waitFor(() => expect(location.hash).toBe('#/new'));
+});
+
+it('sends a brand new store to first run once, and leaves everyone else alone', () => {
+  act(() => {
+    route.value = parseRoute('#/');
+    overview.value = null;
+  });
+  render(null, root);
+  act(() => {
+    render(<Shell />, root);
+    overview.value = { ...data, workspacesRoot: null, workspaces: [] };
+  });
+  expect(location.hash).toBe('#/setup');
+  act(() => {
+    location.hash = '#/';
+    route.value = parseRoute('#/');
+    overview.value = { ...data, workspacesRoot: null, workspaces: [], profileCount: 9 };
+  });
+  expect(location.hash).toBe('#/');
 });

@@ -20,7 +20,6 @@ import { canonicalPath, filterPaths, readSourceFiles } from '../files.js';
 import { absoluteFolder, browseFolders } from '../folders.js';
 import { commitFiles, repoState, runGit } from '../git.js';
 import { OperationError } from '../ui-operations.js';
-import { profilesRoutes } from './profiles.js';
 import { route } from './router.js';
 import type { Route } from './router.js';
 
@@ -611,31 +610,7 @@ async function savePresets(dashboard: Dashboard, enabled: string[]) {
   });
 }
 
-/**
- * New cloak needs the profile list, which 40-profiles owns. This keeps the screen working until
- * that route is registered and steps aside by itself once it is. Delete it at cutover.
- */
-const profileListFallback = profilesRoutes.some(
-  (item) => item.method === 'GET' && item.path === '/api/v2/profiles',
-)
-  ? []
-  : [
-      route('GET /api/v2/profiles', async ({ dashboard, query }) => {
-        const { repo } = repoQuery.parse(Object.fromEntries(query));
-        return {
-          profiles: (await dashboard.profiles(repo)).map((saved) => ({
-            id: saved.id,
-            name: saved.profile.name,
-            scope: saved.scope,
-            ruleCount: saved.profile.rules.length,
-            exclusionCount: saved.profile.exclude?.length ?? 0,
-          })),
-        };
-      }),
-    ];
-
 export const newRoutes: Route[] = [
-  ...profileListFallback,
   route('GET /api/v2/new/context', async ({ dashboard, query }) => {
     const { repo, worktree } = placeQuery.parse(Object.fromEntries(query));
     const root = await requireWorktree(dashboard, repo, worktree);

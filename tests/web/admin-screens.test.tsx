@@ -202,7 +202,7 @@ it('shows repos pinned first, worktrees with ahead/behind and Cloak/Open, rules 
   expect(text).toContain('up to date');
   expect(text).toContain('↑3 ↓1');
   expect(byText('Open')?.getAttribute('href')).toBe('#/ws/w1');
-  expect(byText('Cloak')?.getAttribute('href')).toBe('#/new');
+  expect(byText('Cloak')?.getAttribute('href')).toContain('#/new?repo=');
   expect(text).toContain('**/PHI/**');
   expect(text).toContain('61');
   expect(text).toContain('Not enforced yet');

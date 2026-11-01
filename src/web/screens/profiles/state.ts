@@ -12,9 +12,7 @@ import { pretty } from './document.js';
 import { asProfileDoc, blankProfile } from './rules.js';
 import type { ProfileDoc } from './rules.js';
 
-/** Severity and usedBy travel beyond the contract; see the package report. */
-export type Problem = ProfileProblem & { severity?: 'warning' | 'secret' };
-type DetailView = ProfileDetail & { usedBy?: number };
+export type Problem = ProfileProblem;
 
 /** Edits live here, not in the screen, so moving between profiles and modes loses nothing. */
 export type Draft = {
@@ -99,7 +97,7 @@ export async function loadList(repoIds: string[]) {
   }
 }
 
-function fromDetail(detail: DetailView, previous?: Draft): Draft {
+function fromDetail(detail: ProfileDetail, previous?: Draft): Draft {
   const savedText = pretty(detail.document);
   // Unsaved edits win. Their old revision stays, so saving reports a change made elsewhere.
   const keep = previous && isDirty(previous);
@@ -112,7 +110,7 @@ function fromDetail(detail: DetailView, previous?: Draft): Draft {
     text: keep ? previous.text : savedText,
     hits: detail.hits,
     locked: detail.lockedExclusions,
-    usedBy: detail.usedBy ?? 0,
+    usedBy: detail.usedBy,
     stale: false,
   };
 }

@@ -118,6 +118,7 @@ export const documentSchema = {
     workspaces: z.record(z.string(), workspace),
     exclude: z.array(text).optional(),
     hidden: z.boolean().optional(),
+    pinned: z.boolean().optional(),
   }),
   config: z.looseObject({
     ...base,

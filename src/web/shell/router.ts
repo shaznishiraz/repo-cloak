@@ -2,7 +2,7 @@ import { signal } from '@preact/signals';
 
 export type Route =
   | { screen: 'home'; workspaceId?: string }
-  | { screen: 'new' }
+  | { screen: 'new'; repoId?: string; worktree?: string }
   | { screen: 'push'; workspaceId: string }
   | { screen: 'group'; groupId: string }
   | { screen: 'repos' }
@@ -25,6 +25,12 @@ export function parseRoute(hash: string): Route {
   const notFound: Route = { screen: 'not-found', hash };
   if (hash === '' || hash === '#') return { screen: 'home' };
   if (!hash.startsWith('#/')) return notFound;
+  if (hash.startsWith('#/new?')) {
+    const query = new URLSearchParams(hash.slice('#/new?'.length));
+    const repoId = query.get('repo');
+    const worktree = query.get('worktree');
+    return repoId && worktree ? { screen: 'new', repoId, worktree } : { screen: 'new' };
+  }
   const path = hash.slice(2).replace(/\/$/, '');
   const parts = path ? path.split('/') : [];
   const [head, id, tail] = parts;

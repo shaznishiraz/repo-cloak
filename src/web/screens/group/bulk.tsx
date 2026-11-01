@@ -4,7 +4,7 @@ import { api } from '../../shell/load.js';
 import { Button, Checkbox, Dialog, Field, toast } from '../../shell/ui/index.js';
 import { errorText, refreshOverview, reportError, sleep } from '../home/actions.js';
 import { PreviewSummary, needsConfirmation } from '../home/operation-dialog.js';
-import type { GroupBulkView, GroupDetailView, GroupOperationView } from '../home/types.js';
+import type { GroupBulkView, GroupDetailView, GroupOperationView } from '../../api/contracts.js';
 import { readRules } from './rules.js';
 
 const stateLabels: Record<GroupOperationState['members'][number]['state'], string> = {

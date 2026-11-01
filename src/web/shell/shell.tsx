@@ -1,5 +1,5 @@
 import type { ComponentChildren } from 'preact';
-import { useEffect } from 'preact/hooks';
+import { useEffect, useRef } from 'preact/hooks';
 import './shell.css';
 import type { LaunchContext } from '../api/contracts.js';
 import { Palette, openPalette, paletteOpen } from './palette.js';
@@ -206,8 +206,27 @@ function Rail({ current }: { current: Route }) {
   );
 }
 
+/** Sends a brand new store to first run once; after that, home stays reachable. */
+function useFirstRun() {
+  const data = overview.value;
+  const checked = useRef(false);
+  useEffect(() => {
+    if (!data || checked.current) return;
+    checked.current = true;
+    const here = route.value;
+    if (
+      data.workspacesRoot === null &&
+      !data.workspaces.length &&
+      here.screen === 'home' &&
+      !here.workspaceId
+    )
+      navigate('#/setup');
+  }, [data]);
+}
+
 export function Shell() {
   useGlobalKeys();
+  useFirstRun();
   const current = route.value;
   return (
     <div class="shell">

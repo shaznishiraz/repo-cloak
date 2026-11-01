@@ -5,6 +5,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
+import { z } from 'zod';
 import type { Dashboard } from '../application/dashboard.js';
 import { RequestError, matchRoute, readBody } from './server-v2/router.js';
 import { v2Routes } from './server-v2/index.js';
@@ -17,6 +18,14 @@ const assets = new Map([
   ['/favicon.ico', ['favicon.ico', 'image/x-icon']],
   ['/supply-chain.json', ['supply-chain.json', 'application/json; charset=utf-8']],
 ]);
+/** Schema errors stringify to raw JSON, which would reach the user as a toast. */
+function errorMessage(error: unknown) {
+  if (error instanceof z.ZodError) {
+    const issue = error.issues[0];
+    return `Invalid request: ${[...(issue?.path ?? []), issue?.message].join(': ')}`;
+  }
+  return error instanceof Error ? error.message : 'Request failed';
+}
 export function createDashboardServer(dashboard: Dashboard, token: string, assetRoot?: string) {
   const assetDirectory = assetRoot ?? fileURLToPath(new URL('./web/', import.meta.url));
   function send(response: ServerResponse, status: number, value: unknown) {
@@ -42,7 +51,7 @@ export function createDashboardServer(dashboard: Dashboard, token: string, asset
                 }[error.code]
               : 400,
           {
-            error: error instanceof Error ? error.message : 'Request failed',
+            error: errorMessage(error),
             code: error instanceof OperationError ? error.code : 'validation',
           },
         );

@@ -146,6 +146,11 @@ it('lists repos with worktree counts and last use, and pins them', async () => {
   expect(listed.body.repos[0]?.pinned).toBe(true);
   const unpinned = await f.call<RepoDetail>('PUT', `/api/v2/repos/${f.repoId}`, { pinned: false });
   expect(unpinned.body.repo.pinned).toBe(false);
+  // Pins live in the sealed repo record, so they survive a server restart.
+  await f.call('PUT', `/api/v2/repos/${f.repoId}`, { pinned: true });
+  const restarted = createDashboard(f.store, f.root);
+  expect((await restarted.overview())[0]?.pinned).toBe(true);
+  await f.call('PUT', `/api/v2/repos/${f.repoId}`, { pinned: false });
 });
 
 it('reports worktrees with ahead and behind counts and which have a cloak', async () => {

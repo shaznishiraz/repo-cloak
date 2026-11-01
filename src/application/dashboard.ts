@@ -115,6 +115,9 @@ export function createDashboard(
       return clientConfig.install(client, workspaceId, target.path);
     },
     settings: createDashboardSettings(store, sync.audit),
+    async pinRepository(value: string, pinned: boolean) {
+      await syncStore.setRepoPinned(repoIdSchema.parse(value), pinned);
+    },
     async removeRepository(value: string) {
       const repoId = repoIdSchema.parse(value);
       return sync.operations.exclusive(() =>
@@ -222,6 +225,7 @@ export function createDashboard(
           name: basename(repo.path),
           path: repo.path,
           missing: !(await exists(repo.path)),
+          pinned: repo.pinned === true,
           workspaces: workspaces.sort((a, b) => b.lastUsedAt.localeCompare(a.lastUsedAt)),
         });
       }

@@ -47,3 +47,9 @@ export function readSession(hash: string, storage: SessionStore): BrowserSession
   storage.setItem(launchKey, JSON.stringify(launch));
   return { token: incoming, launch, route: landingRoute(launch) };
 }
+
+/** Forgets this tab's session. The server's token stays valid until the dashboard stops. */
+export function clearSession(storage: Pick<Storage, 'removeItem'>) {
+  storage.removeItem(tokenKey);
+  storage.removeItem(launchKey);
+}

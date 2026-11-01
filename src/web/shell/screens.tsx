@@ -16,7 +16,13 @@ export function Screen({ route }: { route: Route }) {
     case 'home':
       return <HomeScreen workspaceId={route.workspaceId} />;
     case 'new':
-      return <NewCloakScreen />;
+      return (
+        <NewCloakScreen
+          key={`${route.repoId ?? ''}:${route.worktree ?? ''}`}
+          repoId={route.repoId}
+          worktree={route.worktree}
+        />
+      );
     case 'push':
       return <PushScreen workspaceId={route.workspaceId} />;
     case 'group':

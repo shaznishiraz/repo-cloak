@@ -17,10 +17,7 @@ import {
 import { exportSignedLog } from '../history/audit-actions.js';
 import { FolderPicker, LoadError, copyText, errorText, useLoad } from '../repos/shared.js';
 import { AiTools } from './ai-tools.js';
-import { idleLock, lockTab, startAutoLock } from './auto-lock.js';
-
-// Idle locking has to run on every screen, and only this package owns it.
-if (globalThis.document) startAutoLock();
+import { idleLock, lockTab } from './auto-lock.js';
 
 type Patch = V2Api['PUT /api/v2/settings']['body'];
 type Draft = {
@@ -268,7 +265,7 @@ export function SettingsScreen() {
   const policy = security?.policy;
   const store = sessionInfo.value?.store;
   return (
-    <main class="screen" aria-label="Settings" data-placeholder="50-admin">
+    <main class="screen" aria-label="Settings">
       <header class="adm-head">
         <h1 class="adm-title">Settings</h1>
         {lockedCount > 0 && (

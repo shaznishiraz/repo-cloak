@@ -44,11 +44,7 @@ const checkBody = z
   .min(1)
   .max(200);
 
-/**
- * `severity` is beyond the contract's ProfileProblem, which cannot tell a warning from an error.
- * No severity means an error. 'secret' is an error the paste flow refuses outright.
- */
-export type ProblemView = ProfileProblem & { severity?: 'warning' | 'secret' };
+export type ProblemView = ProfileProblem;
 const isError = (problem: ProblemView) => problem.severity !== 'warning';
 
 function detectSecret(text: string): string | undefined {
@@ -427,8 +423,7 @@ async function lockedExclusions(dashboard: Dashboard, repo?: string): Promise<Lo
   return locked;
 }
 
-/** `usedBy` is beyond the contract: the design shows it and the data is here. */
-export type ProfileDetailView = ProfileDetail & { usedBy: number };
+export type ProfileDetailView = ProfileDetail;
 async function detail(
   dashboard: Dashboard,
   saved: SavedProfile,

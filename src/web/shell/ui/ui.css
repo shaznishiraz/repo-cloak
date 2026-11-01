@@ -29,14 +29,14 @@
   font-size: var(--text-meta);
 }
 .btn-primary {
-  border-color: var(--text);
-  background: var(--text);
+  border-color: var(--accent);
+  background: var(--accent);
   color: var(--on-solid);
   font-weight: 600;
 }
 .btn-primary:hover:not(:disabled) {
-  background: var(--text-2);
-  border-color: var(--text-2);
+  background: var(--accent-soft);
+  border-color: var(--accent-soft);
   color: var(--on-solid);
 }
 .btn-ghost {
@@ -93,6 +93,11 @@
   text-align: left;
   font-size: var(--text-row);
   cursor: pointer;
+}
+.menu-heading {
+  padding: 6px 10px 2px;
+  color: var(--text-3);
+  font-size: var(--text-meta);
 }
 .menu-item:hover:not(:disabled),
 .menu-item:focus-visible {

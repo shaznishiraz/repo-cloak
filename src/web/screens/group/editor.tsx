@@ -4,7 +4,7 @@ import { api } from '../../shell/load.js';
 import { overview } from '../../shell/state.js';
 import { Button, Checkbox, Dialog, Field, Radio } from '../../shell/ui/index.js';
 import { errorText, refreshOverview } from '../home/actions.js';
-import type { GroupDetailView } from '../home/types.js';
+import type { GroupDetailView } from '../../api/contracts.js';
 
 const worktreeOf = (workspace: OverviewWorkspace) =>
   workspace.lineage.worktree?.path ?? workspace.lineage.repo.path;

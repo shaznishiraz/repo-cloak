@@ -34,6 +34,7 @@ it.each([
   ['text-3', 'overlay'],
   ['text-2', 'row-active'],
   ['on-solid', 'text'],
+  ['on-solid', 'accent'],
   ['accent', 'panel'],
   ['accent-soft', 'accent-bg'],
   ['push', 'push-bg'],

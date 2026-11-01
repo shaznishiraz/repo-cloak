@@ -92,6 +92,8 @@ test('a new profile can be created and deleted', async ({ app, browser, screen }
   await screen.getByLabel('Profile name').fill('second');
   await screen.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(browser.locator('nav[aria-label="Profiles"]')).toContainText('second');
+  // The list refreshes just before the route changes; Delete appears once the saved profile opens.
+  await expect(screen.getByRole('button', { name: 'Delete', exact: true })).toBeVisible();
   expect(await browser.evaluate(() => location.hash)).toMatch(/^#\/profiles\/pf_/);
   await screen.getByRole('button', { name: 'Delete', exact: true }).click();
   await screen.getByRole('button', { name: 'Delete profile' }).click();

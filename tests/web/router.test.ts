@@ -27,3 +27,14 @@ it.each(['#/nope', '#/ws', '#/ws/a/b', '#/groups', '#/profiles/p/yaml', '#/ws/%E
     expect(parseRoute(hash)).toEqual({ screen: 'not-found', hash });
   },
 );
+
+it('carries a repository and worktree into a new cloak link', () => {
+  const query = new URLSearchParams({ repo: 'a'.repeat(16), worktree: '/x/my tree' });
+  expect(parseRoute(`#/new?${query}`)).toEqual({
+    screen: 'new',
+    repoId: 'a'.repeat(16),
+    worktree: '/x/my tree',
+  });
+  expect(parseRoute('#/new?repo=only')).toEqual({ screen: 'new' });
+  expect(parseRoute('#/repos?repo=x').screen).toBe('not-found');
+});

@@ -23,7 +23,7 @@ import type {
   GroupOperationView,
   TargetPreview,
   WorkspaceDetailView,
-} from '../../web/screens/home/types.js';
+} from '../../web/api/contracts.js';
 import { createCommitDiff } from '../commit-diff.js';
 import { readSourceFiles } from '../files.js';
 import { repoState, runGit } from '../git.js';

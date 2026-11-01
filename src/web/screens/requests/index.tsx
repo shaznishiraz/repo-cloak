@@ -160,7 +160,7 @@ export function RequestsScreen() {
   const waiting = requests.filter((request) => open.has(request.state)).length;
   const unseen = (overview.value?.pendingAgentRequests ?? 0) - waiting;
   return (
-    <main class="screen" aria-label="Agent requests" data-placeholder="50-admin">
+    <main class="screen" aria-label="Agent requests">
       <header class="adm-head">
         <h1 class="adm-title">Agent requests</h1>
         <span class="adm-sub">

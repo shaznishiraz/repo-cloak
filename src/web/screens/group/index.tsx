@@ -15,7 +15,7 @@ import {
 import { errorText, refreshOverview, reportError, request } from '../home/actions.js';
 import '../home/home.css';
 import { clockTime, historyText, historyTone } from '../home/logic.js';
-import type { GroupDetailView, GroupMemberView } from '../home/types.js';
+import type { GroupDetailView, GroupMemberView } from '../../api/contracts.js';
 import { BulkDialog } from './bulk.js';
 import { GroupEditor, JoinDialog } from './editor.js';
 import './group.css';
@@ -201,7 +201,7 @@ export function GroupScreen({ groupId }: { groupId: string }) {
 
   if (failure)
     return (
-      <main class="screen" aria-label="Group sync" data-placeholder="10-home">
+      <main class="screen" aria-label="Group sync">
         <EmptyState
           title="Could not load this group"
           action={
@@ -216,7 +216,7 @@ export function GroupScreen({ groupId }: { groupId: string }) {
     );
   if (!group || !rules)
     return (
-      <main class="screen ws-loading" aria-label="Group sync" data-placeholder="10-home">
+      <main class="screen ws-loading" aria-label="Group sync">
         Loading group…
       </main>
     );
@@ -289,7 +289,7 @@ export function GroupScreen({ groupId }: { groupId: string }) {
     }),
   );
   return (
-    <main class="screen grp" aria-label="Group sync" data-placeholder="10-home">
+    <main class="screen grp" aria-label="Group sync">
       <header class="grp-head">
         <span class="tone-2">group</span>
         <h1 class="mono">{group.name}</h1>

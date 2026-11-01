@@ -212,7 +212,10 @@ function RepoPanel({
                 Open
               </a>
             ) : (
-              <a class={buttonClass('secondary', 'small')} href="#/new">
+              <a
+                class={buttonClass('secondary', 'small')}
+                href={`#/new?${new URLSearchParams({ repo: repo.id, worktree: tree.path })}`}
+              >
                 Cloak
               </a>
             )}
@@ -349,7 +352,7 @@ export function ReposScreen() {
   }
   const locked = settings.data?.security.lockedExclusions ?? [];
   return (
-    <main class="screen" aria-label="Known repos" data-placeholder="50-admin">
+    <main class="screen" aria-label="Known repos">
       <header class="adm-head">
         <h1 class="adm-title">Known repos</h1>
         <span class="adm-sub">
@@ -386,7 +389,6 @@ export function ReposScreen() {
                   class="adm-star"
                   aria-pressed={repo.pinned}
                   aria-label={`${repo.pinned ? 'Unpin' : 'Pin'} ${repo.name}`}
-                  title="Pins last until the dashboard stops"
                   onClick={() => void pin(repo)}
                 >
                   ★

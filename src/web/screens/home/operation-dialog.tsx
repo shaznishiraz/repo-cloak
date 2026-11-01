@@ -3,7 +3,7 @@ import type { OperationPreview, OperationState } from '../../api/contracts.js';
 import { api } from '../../shell/load.js';
 import { Button, Checkbox, Dialog, Mono, toast } from '../../shell/ui/index.js';
 import { downloadText, errorText, sleep } from './actions.js';
-import type { TargetPreview } from './types.js';
+import type { TargetPreview } from '../../api/contracts.js';
 
 function PathList({ title, paths, tone }: { title: string; paths: string[]; tone?: string }) {
   if (!paths.length) return null;

@@ -47,10 +47,15 @@ function pluralFiles(count: number) {
   return `${count} ${count === 1 ? 'file' : 'files'}`;
 }
 
-export function NewCloakScreen() {
+export function NewCloakScreen({
+  repoId: linkedRepo,
+  worktree: linkedWorktree,
+}: { repoId?: string | undefined; worktree?: string | undefined } = {}) {
   const data = overview.value;
   const detected = launchTarget(data);
-  const [picked, setPicked] = useState<Target | null>(null);
+  const [picked, setPicked] = useState<Target | null>(
+    linkedRepo && linkedWorktree ? { repoId: linkedRepo, worktree: linkedWorktree } : null,
+  );
   const target = picked ?? detected;
   const repoId = target?.repoId;
   const worktree = target?.worktree;
@@ -403,9 +408,8 @@ export function NewCloakScreen() {
     ? `Add to ${existing?.name ?? 'cloak'} · ${pluralFiles(review?.files ?? 0)}`
     : `Create cloak · ${pluralFiles(review?.files ?? 0)}`;
 
-  // aria-label and data-placeholder stay for the shell's route tests until 90-cutover rewrites them.
   return (
-    <main class="screen new-cloak" aria-label="New cloak" data-placeholder="20-new-cloak">
+    <main class="screen new-cloak" aria-label="New cloak">
       <div class="new-head">
         <h1 class="new-title">New cloak</h1>
         <span class="new-hint">

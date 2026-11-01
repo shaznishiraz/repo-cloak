@@ -106,6 +106,19 @@ export function createSyncStore(store: ReturnType<typeof createStore>) {
         await release();
       }
     },
+    async setRepoPinned(repoId: string, pinned: boolean): Promise<void> {
+      const directory = join(store.root, 'repos', repoId);
+      const release = await lock(directory, {
+        retries: { retries: 8, minTimeout: 25, maxTimeout: 100 },
+      });
+      try {
+        const record = await readRepoRecord(repoId);
+        if (!record) throw new Error('Repository is not registered');
+        await store.writeSealed(`repos/${repoId}/repo.json`, repoId, 'repo', { ...record, pinned });
+      } finally {
+        await release();
+      }
+    },
     async setRepoHidden(repoId: string, hidden: boolean): Promise<void> {
       const directory = join(store.root, 'repos', repoId);
       const release = await lock(directory, {

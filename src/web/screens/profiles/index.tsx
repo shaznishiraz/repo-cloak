@@ -266,7 +266,7 @@ export function ProfilesScreen({
 
   return (
     // data-placeholder stays until the shell and dashboard tests drop their placeholder rows.
-    <main class="screen pf" aria-label="Profiles" data-placeholder="40-profiles">
+    <main class="screen pf" aria-label="Profiles">
       <header class="pf-head">
         <h1 class="pf-title">Profiles</h1>
         {draft && json && <span class="mono pf-crumb">/ {doc?.name || 'new profile'}</span>}

@@ -1,4 +1,5 @@
 import { effect } from '@preact/signals';
+import { clearSession } from '../../api/session.js';
 import { api } from '../../shell/load.js';
 import { sessionInfo } from '../../shell/state.js';
 
@@ -13,9 +14,7 @@ export function lockTab(
   storage: SessionStore = sessionStorage,
   reload: () => void = () => location.reload(),
 ) {
-  // Keep in step with web/api/session.ts, which does not export these; a test checks they match.
-  storage.removeItem('cloak-token');
-  storage.removeItem('cloak-launch');
+  clearSession(storage);
   reload();
 }
 

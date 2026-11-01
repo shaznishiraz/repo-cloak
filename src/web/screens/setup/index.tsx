@@ -203,9 +203,8 @@ export function SetupScreen() {
   const suggested = state?.suggestedNames ?? [];
   const keyId = sessionInfo.value?.store.keyId;
 
-  // aria-label and data-placeholder stay for the shell's route tests until 90-cutover rewrites them.
   return (
-    <main class="screen setup" aria-label="First run" data-placeholder="20-new-cloak">
+    <main class="screen setup" aria-label="First run">
       <div class="setup-column">
         <div class="setup-brand">
           <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">

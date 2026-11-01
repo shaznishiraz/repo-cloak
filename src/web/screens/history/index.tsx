@@ -170,7 +170,7 @@ export function HistoryScreen() {
   const active = rows.find((event) => event.seq === selected) ?? rows[0];
   const previous = active && rows.find((event) => event.seq === active.seq - 1);
   return (
-    <main class="screen" aria-label="History" data-placeholder="50-admin">
+    <main class="screen" aria-label="History">
       <header class="adm-head">
         <h1 class="adm-title">History</h1>
         <Badge tone={chainError || (chain && !chain.ok) ? 'blocked' : chain ? 'ok' : 'neutral'}>

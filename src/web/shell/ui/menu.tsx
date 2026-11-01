@@ -1,13 +1,16 @@
 import type { ComponentChildren } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
 
-export type MenuItem = {
+export type MenuAction = {
   label: string;
   hint?: string;
   checked?: boolean;
   disabled?: boolean;
   onSelect: () => void;
 };
+/** A non-interactive label above the actions that follow it. */
+export type MenuHeading = { heading: string };
+export type MenuItem = MenuAction | MenuHeading;
 
 export function Menu({
   items,
@@ -70,27 +73,33 @@ export function Menu({
       </button>
       {open && (
         <div ref={list} class="menu-list" role="menu" aria-label={label} onKeyDown={onKeyDown}>
-          {items.map((item) => (
-            <button
-              key={item.label}
-              type="button"
-              role="menuitem"
-              class="menu-item"
-              disabled={item.disabled}
-              onClick={() => {
-                close();
-                item.onSelect();
-              }}
-            >
-              <span class="menu-mark" aria-hidden="true">
-                {item.checked ? '✓' : ''}
-              </span>
-              <span class="menu-text">
-                {item.label}
-                {item.hint && <span class="menu-hint">{item.hint}</span>}
-              </span>
-            </button>
-          ))}
+          {items.map((item) =>
+            'heading' in item ? (
+              <div key={`heading:${item.heading}`} class="menu-heading" role="presentation">
+                {item.heading}
+              </div>
+            ) : (
+              <button
+                key={item.label}
+                type="button"
+                role="menuitem"
+                class="menu-item"
+                disabled={item.disabled}
+                onClick={() => {
+                  close();
+                  item.onSelect();
+                }}
+              >
+                <span class="menu-mark" aria-hidden="true">
+                  {item.checked ? '✓' : ''}
+                </span>
+                <span class="menu-text">
+                  {item.label}
+                  {item.hint && <span class="menu-hint">{item.hint}</span>}
+                </span>
+              </button>
+            ),
+          )}
         </div>
       )}
     </span>

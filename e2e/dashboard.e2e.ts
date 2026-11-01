@@ -21,22 +21,22 @@ test('shell loads real counts and moves the token out of the address bar', async
 
 test('every route renders its screen', async ({ app, browser }) => {
   await app.open(entry);
-  for (const [hash, owner] of [
-    ['#/', '10-home'],
-    ['#/new', '20-new-cloak'],
-    ['#/setup', '20-new-cloak'],
-    ['#/repos', '50-admin'],
-    ['#/requests', '50-admin'],
-    ['#/profiles', '40-profiles'],
-    ['#/history', '50-admin'],
-    ['#/settings', '50-admin'],
-    ['#/ws/example/push', '30-push'],
-    ['#/groups/example', '10-home'],
+  for (const [hash, title] of [
+    ['#/', 'Workspaces'],
+    ['#/new', 'New cloak'],
+    ['#/setup', 'First run'],
+    ['#/repos', 'Known repos'],
+    ['#/requests', 'Agent requests'],
+    ['#/profiles', 'Profiles'],
+    ['#/history', 'History'],
+    ['#/settings', 'Settings'],
+    ['#/ws/example/push', 'Push review'],
+    ['#/groups/example', 'Group'],
   ]) {
     await browser.evaluate((next) => {
       location.hash = next;
     }, hash);
-    await expect(browser.locator(`[data-placeholder="${owner}"]`)).toBeVisible();
+    await expect(browser.locator(`main[aria-label^="${title}"]`)).toBeVisible();
   }
 });
 
@@ -48,7 +48,7 @@ test('the palette opens, navigates and closes', async ({ app, browser, screen })
   await expect(input).toBeFocused();
   await input.fill('Known repos');
   await input.press('Enter');
-  await expect(browser.locator('[data-placeholder="50-admin"]')).toBeVisible();
+  await expect(browser.locator('main[aria-label="Known repos"]')).toBeVisible();
   expect(await browser.evaluate(() => location.hash)).toBe('#/repos');
   await expect(input).toBeHidden();
 });

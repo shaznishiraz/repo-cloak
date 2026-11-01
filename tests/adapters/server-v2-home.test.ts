@@ -15,7 +15,7 @@ import type {
   GroupOperationView,
   TargetPreview,
   WorkspaceDetailView,
-} from '../../src/web/screens/home/types.js';
+} from '../../src/web/api/contracts.js';
 
 vi.setConfig({ testTimeout: 30_000 });
 
