@@ -2,7 +2,7 @@ import type { E2EConfig } from 'e2e';
 import { web } from '@e2e-dev/web';
 
 export default {
-  tests: ['dashboard.e2e.ts', '10-home.e2e.ts'],
+  tests: ['dashboard.e2e.ts', '10-home.e2e.ts', 'new-cloak.e2e.ts'],
   workers: 1,
   retries: 0,
   reporters: ['list', 'junit'],
