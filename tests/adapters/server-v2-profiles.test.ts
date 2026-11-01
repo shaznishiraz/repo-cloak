@@ -1,7 +1,7 @@
 import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { afterEach, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { runGit } from '../../src/adapters/git.js';
 import { collectSuggestions } from '../../src/adapters/server-v2/profile-scan.js';
 import { documentProblems } from '../../src/adapters/server-v2/profiles.js';
@@ -415,4 +415,256 @@ it('records saves in the audit log by id, never by name', async () => {
     expect.arrayContaining([`Created profile ${saved.id}`, `Deleted profile ${saved.id}`]),
   );
   expect(JSON.stringify(page)).not.toContain('names');
+});
+
+describe('regex hardening', () => {
+  const unsafe = doc({
+    rules: [{ id: 'evil', type: 'regex', match: '(a+)+$', replace: 'x$&' }],
+  });
+  const slow = doc({
+    rules: [{ id: 'slow', type: 'regex', match: '^(.*?,){14}P', replace: 'x$&' }],
+  });
+  const slowText = 'a,'.repeat(4000);
+
+  it('rejects (a+)+$ at validation, located on the rule', async () => {
+    const { call } = await fixture();
+    const result = await call('POST', '/api/v2/profiles/validate', { document: unsafe });
+    const { problems } = result.json as { problems: ProblemView[] };
+    expect(problems[0]?.path).toBe('rules.0.match');
+    expect(problems[0]?.message).toMatch(/unsafe regex.*nested/);
+  });
+  it('refuses to save it or preview it', async () => {
+    const { call } = await fixture();
+    const created = await call('POST', '/api/v2/profiles', { scope: global, document: unsafe });
+    expect(created.status).toBe(400);
+    expect((created.json as { error: string }).error).toMatch(/unsafe regex/);
+    const tested = await call('POST', '/api/v2/profiles/test', { document: unsafe, text: 'aaa' });
+    expect((tested.json as ProfileTestResult).problems[0]?.message).toMatch(/unsafe regex/);
+  });
+  it('a slow regex the static check misses times out the tester while the server answers', async () => {
+    const { call } = await fixture();
+    const pending = call('POST', '/api/v2/profiles/test', { document: slow, text: slowText });
+    const started = performance.now();
+    const other = await call('GET', '/api/v2/profiles');
+    expect(other.status).toBe(200);
+    expect(performance.now() - started).toBeLessThan(1500);
+    const tested = (await pending).json as ProfileTestResult;
+    expect(tested.problems[0]?.message).toMatch(/regex did not finish within 2s/);
+    expect(tested.roundTrips).toBe(false);
+  }, 30_000);
+  it('the tester still works for a normal regex', async () => {
+    const { call } = await fixture();
+    const document = doc({
+      rules: [{ id: 'r', type: 'regex', match: 'CH-(\\d+)', replace: 'CLM-$1' }],
+    });
+    const tested = await call('POST', '/api/v2/profiles/test', { document, text: 'see CH-12' });
+    expect(tested.json).toMatchObject({
+      cloaked: 'see CLM-12',
+      restored: 'see CH-12',
+      roundTrips: true,
+    });
+  });
+  it('hit counting reports a timeout instead of partial numbers', async () => {
+    const { call, source, repoId } = await fixture();
+    await writeFile(join(source, 'big.txt'), slowText);
+    const created = await call('POST', '/api/v2/profiles', { scope: global, document: slow });
+    const { id } = created.json as ProfileDetailView;
+    const detail = await call('GET', `/api/v2/profiles/${id}?repo=${repoId}`);
+    expect((detail.json as ProfileDetailView).hitsError).toMatch(
+      /Hits are incomplete: .*regex did not finish/,
+    );
+  }, 30_000);
+  it('a saved profile that now fails is listed with its problem and still opens', async () => {
+    const { call, store, repoId, source } = await fixture();
+    await writeFile(join(source, 'a.txt'), 'aaa\n');
+    await store.writeSealed('profiles/pf_old.json', 'pf_old', 'profile', unsafe);
+    const list = await call('GET', '/api/v2/profiles');
+    expect(list.status).toBe(200);
+    const [item] = (list.json as { profiles: ProfileListItem[] }).profiles;
+    expect(item?.problem).toMatch(/names\/evil: unsafe regex/);
+    const detail = await call('GET', `/api/v2/profiles/pf_old?repo=${repoId}`);
+    expect(detail.status).toBe(200);
+    const view = detail.json as ProfileDetailView;
+    expect(view.document).toEqual(unsafe);
+    expect(view.hitsError).toMatch(/unsafe regex/);
+    expect(view.hits).toEqual({});
+  });
+  it('checking that profile names the rule, and fixing it clears the problem', async () => {
+    const { call, store } = await fixture();
+    await store.writeSealed('profiles/pf_old.json', 'pf_old', 'profile', unsafe);
+    const check = await call('POST', '/api/v2/profiles/check', [{ id: 'pf_old', scope: global }]);
+    expect(check.status).toBe(400);
+    expect((check.json as { error: string }).error).toMatch(/names\/evil: unsafe regex/);
+    const detail = (await call('GET', '/api/v2/profiles/pf_old')).json as ProfileDetailView;
+    const fixed = await call('PUT', '/api/v2/profiles/pf_old', {
+      revision: detail.revision,
+      document: doc(),
+    });
+    expect(fixed.status).toBe(200);
+    const list = await call('GET', '/api/v2/profiles');
+    expect((list.json as { profiles: ProfileListItem[] }).profiles[0]?.problem).toBeUndefined();
+  });
+});
+
+describe('profile@2 routes', () => {
+  const v2 = (name: string, match: string, extra: Record<string, unknown> = {}) => ({
+    kind: 'profile',
+    schemaVersion: 2,
+    name,
+    rules: [{ id: 'r', type: 'literal', match, replace: `${match}Anon` }],
+    ...extra,
+  });
+  const repoScope = (repoId: string) => ({ kind: 'repo', repoId });
+  it('reports v1 documents using the new fields, with the path', async () => {
+    const { call } = await fixture();
+    const { json } = await call('POST', '/api/v2/profiles/validate', {
+      document: doc({ allowRoots: ['src/'] }),
+    });
+    expect((json as { problems: ProblemView[] }).problems[0]).toMatchObject({
+      path: 'allowRoots',
+      message: expect.stringContaining('schemaVersion') as string,
+    });
+  });
+  it('locates a bad root', async () => {
+    const { call } = await fixture();
+    const { json } = await call('POST', '/api/v2/profiles/validate', {
+      document: v2('a', 'Aa', { allowRoots: ['src/', '../x'] }),
+    });
+    expect((json as { problems: ProblemView[] }).problems[0]?.path).toBe('allowRoots.1');
+  });
+  it('refuses a missing parent, a cycle and a self reference on save', async () => {
+    const { call } = await fixture();
+    const missing = await call('POST', '/api/v2/profiles', {
+      scope: global,
+      document: v2('child', 'Cc', { extends: ['gone'] }),
+    });
+    expect(missing.status).toBe(400);
+    expect((missing.json as { error: string }).error).toMatch(/extends "gone"/);
+    const self = await call('POST', '/api/v2/profiles', {
+      scope: global,
+      document: v2('self', 'Ss', { extends: ['self'] }),
+    });
+    expect(self.status).toBe(400);
+    const a = await call('POST', '/api/v2/profiles', { scope: global, document: v2('a', 'Aa') });
+    await call('POST', '/api/v2/profiles', {
+      scope: global,
+      document: v2('b', 'Bb', { extends: ['a'] }),
+    });
+    const parent = a.json as ProfileDetailView;
+    const cycle = await call('PUT', `/api/v2/profiles/${parent.id}`, {
+      revision: parent.revision,
+      document: v2('a', 'Aa', { extends: ['b'] }),
+    });
+    expect(cycle.status).toBe(400);
+    expect((cycle.json as { error: string }).error).toMatch(/a -> b -> a/);
+  });
+  it('reports a conflict with a parent while editing', async () => {
+    const { call } = await fixture();
+    await call('POST', '/api/v2/profiles', { scope: global, document: v2('base', 'Base') });
+    const { json } = await call('POST', '/api/v2/profiles/validate', {
+      document: {
+        ...v2('child', 'x', { extends: ['base'] }),
+        rules: [{ id: 'r', type: 'literal', match: 'Base', replace: 'Other' }],
+      },
+    });
+    expect((json as { problems: ProblemView[] }).problems[0]).toMatchObject({
+      path: 'extends',
+      message: expect.stringContaining('same original') as string,
+    });
+  });
+  it('resolves repo parents only when validating in that repo scope', async () => {
+    const { call, repoId } = await fixture();
+    await call('POST', '/api/v2/profiles', {
+      scope: repoScope(repoId),
+      document: v2('own', 'Own'),
+    });
+    const document = v2('child', 'Cc', { extends: ['own'] });
+    const asRepo = await call('POST', '/api/v2/profiles/validate', {
+      document,
+      scope: repoScope(repoId),
+    });
+    const found = (asRepo.json as { problems: ProblemView[] }).problems;
+    expect(found.filter((problem) => problem.severity !== 'warning')).toEqual([]);
+    const asGlobal = await call('POST', '/api/v2/profiles/validate', { document, scope: global });
+    expect((asGlobal.json as { problems: ProblemView[] }).problems[0]?.path).toBe('extends');
+  });
+  it('previews and counts hits through the parent', async () => {
+    const { call, source, repoId } = await fixture();
+    await writeFile(join(source, 'a.txt'), 'Base Kid\n');
+    await call('POST', '/api/v2/profiles', { scope: global, document: v2('base', 'Base') });
+    const child = v2('child', 'Kid', { extends: ['base'] });
+    const tested = await call('POST', '/api/v2/profiles/test', {
+      document: child,
+      text: 'Base Kid',
+      scope: global,
+    });
+    expect((tested.json as ProfileTestResult).cloaked).toBe('BaseAnon KidAnon');
+    const created = await call('POST', '/api/v2/profiles', { scope: global, document: child });
+    const { id } = created.json as ProfileDetailView;
+    const list = await call('GET', '/api/v2/profiles');
+    const item = (list.json as { profiles: ProfileListItem[] }).profiles.find(
+      (entry) => entry.id === id,
+    );
+    expect(item?.extends).toEqual(['base']);
+    const detail = await call('GET', `/api/v2/profiles/${id}?repo=${repoId}`);
+    expect(Object.values((detail.json as ProfileDetailView).hits)).toHaveLength(1);
+  });
+  it('does not count hits outside allowRoots', async () => {
+    const { call, source, repoId } = await fixture();
+    await mkdir(join(source, 'src'));
+    await writeFile(join(source, 'src', 'a.txt'), 'Acme\n');
+    await writeFile(join(source, 'b.txt'), 'Acme Acme\n');
+    const created = await call('POST', '/api/v2/profiles', {
+      scope: global,
+      document: v2('scoped', 'Acme', { allowRoots: ['src/'] }),
+    });
+    const { id } = created.json as ProfileDetailView;
+    const detail = await call('GET', `/api/v2/profiles/${id}?repo=${repoId}`);
+    expect((detail.json as ProfileDetailView).hits).toEqual({ r: 1 });
+  });
+  it('refuses to delete or rename a parent, and allows it once nothing extends it', async () => {
+    const { call } = await fixture();
+    const base = await call('POST', '/api/v2/profiles', {
+      scope: global,
+      document: v2('base', 'Base'),
+    });
+    const parent = base.json as ProfileDetailView;
+    const child = await call('POST', '/api/v2/profiles', {
+      scope: global,
+      document: v2('child', 'Kid', { extends: ['base'] }),
+    });
+    const kid = child.json as ProfileDetailView;
+    const deleted = await call('DELETE', `/api/v2/profiles/${parent.id}`, {
+      revision: parent.revision,
+    });
+    expect(deleted.status).toBe(409);
+    expect((deleted.json as { error: string }).error).toMatch(/child extend it/);
+    const renamed = await call('PUT', `/api/v2/profiles/${parent.id}`, {
+      revision: parent.revision,
+      document: v2('renamed', 'Base'),
+    });
+    expect(renamed.status).toBe(409);
+    const kept = await call('PUT', `/api/v2/profiles/${parent.id}`, {
+      revision: parent.revision,
+      document: v2('base', 'Base2'),
+    });
+    expect(kept.status).toBe(200);
+    await call('DELETE', `/api/v2/profiles/${kid.id}`, { revision: kid.revision });
+    const after = await call('DELETE', `/api/v2/profiles/${parent.id}`, {
+      revision: (kept.json as ProfileDetailView).revision,
+    });
+    expect(after.status).toBe(200);
+  });
+  it('a parent deleted behind the screen shows as a problem, not a crash', async () => {
+    const { call, store, repoId } = await fixture();
+    await store.writeSealed(
+      'profiles/pf_orphan.json',
+      'pf_orphan',
+      'profile',
+      v2('orphan', 'Oo', { extends: ['gone'] }),
+    );
+    const detail = await call('GET', `/api/v2/profiles/pf_orphan?repo=${repoId}`);
+    expect(detail.status).toBe(200);
+    expect((detail.json as ProfileDetailView).hitsError).toMatch(/extends "gone"/);
+  });
 });

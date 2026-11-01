@@ -24,6 +24,7 @@ import { runStatus } from './status.js';
 import { documentSchema } from '../core/schemas.js';
 import { validateProfile } from '../core/rules.js';
 import { mergeProfiles } from '../core/merge.js';
+import { expandProfiles } from '../core/profile-graph.js';
 import type { ProfileScope } from '../core/profiles.js';
 
 const repoIdSchema = z.string().regex(/^[a-f0-9]{16}$/);
@@ -275,7 +276,16 @@ export function createDashboard(
     async checkProfiles(value: unknown) {
       const refs = z.array(referenceSchema).min(1).parse(value);
       const saved = await Promise.all(refs.map(findProfile));
-      return { profiles: saved.length, rules: mergeProfiles(saved).length };
+      const repos = new Set(
+        saved.flatMap(({ scope }) => (scope.kind === 'repo' ? [scope.repoId] : [])),
+      );
+      const known = [
+        ...(await profiles.list({ kind: 'global' })),
+        ...(
+          await Promise.all([...repos].map((repoId) => profiles.list({ kind: 'repo', repoId })))
+        ).flat(),
+      ];
+      return { profiles: saved.length, rules: mergeProfiles(expandProfiles(saved, known)).length };
     },
   };
 }

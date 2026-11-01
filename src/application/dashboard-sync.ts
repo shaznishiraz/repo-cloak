@@ -20,7 +20,9 @@ import type {
 } from '../adapters/ui-operations.js';
 import { hashBytes, hashJson } from '../core/hash.js';
 import { ConflictError } from '../core/errors.js';
+import type { Snapshot } from '../core/manifest.js';
 import { checkPathCollisions, validateRelativePath } from '../core/paths.js';
+import { expandProfiles, isAllowedPath } from '../core/profile-graph.js';
 import { prepareSync } from './sync.js';
 import type { SyncOptions } from './pull-setup.js';
 import { createCommitDiff } from '../adapters/commit-diff.js';
@@ -416,10 +418,27 @@ export function createDashboardSync(
           (profile) => profile.id === ref.id,
         );
         if (!found) throw new OperationError('validation', 'Profile no longer exists');
-        return found.profile;
+        return found;
       }),
     );
-    return available;
+    if (!available.some((saved) => saved.profile.extends?.length))
+      return available.map((saved) => saved.profile);
+    const known = (
+      await Promise.all([
+        services.profiles.list({ kind: 'global' }),
+        services.profiles.list({ kind: 'repo', repoId }),
+      ])
+    ).flat();
+    return expandProfiles(available, known).map((saved) => saved.profile);
+  }
+  /** The roots a cloak was made under. A profile deleted since can no longer restrict anything. */
+  async function recordedProfiles(snapshot: Snapshot) {
+    const lists = await Promise.all(
+      snapshot.data.profiles.map(async (ref) =>
+        (await services.profiles.list(ref.scope)).find((saved) => saved.id === ref.id),
+      ),
+    );
+    return lists.flatMap((saved) => (saved ? [saved.profile] : []));
   }
   async function inventory(
     repoId: string,
@@ -554,6 +573,7 @@ export function createDashboardSync(
         services.git.commitFileStats(root, commit),
         Promise.resolve(compilePatterns(repo.exclude ?? [])),
       ]);
+      const recorded = await recordedProfiles(snapshot);
       const replacer = createReplacer(snapshot.data.rules);
       let ledger = structuredClone(snapshot.data.ledger);
       const files = paths.map((path, index) => {
@@ -565,7 +585,7 @@ export function createDashboardSync(
           path: result.text,
           added: stat?.added ?? null,
           removed: stat?.removed ?? null,
-          excluded: isExcluded(path),
+          excluded: isExcluded(path) || !isAllowedPath(path, recorded),
         };
       });
       checkPathCollisions(
@@ -592,11 +612,15 @@ export function createDashboardSync(
       if (commit !== input.commit) throw new OperationError('validation', 'Invalid source commit');
       const changed = [...new Set(await services.git.commitFiles(root, commit))].sort();
       const indexes = [...new Set(input.indexes)];
+      const recorded = await recordedProfiles(snapshot);
       const paths = indexes.map((index) => {
         const path = changed[index];
         if (!path) throw new OperationError('validation', 'A selected file is not in this commit');
         if (isLocked(path))
           throw new OperationError('validation', 'Machine policy excludes this file');
+        // No override: a profile's roots are a limit, unlike a repository exclusion.
+        if (!isAllowedPath(path, recorded))
+          throw new OperationError('validation', 'This file is outside the allowed roots');
         if (isExcluded(path) && !(input.includeExcluded && security.allowExclusionOverride))
           throw new OperationError(
             'validation',

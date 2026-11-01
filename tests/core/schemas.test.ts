@@ -46,8 +46,11 @@ describe('document schemas', () => {
       const schema = jsonSchema(kind);
       expect(schema.$schema).toContain('json-schema.org');
       expect(schema.properties?.kind).toEqual(expect.objectContaining({ const: kind }));
+      // A profile document can be v1 or v2: stored v1 profiles are read as they are.
       expect(schema.properties?.schemaVersion).toEqual(
-        expect.objectContaining({ const: schemaVersions[kind] }),
+        expect.objectContaining(
+          kind === 'profile' ? { enum: [1, 2] } : { const: schemaVersions[kind] },
+        ),
       );
       expect(documentSchema[kind]).toBeDefined();
     },

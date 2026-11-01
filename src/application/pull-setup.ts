@@ -5,6 +5,7 @@ import type { SyncServices } from '../adapters/sync-services.js';
 import { changedProfiles } from '../core/manifest.js';
 import { mergeProfiles } from '../core/merge.js';
 import { validateRelativePath } from '../core/paths.js';
+import { isAllowedPath } from '../core/profile-graph.js';
 import { createReplacer } from '../core/replacer.js';
 import { selectFiles } from '../core/selection.js';
 import { compilePatterns } from '../core/patterns.js';
@@ -152,6 +153,17 @@ export async function preparePull(
         profiles.map((profile) => profile.profile),
         repoRecord?.exclude ?? [],
       );
+  // A folder or commit keeps what is inside the roots; a file named exactly must be inside them.
+  const outside = options.exactFiles
+    ? files.find(
+        (path) =>
+          !isAllowedPath(
+            path,
+            profiles.map((saved) => saved.profile),
+          ),
+      )
+    : undefined;
+  if (outside) throw new Error(`${outside} is outside the allowed roots of the selected profiles`);
   if (options.files?.length && files.some(isRepoExcluded))
     throw new Error('Explicit file selection includes a path excluded for this repository');
   const commits = await Promise.all(

@@ -1,10 +1,23 @@
 import { useEffect, useState } from 'preact/hooks';
-import type { ProfileRuleKind, ProfileSuggestion, ProfileTestResult } from '../../api/contracts.js';
+import type {
+  ProfileRuleKind,
+  ProfileScopeRef,
+  ProfileSuggestion,
+  ProfileTestResult,
+} from '../../api/contracts.js';
 import { api } from '../../shell/load.js';
 import { Button } from '../../shell/ui/index.js';
 import type { ProfileDoc } from './rules.js';
 
-export function Tester({ text: documentText }: { text: string }) {
+export function Tester({
+  text: documentText,
+  scope,
+  id,
+}: {
+  text: string;
+  scope: ProfileScopeRef;
+  id: string | null;
+}) {
   const [text, setText] = useState('');
   const [result, setResult] = useState<ProfileTestResult | null>(null);
   useEffect(() => {
@@ -22,7 +35,9 @@ export function Tester({ text: documentText }: { text: string }) {
     let live = true;
     const timer = setTimeout(() => {
       void api()
-        .call('POST /api/v2/profiles/test', { body: { document, text } })
+        .call('POST /api/v2/profiles/test', {
+          body: { document, text, scope, ...(id ? { id } : {}) },
+        })
         .then((value) => {
           if (live) setResult(value);
         })

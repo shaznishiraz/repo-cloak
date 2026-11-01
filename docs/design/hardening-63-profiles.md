@@ -135,10 +135,14 @@ document says `schemaVersion: 2`, so the fields are never silently ignored.
 | Tracked file later outside the roots            | Refresh fails naming the path              |
 | New workspace file outside the roots, on push   | Not eligible, same as excluded             |
 
-Roots match literally, so a case or Unicode spelling difference denies. Symlinks stay with
-`readSourceFiles`, which already refuses targets outside the repository; a symlink inside a
-root that points elsewhere in the repository is **not** blocked by `allowRoots`, and the
-target's real path is not checked against the roots.
+Roots match literally, so a case or Unicode spelling difference denies. `readSourceFiles`
+reports where a symlink really leads, and that target must be inside the roots as well, so a
+symlink in `src/` cannot pull `secrets/key`. Hard links cannot be told apart and are not caught.
+
+Commit export has no selection step of its own, so it checks the roots of the profiles the
+cloak recorded, with no override. A recorded profile deleted since can no longer restrict an
+export, because its roots are gone. Push checks new files against recorded profiles only: a
+parent added after the last pull applies from the next pull.
 
 The per-repository `allowedRoots` in Known repos is a separate setting and still returns 501.
 

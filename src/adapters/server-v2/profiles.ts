@@ -1,9 +1,11 @@
 import { z } from 'zod';
 import type { Dashboard } from '../../application/dashboard.js';
 import { hashJson } from '../../core/hash.js';
-import type { SavedProfile } from '../../core/profiles.js';
+import type { ProfileScope, SavedProfile } from '../../core/profiles.js';
 import { createReplacer } from '../../core/replacer.js';
-import { validateProfile, validateRule } from '../../core/rules.js';
+import { mergeProfiles } from '../../core/merge.js';
+import { expandProfiles, extendsDirectly, rootProblem } from '../../core/profile-graph.js';
+import { unsafeRegex, validateProfile, validateRule } from '../../core/rules.js';
 import type { Rule } from '../../core/rules.js';
 import { documentKinds, documentSchema, jsonSchema, ruleSchema } from '../../core/schemas.js';
 import { secretDetectors } from '../../core/secrets.js';
@@ -14,6 +16,7 @@ import type {
   ProfileListItem,
   ProfileProblem,
 } from '../../web/api/contracts.js';
+import { contentPatterns, createRegexScan } from '../regex-worker.js';
 import { countHits, detectSecret, scanSuggestions } from './profile-scan.js';
 import { RequestError, route } from './router.js';
 import type { Route } from './router.js';
@@ -33,8 +36,13 @@ const revision = z.string().min(1).max(200);
 const createBody = z.strictObject({ scope: scopeSchema, document: z.unknown() });
 const updateBody = z.strictObject({ revision, document: z.unknown() });
 const deleteBody = z.strictObject({ revision });
-const validateBody = z.strictObject({ document: z.unknown() });
-const testBody = z.strictObject({ document: z.unknown(), text: z.string().max(64 * 1024) });
+const placement = { scope: scopeSchema.optional(), id: profileId.optional() };
+const validateBody = z.strictObject({ document: z.unknown(), ...placement });
+const testBody = z.strictObject({
+  document: z.unknown(),
+  text: z.string().max(64 * 1024),
+  ...placement,
+});
 const checkBody = z
   .array(z.strictObject({ id: profileId, scope: scopeSchema }))
   .min(1)
@@ -135,8 +143,18 @@ export function documentProblems(document: unknown): ProblemView[] {
     if (rule.type === 'regex') {
       const message = regexProblems(rule);
       if (message) problems.push({ path: `${path}.replace`, message });
+      const unsafe = unsafeRegex(rule);
+      if (unsafe) problems.push({ path: `${path}.match`, message: `Refused: ${unsafe}.` });
     }
   });
+  shape.data.allowRoots?.forEach((root, index) => {
+    const message = rootProblem(root);
+    if (message) problems.push({ path: `allowRoots.${index}`, message: scrub(message) });
+  });
+  if (shape.data.schemaVersion < 2)
+    for (const key of ['extends', 'allowRoots'] as const)
+      if (shape.data[key] !== undefined)
+        problems.push({ path: key, message: `${key} needs "schemaVersion": 2.` });
   if (!problems.some(isError)) {
     try {
       validateProfile(document);
@@ -189,13 +207,63 @@ function overlapWarnings(document: unknown, others: SavedProfile[]): ProblemView
   return problems;
 }
 
-function requireValid(document: unknown) {
+type Placement = { scope?: ProfileScope | undefined; id?: string | undefined };
+
+/** The document as a saved profile with its parents, resolved against what its scope can see. */
+async function chainOfDocument(dashboard: Dashboard, document: unknown, place: Placement) {
+  const scope = place.scope ?? { kind: 'global' };
+  const known = await dashboard.profiles(scope.kind === 'repo' ? scope.repoId : undefined);
+  const id = place.id ?? 'pf_unsaved';
+  const draft: SavedProfile = { id, scope, profile: documentSchema.profile.parse(document) };
+  const others = known.filter((saved) => !(saved.id === id && saved.scope.kind === scope.kind));
+  return expandProfiles([draft], [...others, draft]);
+}
+/** Parent problems: missing, ambiguous, cycle, depth, or a conflict with what it inherits. */
+async function graphProblems(
+  dashboard: Dashboard,
+  document: unknown,
+  place: Placement,
+): Promise<ProblemView[]> {
+  try {
+    mergeProfiles(await chainOfDocument(dashboard, document, place));
+    return [];
+  } catch (error) {
+    if (error instanceof z.ZodError) return [];
+    const message = error instanceof Error ? error.message : 'Invalid parents';
+    return [{ path: 'extends', message: scrub(message) }];
+  }
+}
+async function requireValid(dashboard: Dashboard, document: unknown, place: Placement) {
   const errors = documentProblems(document).filter(isError);
+  if (!errors.length) errors.push(...(await graphProblems(dashboard, document, place)));
   if (errors.length)
     throw new RequestError(
       400,
       errors.map((problem) => problem.message).join(' ') || 'Invalid profile',
     );
+}
+/** Deleting or renaming a parent would break its children, so it names them instead. */
+async function requireNoChildren(dashboard: Dashboard, saved: SavedProfile, verb: string) {
+  const children = (await visibleProfiles(dashboard)).filter((other) =>
+    extendsDirectly(other, saved),
+  );
+  if (children.length)
+    throw new RequestError(
+      409,
+      `Cannot ${verb} ${saved.profile.name}: ${children.map((item) => item.profile.name).join(', ')} extend it.`,
+    );
+}
+/** Why a saved profile cannot be used any more. It stays listed so it can be fixed. */
+function savedProblem(saved: SavedProfile) {
+  try {
+    validateProfile(saved.profile);
+    return undefined;
+  } catch (error) {
+    return scrub(error instanceof Error ? error.message : 'Invalid profile').replace(
+      /^profile: /,
+      '',
+    );
+  }
 }
 
 /* ---------- Lookups ---------- */
@@ -216,7 +284,10 @@ async function locate(dashboard: Dashboard, id: string, repo?: string) {
 }
 
 function listItem(saved: SavedProfile): ProfileListItem {
+  const problem = savedProblem(saved);
   return {
+    ...(problem ? { problem } : {}),
+    ...(saved.profile.extends?.length ? { extends: saved.profile.extends } : {}),
     id: saved.id,
     name: saved.profile.name,
     scope: saved.scope,
@@ -246,12 +317,15 @@ async function detail(
 ): Promise<ProfileDetailView> {
   const target = repo ?? (saved.scope.kind === 'repo' ? saved.scope.repoId : undefined);
   const repos = await dashboard.overview();
+  const scan = target ? await countHits(dashboard, saved, target) : { hits: {} };
+  const hitsError = savedProblem(saved) ?? (scan.error && scrub(scan.error));
   return {
     id: saved.id,
     scope: saved.scope,
     revision: hashJson(saved.profile),
     document: saved.profile,
-    hits: target ? await countHits(dashboard, saved, target) : {},
+    hits: scan.hits,
+    ...(hitsError ? { hitsError } : {}),
     lockedExclusions: await lockedExclusions(dashboard, target),
     usedBy: repos
       .filter((item) => saved.scope.kind === 'global' || item.id === saved.scope.repoId)
@@ -283,7 +357,7 @@ export const profilesRoutes: Route[] = [
   }),
   route('POST /api/v2/profiles', async ({ dashboard, body }) => {
     const input = createBody.parse(await body());
-    requireValid(input.document);
+    await requireValid(dashboard, input.document, { scope: input.scope });
     const saved = await serial(() =>
       dashboard.saveProfile({ scope: input.scope, profile: input.document }),
     );
@@ -302,18 +376,26 @@ export const profilesRoutes: Route[] = [
     return { suggestions: await scanSuggestions(dashboard, repo, covered) };
   }),
   route('POST /api/v2/profiles/validate', async ({ dashboard, body }) => {
-    const { document } = validateBody.parse(await body());
+    const { document, ...place } = validateBody.parse(await body());
     const problems = documentProblems(document);
     if (problems.some(isError)) return { problems };
+    const graph = await graphProblems(dashboard, document, place);
+    if (graph.length) return { problems: graph };
     return { problems: overlapWarnings(document, await visibleProfiles(dashboard)) };
   }),
-  route('POST /api/v2/profiles/test', async ({ body }) => {
-    const { document, text } = testBody.parse(await body());
+  route('POST /api/v2/profiles/test', async ({ dashboard, body }) => {
+    const { document, text, ...place } = testBody.parse(await body());
     const errors = documentProblems(document).filter(isError);
+    if (!errors.length) errors.push(...(await graphProblems(dashboard, document, place)));
     if (errors.length) return { cloaked: '', restored: '', roundTrips: false, problems: errors };
-    const rules = (document as { rules: unknown[] }).rules.map((rule) => ruleSchema.parse(rule));
+    const rules = (document as { extends?: unknown[] }).extends?.length
+      ? mergeProfiles(await chainOfDocument(dashboard, document, place))
+      : (document as { rules: unknown[] }).rules.map((rule) => ruleSchema.parse(rule));
+    const patterns = contentPatterns(rules);
+    const scan = patterns.length ? createRegexScan(patterns) : undefined;
     try {
-      const replacer = createReplacer(rules);
+      await scan?.prepare(text);
+      const replacer = createReplacer(rules, scan?.engine);
       const { text: cloaked, ledger } = replacer.anonymize(text);
       const restored = replacer.restore(cloaked, ledger).text;
       return { cloaked, restored, roundTrips: restored === text, problems: [] };
@@ -326,6 +408,8 @@ export const profilesRoutes: Route[] = [
           { path: '', message: scrub(error instanceof Error ? error.message : 'Test failed') },
         ],
       };
+    } finally {
+      scan?.close();
     }
   }),
   route('POST /api/v2/profiles/check', async ({ dashboard, body }) =>
@@ -345,10 +429,12 @@ export const profilesRoutes: Route[] = [
   route('PUT /api/v2/profiles/:id', async ({ dashboard, params, body }) => {
     const id = profileId.parse(params.id);
     const input = updateBody.parse(await body());
-    requireValid(input.document);
     const saved = await serial(async () => {
       const current = await locate(dashboard, id);
+      await requireValid(dashboard, input.document, { scope: current.scope, id });
       requireRevision(current, input.revision);
+      const { name } = documentSchema.profile.parse(input.document);
+      if (name !== current.profile.name) await requireNoChildren(dashboard, current, 'rename');
       return dashboard.saveProfile({ id, scope: current.scope, profile: input.document });
     });
     await recordSave(dashboard, 'Saved profile', saved.id);
@@ -360,6 +446,7 @@ export const profilesRoutes: Route[] = [
     const deleted = await serial(async () => {
       const current = await locate(dashboard, id);
       requireRevision(current, input.revision);
+      await requireNoChildren(dashboard, current, 'delete');
       return dashboard.deleteProfile({ id, scope: current.scope });
     });
     await recordSave(dashboard, 'Deleted profile', id);

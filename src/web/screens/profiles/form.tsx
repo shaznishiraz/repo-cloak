@@ -206,6 +206,7 @@ function PatternChips({
 export function ProfileForm({
   doc,
   hits,
+  hitsError,
   hitsIn,
   locked,
   problems,
@@ -213,6 +214,7 @@ export function ProfileForm({
 }: {
   doc: ProfileDoc;
   hits: Record<string, number>;
+  hitsError: string | undefined;
   hitsIn: string | undefined;
   locked: LockedExclusion[];
   problems: LocatedProblem[];
@@ -222,6 +224,16 @@ export function ProfileForm({
   const general = problems.filter((problem) => !ruleProblem.test(problem.path));
   return (
     <div class="pf-panels">
+      {hitsError && <p class="pf-row-error">{hitsError}</p>}
+      {(doc.extends?.length || doc.allowRoots) && (
+        <p class="pf-note">
+          {doc.extends?.length ? `Extends ${doc.extends.join(', ')}. ` : ''}
+          {doc.allowRoots
+            ? `Files only from ${doc.allowRoots.join(', ') || 'nowhere: the list is empty'}. `
+            : ''}
+          Edit these in JSON.
+        </p>
+      )}
       <Panel
         title={
           <>

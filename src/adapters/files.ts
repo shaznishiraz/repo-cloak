@@ -5,6 +5,7 @@ import { glob } from 'glob';
 import { isBinaryFileSync } from 'isbinaryfile';
 import pLimit from 'p-limit';
 import { validateRelativePath } from '../core/paths.js';
+import { isAllowedPath } from '../core/profile-graph.js';
 import { compilePatterns } from '../core/patterns.js';
 import type { SourceFile } from '../core/pull.js';
 import type { Profile } from '../core/rules.js';
@@ -88,7 +89,8 @@ export async function expandPaths(
 }
 /**
  * Final selection filter for repository-relative paths. Metadata is never copied; a profile
- * exclude always wins; profile includes bring back files skipped by the default exclusions.
+ * exclude always wins; profile includes bring back files skipped by the default exclusions;
+ * profile allowRoots applies last, and an include cannot widen it.
  */
 export function filterPaths(
   paths: string[],
@@ -105,7 +107,8 @@ export function filterPaths(
       !isMetadata(path) &&
       !isExcluded(path) &&
       !isRepoExcluded(path) &&
-      (!isDefault(path) || isIncluded(path)),
+      (!isDefault(path) || isIncluded(path)) &&
+      isAllowedPath(path, profiles),
   );
 }
 async function nestedRepo(root: string, path: string): Promise<boolean> {
@@ -149,6 +152,7 @@ export async function readSourceFiles(root: string, paths: string[], concurrency
             binary: isBinaryFileSync(bytes),
             executable: Boolean(info.mode & 0o111),
           };
+          if (target !== file) source.realPath = relative(root, target).replaceAll('\\', '/');
           if (!source.binary) {
             try {
               source.text = decoder.decode(bytes);

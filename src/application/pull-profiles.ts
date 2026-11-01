@@ -1,6 +1,7 @@
 import type { SyncServices } from '../adapters/sync-services.js';
 import type { Snapshot } from '../core/manifest.js';
 import { mergeProfiles } from '../core/merge.js';
+import { expandProfiles } from '../core/profile-graph.js';
 import type { SavedProfile } from '../core/profiles.js';
 import type { RepoState } from '../core/pull.js';
 import type { SyncOptions } from './pull-setup.js';
@@ -35,11 +36,12 @@ export async function selectPullProfiles(
         );
       profiles.push(first);
     }
-    mergeProfiles(profiles);
-    return profiles;
+    const expanded = expandProfiles(profiles, available);
+    mergeProfiles(expanded);
+    return expanded;
   }
-  if (previous)
-    return previous.data.profiles.map((ref) => {
+  if (previous) {
+    const recorded = previous.data.profiles.map((ref) => {
       const profile = available.find(
         (profile) =>
           profile.id === ref.id &&
@@ -54,5 +56,7 @@ export async function selectPullProfiles(
         );
       return profile;
     });
+    return expandProfiles(recorded, available);
+  }
   throw new Error('Select at least one profile in the dashboard');
 }

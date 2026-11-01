@@ -3,13 +3,18 @@ import { groupSchema } from './groups.js';
 import { agentDocument } from './agent-requests.js';
 
 export const schemaVersions = {
-  profile: 1,
+  profile: 2,
   repo: 1,
   manifest: 2,
   config: 1,
   group: 1,
   agent: 1,
 } as const;
+/**
+ * Older versions read as they are. Manifests record each profile's hash, so migrating a stored
+ * profile on read would make every existing cloak report that its profiles changed.
+ */
+const readableFrom: Partial<Record<keyof typeof schemaVersions, number>> = { profile: 1 };
 export type DocumentKind = keyof typeof schemaVersions;
 export const documentKinds = Object.keys(schemaVersions) as DocumentKind[];
 const text = z.string().min(1);
@@ -92,9 +97,23 @@ export const documentSchema = {
   profile: z.looseObject({
     ...base,
     kind: z.literal('profile'),
-    schemaVersion: z.literal(1),
+    schemaVersion: z.literal([1, 2]),
     name: text,
     description: z.string().optional(),
+    extends: z
+      .array(text)
+      .max(16)
+      .optional()
+      .describe(
+        'Profiles this one builds on, by name: "base", or "global:base" / "repo:base" when a name exists in both scopes. Their rules and exclusions apply too. Needs schemaVersion 2.',
+      ),
+    allowRoots: z
+      .array(text)
+      .max(200)
+      .optional()
+      .describe(
+        'Folders files may be selected from, relative to the repository root: "src/", "tests/api/". Left out means no restriction; an empty list allows nothing. Needs schemaVersion 2.',
+      ),
     rules: z.array(ruleSchema),
     include: z
       .array(text)
@@ -193,7 +212,7 @@ export function parseDocument<K extends DocumentKind>(
   migrations: Migrations = {},
 ): Document<K> {
   let doc = checkVersion(kind, value, source);
-  while ((doc.schemaVersion as number) < schemaVersions[kind]) {
+  while ((doc.schemaVersion as number) < (readableFrom[kind] ?? schemaVersions[kind])) {
     const version = doc.schemaVersion as number;
     const migrate = migrations[version];
     if (!migrate) throw new Error(`${source}: no ${kind} migration from schemaVersion ${version}`);

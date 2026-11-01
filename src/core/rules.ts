@@ -2,6 +2,8 @@ import { parseDocument } from './schemas.js';
 import { compileVariants, literalVariants } from './variants.js';
 import { getSecretDetector } from './secrets.js';
 import { patternProblem } from './patterns.js';
+import { rootProblem } from './profile-graph.js';
+import { regexSafetyProblem } from './regex-safety.js';
 import type { Document, Rule } from './schemas.js';
 
 export type Profile = Document<'profile'>;
@@ -61,7 +63,11 @@ export function validateRule(rule: Rule, label = rule.id): void {
   }
 }
 
-export function validateProfile(value: unknown, source = 'profile'): Profile {
+/**
+ * What a saved profile needs to open at all. A profile that only fails the checks added later
+ * stays listed and editable, and `validateProfile` refuses it the moment it would be used.
+ */
+export function readProfile(value: unknown, source = 'profile'): Profile {
   const profile = parseDocument('profile', value, source);
   if (!profile.name.trim()) throw new Error(`${source}: profile name cannot be blank`);
   const ids = new Set<string>();
@@ -96,6 +102,32 @@ export function validateProfile(value: unknown, source = 'profile'): Profile {
     compileVariants(profile.rules, scope, (rule) => `${source}: ${profile.name}/${rule.id}`);
   }
   validatePatterns(profile, source);
+  return profile;
+}
+
+/** Why a regex rule may not be saved or selected, naming the shape. */
+export function unsafeRegex(rule: Rule): string | undefined {
+  if (rule.type !== 'regex') return undefined;
+  const problem = regexSafetyProblem(rule.match, rule.flags ?? '');
+  return problem && `unsafe regex: ${problem}`;
+}
+
+/** Everything a profile must satisfy to be saved or used for a new pull. */
+export function validateProfile(value: unknown, source = 'profile'): Profile {
+  const profile = readProfile(value, source);
+  const label = `${source}: ${profile.name}`;
+  for (const rule of profile.rules) {
+    const problem = unsafeRegex(rule);
+    if (problem) throw new Error(`${label}/${rule.id}: ${problem}`);
+  }
+  if (profile.schemaVersion < 2 && (profile.extends !== undefined || profile.allowRoots))
+    throw new Error(`${label}: extends and allowRoots need schemaVersion 2`);
+  for (const ref of profile.extends ?? [])
+    if (!ref.trim()) throw new Error(`${label}: extends names a blank profile`);
+  for (const root of profile.allowRoots ?? []) {
+    const problem = rootProblem(root);
+    if (problem) throw new Error(`${label} allowRoots "${root}": ${problem}`);
+  }
   return profile;
 }
 

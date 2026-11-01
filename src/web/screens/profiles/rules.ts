@@ -15,8 +15,10 @@ export type RuleDoc = {
 };
 export type ProfileDoc = {
   kind: 'profile';
-  schemaVersion: 1;
+  schemaVersion: 1 | 2;
   name: string;
+  extends?: string[];
+  allowRoots?: string[];
   description?: string;
   rules: RuleDoc[];
   include?: string[];
@@ -231,7 +233,7 @@ export function asProfileDoc(value: unknown): ProfileDoc | undefined {
 
 export const blankProfile = (): ProfileDoc => ({
   kind: 'profile',
-  schemaVersion: 1,
+  schemaVersion: 2,
   name: '',
   rules: [],
 });

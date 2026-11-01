@@ -4,10 +4,15 @@ import type { Dashboard } from '../../application/dashboard.js';
 import { hashJson } from '../../core/hash.js';
 import { compilePatterns } from '../../core/patterns.js';
 import type { SavedProfile } from '../../core/profiles.js';
+import { RegexLimitError } from '../../core/errors.js';
+import { mergeProfiles } from '../../core/merge.js';
+import { expandProfiles, isAllowedPath } from '../../core/profile-graph.js';
 import { createReplacer } from '../../core/replacer.js';
+import type { Rule } from '../../core/rules.js';
 import { entropy, secretDetectors } from '../../core/secrets.js';
 import type { ProfileSuggestion } from '../../web/api/contracts.js';
 import { runGit, runGitBytes } from '../git.js';
+import { contentPatterns, createRegexScan } from '../regex-worker.js';
 
 export function detectSecret(text: string): string | undefined {
   for (const detector of secretDetectors) {
@@ -83,30 +88,66 @@ async function excludedBy(dashboard: Dashboard, id: string, profiles: SavedProfi
     dashboard.settings.effective(),
     dashboard.sync.exclusions(id),
   ]);
-  return compilePatterns([
+  const patterns = compilePatterns([
     ...security.lockedExclusions,
     ...repo.patterns,
     ...profiles.flatMap((saved) => saved.profile.exclude ?? []),
   ]);
+  const documents = profiles.map((saved) => saved.profile);
+  return (path: string) => patterns(path) || !isAllowedPath(path, documents);
 }
 
+/** A profile with its parents, or why it cannot be used. Reading a saved one never throws. */
+export async function chainOf(dashboard: Dashboard, saved: SavedProfile) {
+  const available = await dashboard.profiles(
+    saved.scope.kind === 'repo' ? saved.scope.repoId : undefined,
+  );
+  return expandProfiles([saved], available);
+}
+
+export type HitScan = { hits: Record<string, number>; error?: string };
+
 /** Replacements per rule id across the repo's text files, as a pull would apply them. */
-export async function countHits(dashboard: Dashboard, saved: SavedProfile, id: string) {
+export async function countHits(
+  dashboard: Dashboard,
+  saved: SavedProfile,
+  id: string,
+): Promise<HitScan> {
   const root = await repoPath(dashboard, id);
-  if (!root) return {};
-  const key = `hits:${root}:${await headOf(root)}:${hashJson(saved.profile)}`;
+  if (!root) return { hits: {} };
+  let chain: SavedProfile[];
+  let rules: Rule[];
+  try {
+    chain = await chainOf(dashboard, saved);
+    rules = mergeProfiles(chain);
+  } catch (error) {
+    return { hits: {}, error: error instanceof Error ? error.message : 'Invalid profile' };
+  }
+  const key = `hits:${root}:${await headOf(root)}:${hashJson([rules, chain.map((item) => item.profile.allowRoots ?? null)])}`;
   return cachedScan(key, async () => {
     const hits: Record<string, number> = {};
-    const replacer = createReplacer(saved.profile.rules);
-    for await (const text of scanFiles(root, await excludedBy(dashboard, id, [saved]))) {
-      try {
-        for (const match of replacer.anonymize(text).preview)
-          if (match.status === 'replaced') hits[match.ruleId] = (hits[match.ruleId] ?? 0) + 1;
-      } catch {
-        // A pull would stop on this file and report it. Hits are only an estimate.
+    const patterns = contentPatterns(rules);
+    const scan = patterns.length ? createRegexScan(patterns) : undefined;
+    try {
+      const replacer = createReplacer(rules, scan?.engine);
+      for await (const text of scanFiles(root, await excludedBy(dashboard, id, chain))) {
+        try {
+          await scan?.prepare(text);
+          for (const match of replacer.anonymize(text).preview)
+            if (match.status === 'replaced') hits[match.ruleId] = (hits[match.ruleId] ?? 0) + 1;
+        } catch (error) {
+          // Partial counts must say so. Other failures: a pull would stop on this file and report it.
+          if (error instanceof RegexLimitError)
+            return { hits, error: `Hits are incomplete: ${error.message}` };
+        }
       }
+      return { hits };
+    } catch (error) {
+      if (error instanceof RegexLimitError) return { hits, error: error.message };
+      throw error;
+    } finally {
+      scan?.close();
     }
-    return hits;
   });
 }
 
