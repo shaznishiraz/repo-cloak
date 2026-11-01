@@ -488,24 +488,33 @@ Plan: [10-50](rebuild/INDEX.md#10-home--workspaces-home--group-sync). Design:
 - [x] Agree the shipped-asset budget: raised from 160 KB to 280 KB; the build is ~254 KB.
 - [ ] 90-cutover remainder and 99-review.
 
+- [x] Hardening 60-64: bulk group lock, commit pulls, leak heuristics, crash-safe and
+      per-file push, sealed backups, post-check, regex limits, profile@2, server-side lock,
+      one `FolderPicker`.
 - [x] Hardening 65: workspace Git config guard, more secret detectors and warnings, lasting
       audit signing key, SBOM with bundled packages, pinned Actions, CodeQL, Dependabot.
 
-Known gaps, engine or contract work not done:
+Known gaps:
 
-- Home: bulk runs use a custom sequence in `server-v2/home.ts` without `groups.locked`;
-  bulk rules live in localStorage; "Pull from commit" reads the worktree, not the commit;
-  the leak guard only checks ledger values.
+- Home: bulk rules live in localStorage. Single pulls and pushes do not take the group
+  lock; a crash mid bulk run is untested. New cloak's `commits` selection still reads the
+  worktree, and adding to an existing cloak hides leftovers.
+- Leak scan: `acme.se`, bare private IPs and `ch_prod_sql01` are not flagged; the
+  false-positive rate on real repositories is unmeasured.
 - New cloak: no `pull` CLI command, so that line is labelled planned; "Never pull" presets
   sit in a reserved global profile.
-- Push: all-or-nothing, no per-file selection and no post-check command; `push.ts` should
-  be split.
-- Profiles: a catastrophic regex can stall the server; presets duplicate New cloak's.
+- Push: Home bulk push and the CLI do not run journal recovery. A failed rollback still
+  writes unsealed recovery copies to the temp folder. Power loss is not covered, and the
+  post-check is not a sandbox.
+- Profiles: the static regex check is incomplete, so only the worker stops some patterns;
+  a pull can block the server up to 60 s in total. `allowRoots` misses hard links.
 - Workspace Git: the config check runs just before each Git call, so a process writing
   `.git/config` in that instant can still win. Only a sandbox closes this.
 - Audit: a failed write does not stop the operation, and restoring an old log with its old
   head is only caught by comparing against an earlier export.
-- Admin: default profiles are read-only; advisories and
-  SBOM are copy commands; wipe on delete is unavailable. Known repos and New cloak each
-  have their own `FolderPicker`.
+- Session: a failed lock request leaves the token valid until idle expiry.
+- Admin: signatures-only, auto-approve and allowed roots return 501; default profiles are
+  read-only; advisories and SBOM are copy commands;
+  wipe on delete is unavailable.
+- `tsc -p e2e` reports type errors in the specs and is not a gate; the specs do run.
 - Windows is untested; Linux and Windows keychains are tested with fakes only.

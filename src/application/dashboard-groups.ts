@@ -11,6 +11,7 @@ import { isWithin } from '../adapters/locations.js';
 import { OperationError } from '../adapters/ui-operations.js';
 import type { PreviewSummary, SyncResult, PreparedOperation } from '../adapters/ui-operations.js';
 import { groupInputSchema, groupMemberSchema } from '../core/groups.js';
+import { createReplacer } from '../core/replacer.js';
 import type { GroupMember } from '../core/groups.js';
 import type { createDashboardSync } from './dashboard-sync.js';
 
@@ -129,12 +130,27 @@ export function createDashboardGroups(store: ReturnType<typeof createStore>, syn
     const batch = getBatch(id);
     return { ...sync.operations.status(id), ...structuredClone(batch) };
   }
+  /** Commit messages are typed against cloaked names; each member's source gets its real ones. */
+  async function restoredMessage(member: MemberState, message: string) {
+    const { snapshot } = await sync.workspaceTarget(member.repoId, member.workspaceId);
+    const restored = createReplacer(snapshot.data.rules).restore(message, snapshot.data.ledger, {
+      file: 'commit message',
+      scope: 'content',
+    });
+    if (restored.preview.some((match) => match.kind === 'secret'))
+      throw new OperationError('validation', 'The commit message must not contain a secret');
+    return restored.text;
+  }
   async function commitMember(member: MemberState, result: SyncResult, message: string) {
     const paths = [
       ...new Set([...(member.uncommitted ?? []), ...result.writes, ...result.deletes]),
     ];
     member.uncommitted = paths;
-    const { commit, warnings } = await commitPaths(member.worktree, paths, message);
+    const { commit, warnings } = await commitPaths(
+      member.worktree,
+      paths,
+      await restoredMessage(member, message),
+    );
     delete member.uncommitted;
     if (commit)
       await sync.audit.record({
@@ -223,7 +239,11 @@ export function createDashboardGroups(store: ReturnType<typeof createStore>, syn
           try {
             await requireGroup(group.id, group.revision);
             await validateMembers(ready.map(({ member }) => member));
-            for (const { operation } of ready) await operation.recheck?.();
+            for (const { member, operation } of ready) {
+              await operation.recheck?.();
+              // Refuse a bad message before anything is written, not after the first member.
+              if (rules.commitMessage) await restoredMessage(member, rules.commitMessage);
+            }
           } catch (error) {
             unattempted(0);
             throw error;

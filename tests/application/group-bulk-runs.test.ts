@@ -559,6 +559,38 @@ it('does not run repository hooks for a bulk commit', async () => {
   expect((await f.backend.git('log', '-1', '--format=%s')).trim()).toBe('No hooks');
 });
 
+it('restores real names in a bulk commit message', async () => {
+  const f = await fixture();
+  const group = await f.dashboard.groups.save(f.input);
+  await f.editAll();
+  const preview = await f.dashboard.groups.preview(group.id, {
+    revision: group.revision,
+    intent: 'restore',
+    members: [f.backend.repoId],
+    commitMessage: 'Update SafeBackend',
+  });
+  await f.dashboard.groups.apply(preview.operationId, { members: [] });
+  expect((await f.dashboard.groups.wait(preview.operationId)).state).toBe('completed');
+  expect((await f.backend.git('log', '-1', '--format=%s')).trim()).toBe('Update Backend');
+});
+
+it('refuses a commit message it cannot restore before writing any member', async () => {
+  const f = await fixture();
+  const group = await f.dashboard.groups.save(f.input);
+  await f.editAll();
+  const before = await readFile(f.backend.original, 'utf8');
+  const preview = await f.dashboard.groups.preview(group.id, {
+    revision: group.revision,
+    intent: 'restore',
+    commitMessage: 'Update SafeBackend',
+  });
+  await f.dashboard.groups.apply(preview.operationId, { members: [] });
+  const done = await f.dashboard.groups.wait(preview.operationId);
+  expect(done.state).toBe('failed');
+  expect(done.error).toMatch(/commit message/);
+  expect(await readFile(f.backend.original, 'utf8')).toBe(before);
+});
+
 it('retries a failed commit and commits what the earlier attempt wrote', async () => {
   const f = await fixture();
   const group = await f.dashboard.groups.save(f.input);

@@ -82,7 +82,7 @@ test('history filters events, verifies the chain and exports', async ({ app, bro
   await filter.fill('op:delete');
   await expect(events).toContainText('No events match');
   await screen.getByRole('button', { name: 'Export signed log' }).click();
-  await expect(browser.locator('.toasts')).toContainText('one-time key');
+  await expect(browser.locator('.toasts')).toContainText('signing key fingerprint');
 });
 
 test('settings shows every section and locking ends the session', async ({

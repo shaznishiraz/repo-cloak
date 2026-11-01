@@ -176,7 +176,7 @@ function KeyActions({ onLock }: { onLock: () => void }) {
         </Button>
       )}
       <Button size="small" variant="danger" onClick={onLock}>
-        Lock store now
+        Lock dashboard now
       </Button>
       <span class="adm-note">
         Locking ends the session in every tab. Run repo-cloak for a new link to get back in.
@@ -219,7 +219,7 @@ export function SettingsScreen() {
         {
           id: 'lock-store',
           group: 'Actions',
-          title: 'Lock store now',
+          title: 'Lock dashboard now',
           icon: '■',
           keywords: ['security'],
           run: () => void lockTab(),

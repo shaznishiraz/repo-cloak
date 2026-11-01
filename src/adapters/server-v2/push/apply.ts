@@ -29,9 +29,16 @@ async function stageAndCommit(root: string, paths: string[], options: Options) {
   const literal = ['--literal-pathspecs'];
   const ignored = new Set(
     (
-      await runGit(root, [...literal, 'check-ignore', '--no-index', '-z', '--', ...paths]).catch(
-        () => '',
-      )
+      await runGit(root, [
+        ...literal,
+        'ls-files',
+        '-z',
+        '--others',
+        '--ignored',
+        '--exclude-standard',
+        '--',
+        ...paths,
+      ])
     )
       .split('\0')
       .filter(Boolean),

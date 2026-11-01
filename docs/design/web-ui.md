@@ -16,7 +16,7 @@ all. It only runs while `repo-cloak ui` runs; there is no background service.
 ```
 repo-cloak ui   (run anywhere)
    |
-   +-- UI already running?  (~/.repo-cloak/ui.lock, mode 0600: port, token, pid)
+   +-- UI already running?  (~/.repo-cloak/ui.lock, mode 0600: port, launcher key, pid)
    |      yes -> open the browser on it, exit
    |      no  -> start server, write ui.lock, open browser
    |
@@ -33,8 +33,9 @@ first-run setup, preview and confirmed extraction/restoration from the browser.
 
 `repo-cloak ui` and the bare launcher share one process per machine store.
 `proper-lockfile` maintains a startup/shutdown guard at `ui.guard`; `ui.lock` holds
-the port, PID and session token and is written atomically with mode 0600 on POSIX. A
-second launch authenticates through `GET /api/session` before reusing the server.
+the port, PID and a launcher key, not a browser token, and is written atomically with
+mode 0600 on POSIX. A second launch uses that key on `POST /launcher/v1/session` to get
+a fresh browser token ([session lock](hardening-64-session-lock.md)).
 Stale guards recover after five seconds. Ctrl+C or SIGTERM closes connections and
 removes both session files. `--no-open` prints the address instead of opening it.
 
@@ -81,7 +82,7 @@ server.ts: same loopback bind, token, Host/Origin checks and CSP 'self'
    |
    +-- assets: dist/web/, including supply-chain.json
    |
-   +-- /api/session  lets a second launch authenticate this server, nothing else
+   +-- /launcher/v1/session  lets a second launch get a fresh token, nothing else
    +-- /api/v2/*  server-v2/index.ts route table
                     foundation.ts  session, overview, operations/:id
                     home.ts new.ts push.ts profiles.ts admin.ts  (empty, one per package)
@@ -155,8 +156,9 @@ setting is rejected.
 - Changes apply within five seconds, without a restart.
 - A policy file this account can write is still applied, but flagged as not enforced
   by the OS.
-- `autoLockMinutes` drives a lock in the browser tab: `startAutoLock()` in `main.tsx`
-  clears the tab's session after idle time. The token stays valid on the server.
+- `autoLockMinutes` expires browser tokens on the server after idle time, and
+  `startAutoLock()` in `main.tsx` locks the tab. See
+  [session lock](hardening-64-session-lock.md).
 
 ### Supply chain
 
@@ -182,9 +184,17 @@ Shared types live only in `src/web/api/contracts.ts`.
   without a cloak. The folder field is fixed once Settings names a workspaces folder.
 - **First run**: home redirects to `#/setup` once, when there is no workspaces folder and
   no workspace.
-- **Push backups** go in `<git common dir>/repo-cloak-backups/`, unsealed. Merge output
-  is a second locked write after the engine write, so a crash between them needs manual
-  recovery.
-- **Profiles** map the designed rule format onto schema v1; there is no `profile@2`,
-  `extends` or `allowRoots`. Rule hits come from a capped on-demand scan.
+- **Push** is one sealed, journalled write with file selection; backups are sealed. An
+  explicit post-check can run after a push. See [push hardening](hardening-62-push.md).
+- **Bulk group runs** hold the group lock for the whole run, skip repository hooks and
+  restore names in the commit message; a message that cannot be restored is refused
+  before any write. **Pull from commit** reads that commit's blobs. See
+  [sync engine](hardening-60-sync-engine.md).
+- **Profiles** have profile@2 with `extends` and `allowRoots`; v1 still reads unchanged.
+  User regexes run in a worker with a hard timeout. See
+  [profile hardening](hardening-63-profiles.md).
+- **Leak warnings** are heuristics shown only in the local dashboard. See
+  [leak guard](hardening-61-leak-guard.md).
+- **Locking** revokes browser tokens on the server; run `repo-cloak` to get back in.
+- **Repo path** stays where the repo was registered unless that folder is gone.
 - **Schema errors** reach the client as `Invalid request: <path>: <message>`, never raw JSON.

@@ -458,3 +458,6 @@ Every error names the file, profile, and rule id involved.
   envelope; `config.json` stays plain for local settings and user-authored setup commands.
 - No v1 support: v2 does not read `.repo-cloak-map.json`. v1 workspaces must
   be pushed with v1 before upgrading.
+
+Profiles also have `schemaVersion: 2`, adding `extends` and `allowRoots`; v1 documents
+read unchanged. See [profile hardening](hardening-63-profiles.md).

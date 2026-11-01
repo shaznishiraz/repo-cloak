@@ -226,7 +226,9 @@ export function createSyncStore(store: ReturnType<typeof createStore>) {
           kind: 'repo',
           schemaVersion: 1,
           repoId: repo.repoId,
-          path: repo.path,
+          // A push or pull can target any worktree; the repo stays where it was registered
+          // unless that folder is gone, or removing a worktree would orphan the repo.
+          path: record?.path && (await exists(record.path)) ? record.path : repo.path,
           commonDir: repo.commonDir,
           workspaces: {
             ...record?.workspaces,

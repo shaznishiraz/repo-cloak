@@ -183,7 +183,12 @@ it('writes only, stages, or commits with the message restored', async () => {
   expect(await f.git(f.source, 'diff', '--name-only')).toBe('Acme.ts');
 
   await f.edit('Northwind.ts', editedLines(f.lines, 1, 'two'));
-  await f.apply((await f.reviewOf()).operationId, { mode: 'stage' });
+  await writeFile(join(f.source, '.git/info/exclude'), 'debug.log\n');
+  await f.edit('debug.log', 'ignored by the source repository');
+  const staged = await f.apply((await f.reviewOf()).operationId, { mode: 'stage' });
+  // An ignored path must be left out with a warning, not fail `git add` and the whole stage.
+  expect(staged.result?.warnings.join()).toContain('1 ignored file was not staged');
+  await rm(join(f.source, 'debug.log'));
   expect(await f.git(f.source, 'diff', '--cached', '--name-only')).toBe('Acme.ts');
 
   await writeFile(join(f.source, 'unrelated.txt'), 'staged by the user');

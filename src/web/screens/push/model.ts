@@ -110,9 +110,6 @@ export function mergeNotes(review: PushReview) {
 export function targetNote(review: PushReview) {
   return review.checks.find((check) => check.id === 'target');
 }
-export function hasMerges(review: PushReview) {
-  return review.files.some((file) => file.flags.includes('source-moved'));
-}
 
 /** Context and added lines count up by one inside a hunk, so any jump starts the next one. */
 export function splitHunks(lines: DiffLine[]): DiffLine[][] {

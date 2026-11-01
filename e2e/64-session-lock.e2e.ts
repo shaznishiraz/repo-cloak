@@ -38,7 +38,7 @@ test('locking shows the lock screen, kills the token, and a relaunch gets back i
   await browser.evaluate(() => {
     location.hash = '#/settings';
   });
-  await screen.getByRole('button', { name: 'Lock store now' }).click();
+  await screen.getByRole('button', { name: 'Lock dashboard now' }).click();
   await expect(screen.getByRole('heading', { name: 'Dashboard locked' })).toBeVisible();
   await expect(browser.locator('main[aria-label="Locked"]')).toContainText('repo-cloak');
   await expect(browser.locator('.rail')).toHaveCount(0);
@@ -82,7 +82,7 @@ test('a lock in one tab locks another open tab', async ({ app, browser, screen }
   await browser.evaluate(() => {
     location.hash = '#/settings';
   });
-  await screen.getByRole('button', { name: 'Lock store now' }).click();
+  await screen.getByRole('button', { name: 'Lock dashboard now' }).click();
   await expect(screen.getByRole('heading', { name: 'Dashboard locked' })).toBeVisible();
   await expect.poll(async () => (await otherState()).locked, { timeout: 10_000 }).toBe(true);
   expect((await otherState()).token).toBeNull();
