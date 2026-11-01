@@ -145,7 +145,7 @@ export type PendingChange = {
   deletions: number;
 };
 /** Heuristic, and can hold real names: for this local dashboard only, never logs or agents. */
-export type LeakKind = 'identity' | 'server' | 'domain' | 'email' | 'connection' | 'url';
+export type LeakKind = 'identity' | 'server' | 'domain' | 'email' | 'connection' | 'url' | 'secret';
 export type LeakFinding = { path: string; name: string; kind: LeakKind };
 export type GuardCheck = {
   id: string;
@@ -636,7 +636,12 @@ export type V2Api = {
   'POST /api/v2/requests/:workspaceId/:id': R<AgentRequestDetail, AgentDecision>;
   'GET /api/v2/audit': R<AuditPage, never, { q?: string; cursor?: string; limit?: string }>;
   'POST /api/v2/audit/verify': R<AuditVerification>;
-  'POST /api/v2/audit/export': R<{ jsonl: string; signature: string; publicKey: string }>;
+  'POST /api/v2/audit/export': R<{
+    jsonl: string;
+    signature: string;
+    publicKey: string;
+    fingerprint: string;
+  }>;
   'GET /api/v2/settings': R<DashboardSettings>;
   'PUT /api/v2/settings': R<
     DashboardSettings,

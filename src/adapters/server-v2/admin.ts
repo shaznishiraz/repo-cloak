@@ -1,4 +1,3 @@
-import { generateKeyPairSync, sign } from 'node:crypto';
 import { z } from 'zod';
 import type { Dashboard } from '../../application/dashboard.js';
 import { auditOps } from '../../core/audit.js';
@@ -466,13 +465,7 @@ async function signedExport(dashboard: Dashboard) {
       : event,
   );
   const jsonl = `${[header, ...lines].map((line) => JSON.stringify(line)).join('\n')}\n`;
-  // A one-time key: the store cannot hold a signing key until the foundation adds one.
-  const { publicKey, privateKey } = generateKeyPairSync('ed25519');
-  return {
-    jsonl,
-    signature: sign(null, Buffer.from(jsonl), privateKey).toString('base64'),
-    publicKey: publicKey.export({ type: 'spki', format: 'pem' }).toString(),
-  };
+  return { jsonl, ...(await dashboard.sync.audit.signExport(Buffer.from(jsonl))) };
 }
 
 /* ---------- Settings ---------- */

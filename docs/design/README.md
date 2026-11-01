@@ -3,14 +3,15 @@
 How repo-cloak v2 is built. Written **before** the code, kept in sync with it.
 One file per topic; see [`../README.md`](../README.md) for the full index.
 
-| Doc                            | Covers                                                       |
-| ------------------------------ | ------------------------------------------------------------ |
-| [overview.md](overview.md)     | Big picture, interactive flow, modules, push, build order    |
-| [data-model.md](data-model.md) | Every JSON file, schemas, encryption, regex and secret rules |
-| [cli.md](cli.md)               | Commands, flags, exit codes                                  |
-| [anonymizer.md](anonymizer.md) | Case styles, word boundaries, matching, exact restore        |
-| [sync.md](sync.md)             | Pull/push direction, multiple workspaces, git worktrees      |
-| [web-ui.md](web-ui.md)         | The local web UI                                             |
+| Doc                                                      | Covers                                                       |
+| -------------------------------------------------------- | ------------------------------------------------------------ |
+| [overview.md](overview.md)                               | Big picture, interactive flow, modules, push, build order    |
+| [data-model.md](data-model.md)                           | Every JSON file, schemas, encryption, regex and secret rules |
+| [cli.md](cli.md)                                         | Commands, flags, exit codes                                  |
+| [anonymizer.md](anonymizer.md)                           | Case styles, word boundaries, matching, exact restore        |
+| [sync.md](sync.md)                                       | Pull/push direction, multiple workspaces, git worktrees      |
+| [web-ui.md](web-ui.md)                                   | The local web UI                                             |
+| [hardening-65-enterprise.md](hardening-65-enterprise.md) | Workspace Git safety, secret warnings, audit signing key     |
 
 New design topics use the template below.
 

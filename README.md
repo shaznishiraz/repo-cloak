@@ -149,10 +149,27 @@ code to an AI service or run a remote Git push. User-configured post-create shel
 commands can access the network.
 
 Profiles, original paths, repository records, and replacement ledgers use
-AES-256-GCM encryption with a local key at `~/.repo-cloak/key`. Keep the private
-store and key backed up; losing the key prevents restoration. This is application
-encryption with user-only file permissions, not native Keychain/DPAPI integration.
-Profile JSON downloads are intentionally decrypted.
+AES-256-GCM encryption. The key goes in the OS keychain (macOS Keychain, Secret
+Service or DPAPI) when one is reachable, otherwise in `~/.repo-cloak/key` with
+user-only permissions. Keep the store and key backed up; losing the key prevents
+restoration.
+
+## Security limits
+
+See [SECURITY.md](SECURITY.md) to report a vulnerability. Know these before relying
+on repo-cloak:
+
+- **Replacement is reversible.** The ledger restores original names, so treat cloaked
+  output as pseudonymized, not anonymous.
+- **Detection is not proof.** Rules replace what they match, secret rules are opt-in,
+  and the leftover scan is a heuristic warning. A quiet result does not mean a cloak
+  is clean.
+- **It is not a sandbox.** An agent running as your user with open filesystem access
+  can read the source and key. For strict confidentiality, run it in a container or
+  sandbox that exposes only the workspace.
+- **Certification.** repo-cloak and its maintainers hold no ISO/IEC 27001, SOC 2 or
+  similar certification.
+  Profile JSON downloads are intentionally decrypted.
 
 Git/tool metadata and common generated/dependency files are skipped by default.
 Profiles can add `.gitignore`-style includes and excludes; repository-wide

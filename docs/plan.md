@@ -489,6 +489,9 @@ Plan: [10-50](rebuild/INDEX.md#10-home--workspaces-home--group-sync). Design:
       `tests/scripts/build-web.test.ts` and `release:check` fail until this is decided.
 - [ ] 90-cutover remainder and 99-review.
 
+- [x] Hardening 65: workspace Git config guard, more secret detectors and warnings, lasting
+      audit signing key, SBOM with bundled packages, pinned Actions, CodeQL, Dependabot.
+
 Known gaps, engine or contract work not done:
 
 - Home: bulk runs use a custom sequence in `server-v2/home.ts` without `groups.locked`;
@@ -499,7 +502,11 @@ Known gaps, engine or contract work not done:
 - Push: all-or-nothing, no per-file selection and no post-check command; `push.ts` should
   be split.
 - Profiles: a catastrophic regex can stall the server; presets duplicate New cloak's.
-- Admin: default profiles are read-only; signed export uses a one-time key; advisories and
+- Workspace Git: the config check runs just before each Git call, so a process writing
+  `.git/config` in that instant can still win. Only a sandbox closes this.
+- Audit: a failed write does not stop the operation, and restoring an old log with its old
+  head is only caught by comparing against an earlier export.
+- Admin: default profiles are read-only; advisories and
   SBOM are copy commands; wipe on delete is unavailable. Known repos and New cloak each
   have their own `FolderPicker`.
 - Windows is untested; Linux and Windows keychains are tested with fakes only.

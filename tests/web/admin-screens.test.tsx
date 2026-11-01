@@ -485,7 +485,12 @@ it('downloads the signed export and registers palette commands', async () => {
     ...base,
     'GET /api/v2/audit': { events: [], total: 0, nextCursor: null },
     'POST /api/v2/audit/verify': { ok: true, count: 0, headHash: null },
-    'POST /api/v2/audit/export': { jsonl: '{}\n', signature: 's', publicKey: 'p' },
+    'POST /api/v2/audit/export': {
+      jsonl: '{}\n',
+      signature: 's',
+      publicKey: 'p',
+      fingerprint: 'SHA256:abc',
+    },
   });
   await show(<HistoryScreen />);
   expect(commands.value.map((command) => command.id)).toEqual(
@@ -493,7 +498,7 @@ it('downloads the signed export and registers palette commands', async () => {
   );
   await click('Export signed log');
   expect(created).toHaveBeenCalledOnce();
-  expect(toasts.value[0]?.message).toContain('one-time key');
+  expect(toasts.value[0]?.message).toContain('SHA256:abc');
 });
 
 /* ---------- Settings ---------- */

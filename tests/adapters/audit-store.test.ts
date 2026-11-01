@@ -1,3 +1,4 @@
+import { createPublicKey, verify } from 'node:crypto';
 import { appendFile, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -209,4 +210,30 @@ it('does not count a retention failure as a failed write, and retries it', async
     String(text).includes('audit retention did not run'),
   );
   expect(warnings).toHaveLength(2);
+});
+
+it('signs exports with one lasting key that survives a reseal and stays sealed', async () => {
+  const { audit, root, store } = await fixture();
+  await audit.record(pull());
+  const bytes = Buffer.from('export');
+  const first = await audit.signExport(bytes);
+  expect(first.fingerprint).toMatch(/^SHA256:[a-f0-9]{64}$/);
+  expect(
+    verify(null, bytes, createPublicKey(first.publicKey), Buffer.from(first.signature, 'base64')),
+  ).toBe(true);
+  expect(await readFile(join(root, 'audit', 'signing-key.json'), 'utf8')).not.toContain('PRIVATE');
+  await audit.reseal();
+  expect((await audit.signExport(bytes)).fingerprint).toBe(first.fingerprint);
+  // A later process over the same store gets the same identity.
+  expect((await createAuditStore(store).signExport(bytes)).fingerprint).toBe(first.fingerprint);
+});
+
+it('refuses to sign rather than replace a damaged signing key', async () => {
+  const { audit, root } = await fixture();
+  await audit.signExport(Buffer.from('export'));
+  const path = join(root, 'audit', 'signing-key.json');
+  const sealed = JSON.parse(await readFile(path, 'utf8')) as { sealed: { data: string } };
+  sealed.sealed.data = Buffer.alloc(40, 1).toString('base64');
+  await writeFile(path, JSON.stringify(sealed));
+  await expect(audit.signExport(Buffer.from('export'))).rejects.toThrow();
 });

@@ -96,3 +96,42 @@ it('masks skipped matches that overlap a detected secret, including file names',
   expect(JSON.stringify(result.preview)).not.toContain(secret);
   expect(JSON.stringify(result.preview)).not.toContain(secret.slice(0, -1));
 });
+
+describe('enterprise secret detectors', () => {
+  const k = 'Qm9fLq7Vb2Xk29Zr4TtYh1';
+  it.each([
+    [
+      'connection-string-password',
+      'Server=db1;User Id=app;Password=Xk29fLq7Vb!mZ4;',
+      'Xk29fLq7Vb!mZ4',
+    ],
+    ['env-password', 'DB_PASSWORD=Xk29fLq7Vb!mZ4pQ', 'Xk29fLq7Vb!mZ4pQ'],
+    ['short-password', 'password = "Xk29fLq7"', 'Xk29fLq7'],
+    ['client-secret', `client_secret: "${k}Ws8Ne"`, `${k}Ws8Ne`],
+    ['azure-storage-key', `AccountKey=${k.repeat(4)}==;`, `${k.repeat(4)}==`],
+    ['azure-sas', `https://a.blob.core.windows.net/c?sv=1&sig=${k}%3D`, `${k}%3D`],
+    ['openai-key', `sk-proj-${k.repeat(2)}`, `sk-proj-${k.repeat(2)}`],
+    ['anthropic-key', `sk-ant-api03-${k.repeat(2)}`, `sk-ant-api03-${k.repeat(2)}`],
+    ['gitlab-token', `glpat-${k}`, `glpat-${k}`],
+    ['npm-token', `npm_${k}${k.slice(0, 14)}`, `npm_${k}${k.slice(0, 14)}`],
+    ['sendgrid-key', `SG.${k}.${k}${k}`, `SG.${k}.${k}${k}`],
+    ['url-password', 'https://deploy:Xk29fLq7Vb@git.example/x.git', 'Xk29fLq7Vb'],
+  ] as const)('%s redacts the value and restores it exactly', (detector, sample, value) => {
+    const engine = createReplacer([{ id: 'secret', type: 'secret', detector }]);
+    const pulled = engine.anonymize(`before ${sample} after`);
+    expect(pulled.ledger).toHaveLength(1);
+    expect(pulled.text).not.toContain(value);
+    expect(engine.restore(pulled.text, pulled.ledger).text).toBe(`before ${sample} after`);
+  });
+  it.each([
+    ['connection-string-password', 'password=${DB_PASSWORD};'],
+    ['connection-string-password', 'password=getPassword();'],
+    ['env-password', 'const DB_PASSWORD = process.env.DB_PASSWORD;'],
+    ['env-password', 'DB_PASSWORD=${FROM_VAULT}'],
+    ['url-password', 'https://user:${TOKEN}@git.example/x.git'],
+    ['openai-key', `sk-ant-api03-${k.repeat(2)}`],
+  ] as const)('%s leaves %s alone', (detector, sample) => {
+    const engine = createReplacer([{ id: 'secret', type: 'secret', detector }]);
+    expect(engine.anonymize(sample).ledger).toHaveLength(0);
+  });
+});

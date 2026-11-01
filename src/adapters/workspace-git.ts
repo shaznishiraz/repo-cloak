@@ -1,6 +1,7 @@
-import { mkdir, readFile, rm } from 'node:fs/promises';
+import { readFile, rm } from 'node:fs/promises';
+import { devNull } from 'node:os';
 import { join } from 'node:path';
-import { findRepo, runGit } from './git.js';
+import { assertSafeWorkspaceGit, findRepo, runGit } from './git.js';
 import { exists } from './files.js';
 import { isWithin } from './locations.js';
 import { checkDestinationPath } from './files.js';
@@ -27,6 +28,7 @@ export async function excludeAgentHelpers(root: string, generated: string[]) {
 }
 
 export async function prepareWorkspaceGit(root: string, paths: string[]): Promise<boolean> {
+  await assertSafeWorkspaceGit(root);
   const repo = await findRepo(root);
   if (repo && (repo.topLevel !== root || !isWithin(root, repo.commonDir)))
     throw new Error('Workspace Git metadata must stay inside the workspace');
@@ -46,12 +48,15 @@ export async function commitWorkspace(
   paths: string[],
   message = 'Refresh anonymized files',
 ): Promise<void> {
-  const hooks = join(root, '.git', 'repo-cloak-hooks');
-  await mkdir(hooks, { recursive: true });
+  // The check also covers a workspace whose `.repo-cloak` folder was removed.
+  await assertSafeWorkspaceGit(root);
   const options = [
     '--literal-pathspecs',
     '-c',
-    `core.hooksPath=${hooks}`,
+    // Never a folder inside `.git`: an agent can write there too.
+    `core.hooksPath=${devNull}`,
+    '-c',
+    'core.fsmonitor=false',
     '-c',
     'commit.gpgSign=false',
     '-c',

@@ -65,6 +65,18 @@ export const secretDetectorOptions = [
   { id: 'database-url', name: 'Database connection URL' },
   { id: 'heroku-key', name: 'Heroku API key' },
   { id: 'mailgun-key', name: 'Mailgun API key' },
+  { id: 'connection-string-password', name: 'Connection string password' },
+  { id: 'env-password', name: 'Password or secret variable' },
+  { id: 'short-password', name: 'Short quoted password' },
+  { id: 'client-secret', name: 'OAuth client secret' },
+  { id: 'azure-storage-key', name: 'Azure storage account key' },
+  { id: 'azure-sas', name: 'Azure SAS signature' },
+  { id: 'openai-key', name: 'OpenAI API key' },
+  { id: 'anthropic-key', name: 'Anthropic API key' },
+  { id: 'gitlab-token', name: 'GitLab token' },
+  { id: 'npm-token', name: 'npm token' },
+  { id: 'sendgrid-key', name: 'SendGrid API key' },
+  { id: 'url-password', name: 'Password in a URL' },
 ];
 
 /*

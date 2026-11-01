@@ -9,7 +9,7 @@ export async function exportSignedLog() {
     const day = new Date().toISOString().slice(0, 10);
     downloadText(`repo-cloak-audit-${day}.json`, `${JSON.stringify(bundle, null, 2)}\n`);
     toast(
-      'Exported. The signature uses a one-time key, so send the auditor its public key separately.',
+      `Exported. Give the auditor this signing key fingerprint separately: ${bundle.fingerprint}`,
       'ok',
     );
   } catch (error) {

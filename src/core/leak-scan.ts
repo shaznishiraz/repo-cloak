@@ -3,7 +3,9 @@
  * an empty result proves nothing. Findings can hold real names, so they belong on the local
  * dashboard only: never in the audit log, an agent response or a file in the cloak.
  */
-export type LeakKind = 'identity' | 'server' | 'domain' | 'email' | 'connection' | 'url';
+import { detectSecretNames } from './secrets.js';
+
+export type LeakKind = 'identity' | 'server' | 'domain' | 'email' | 'connection' | 'url' | 'secret';
 export type LeakFinding = { path: string; name: string; kind: LeakKind };
 /** `texts` are searched in order and reported under `path`: usually a cloaked path and its text. */
 export type LeakDocument = { path: string; texts: string[] };
@@ -354,6 +356,8 @@ export function scanForLeaks(
       const kept = text.slice(0, room);
       bytes += kept.length;
       const clean = mask ? kept.replace(mask, (found) => maskMark.repeat(found.length)) : kept;
+      // Secret rules are opt-in, so warn about what none caught. Names the detector, not the value.
+      for (const name of detectSecretNames(clean)) report(name, 'secret');
       for (const line of clean.split('\n')) {
         if (line.length > limits.maxLineLength) partial = true;
         scanLine(line.slice(0, limits.maxLineLength), report);

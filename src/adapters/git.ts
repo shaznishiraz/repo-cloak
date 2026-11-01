@@ -4,9 +4,40 @@ import { devNull } from 'node:os';
 import { join } from 'node:path';
 import { resolve } from 'node:path';
 import { promisify } from 'node:util';
+import { unsafeGitConfigKeys } from '../core/git-config.js';
 import { repoId } from '../core/identity.js';
 
 const exec = promisify(execFile);
+
+/**
+ * Agents can write to a cloak workspace, including its `.git`. Git reads that config whatever we
+ * pass, and some keys run commands, so refuse to run Git there until they are gone. Reading with
+ * `--file` runs nothing and does not follow includes; an include is itself refused.
+ */
+export async function assertSafeWorkspaceGit(root: string): Promise<void> {
+  const gitPath = join(root, '.git');
+  const info = await lstat(gitPath).catch(() => undefined);
+  if (!info) return;
+  if (!info.isDirectory())
+    throw new Error('Workspace Git metadata must be a real .git directory inside the workspace');
+  const configPath = join(gitPath, 'config');
+  if (!(await lstat(configPath).catch(() => undefined))) return;
+  const { stdout } = await exec('git', ['config', '--file', configPath, '--name-only', '--list'], {
+    cwd: root,
+    encoding: 'utf8',
+    windowsHide: true,
+  });
+  const unsafe = unsafeGitConfigKeys(stdout.split(/\r?\n/).filter(Boolean));
+  if (unsafe.length)
+    throw new Error(
+      `Refusing to run Git in this workspace: its .git/config sets ${unsafe.join(', ')}, which is not on repo-cloak's safe list because some Git settings can run commands. Review and remove them, then retry.`,
+    );
+}
+async function isCloakWorkspace(cwd: string) {
+  const info = await lstat(join(cwd, '.repo-cloak')).catch(() => undefined);
+  return !!info?.isDirectory();
+}
+
 export async function resolveRepo(cwd: string) {
   try {
     // Ask for absolute paths: relative --git-common-dir output varies by worktree/cwd.
@@ -52,6 +83,7 @@ export async function runGit(cwd: string, args: string[]): Promise<string> {
   return (await runGitBytes(cwd, args)).toString('utf8');
 }
 export async function runGitBytes(cwd: string, args: string[]): Promise<Buffer> {
+  if (await isCloakWorkspace(cwd)) await assertSafeWorkspaceGit(cwd);
   const result = await exec('git', args, {
     cwd,
     encoding: 'buffer',

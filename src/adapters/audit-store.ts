@@ -1,4 +1,11 @@
-import { randomUUID } from 'node:crypto';
+import {
+  createHash,
+  createPrivateKey,
+  createPublicKey,
+  generateKeyPairSync,
+  randomUUID,
+  sign,
+} from 'node:crypto';
 import { mkdir, open as openFile, readFile, truncate } from 'node:fs/promises';
 import { userInfo } from 'node:os';
 import { join } from 'node:path';
@@ -37,6 +44,7 @@ const dayMs = 86_400_000;
 const eventAad = (seq: number) => ({ kind: 'audit-event', seq });
 const anchorAad = { kind: 'audit-anchor' };
 const headAad = { kind: 'audit-head' };
+const signingAad = { kind: 'audit-signing-key' };
 
 function who() {
   try {
@@ -61,6 +69,7 @@ export function createAuditStore(
   const directory = join(store.root, 'audit');
   const logPath = join(directory, 'log.jsonl');
   const headPath = join(directory, 'head.json');
+  const signingPath = join(directory, 'signing-key.json');
   const now = options.now ?? (() => new Date());
   let failures = 0;
   let lastPruned = 0;
@@ -134,6 +143,31 @@ export function createAuditStore(
     }
     const openHead = await store.opener();
     return openHead((JSON.parse(text) as { sealed: unknown }).sealed, headAad) as AuditHead;
+  }
+  async function readSigningKey(): Promise<string | undefined> {
+    let text: string;
+    try {
+      text = await readFile(signingPath, 'utf8');
+    } catch (error) {
+      if (errorCode(error) === 'ENOENT') return undefined;
+      throw error;
+    }
+    const openKey = await store.opener();
+    return openKey((JSON.parse(text) as { sealed: unknown }).sealed, signingAad) as string;
+  }
+  async function writeSigningKey(seal: Sealer, pem: string) {
+    await writeAtomic(signingPath, `${JSON.stringify({ sealed: seal(pem, signingAad) })}\n`);
+  }
+  /** Created once and kept. A damaged key is an error: replacing it would change the identity. */
+  async function signingKey(): Promise<string> {
+    return withLock(async () => {
+      const existing = await readSigningKey();
+      if (existing) return existing;
+      const { privateKey } = generateKeyPairSync('ed25519');
+      const pem = privateKey.export({ type: 'pkcs8', format: 'pem' }).toString();
+      await writeSigningKey(await store.sealer(), pem);
+      return pem;
+    });
   }
   async function writeHead(seal: Sealer, head: AuditHead) {
     await writeAtomic(headPath, `${JSON.stringify({ sealed: seal(head, headAad) })}\n`);
@@ -275,9 +309,22 @@ export function createAuditStore(
       const line = log.events[index]?.line ?? (log.events.at(-1)?.line ?? 0) + 1;
       return { ok: false, count, firstBroken: { line, seq, reason } };
     },
+    /** Signs with this store's lasting key, so exports from one install can be tied together. */
+    async signExport(bytes: Buffer) {
+      const privateKey = createPrivateKey(await signingKey());
+      const publicKey = createPublicKey(privateKey);
+      const der = publicKey.export({ type: 'spki', format: 'der' });
+      return {
+        signature: sign(null, bytes, privateKey).toString('base64'),
+        publicKey: publicKey.export({ type: 'spki', format: 'pem' }).toString(),
+        fingerprint: `SHA256:${createHash('sha256').update(der).digest('hex')}`,
+      };
+    },
     /** Re-encrypts every line under the current key; the hash chain is unchanged by this. */
     async reseal(): Promise<number> {
       return withLock(async () => {
+        const pem = await readSigningKey();
+        if (pem) await writeSigningKey(await store.sealer(), pem);
         const bytes = await readBytes();
         if (!bytes.length) return 0;
         const log = await parse(bytes);

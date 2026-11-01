@@ -39,15 +39,19 @@ describe('hits', () => {
   });
 
   it('never repeats credentials, paths or other fields from what it reports', () => {
-    const shown = names(
+    const findings = scan(
       [
         'postgres://admin:hunter2@db.acme.se/claims?token=abc',
         'Server=sql7;Database=Claims;Password=hunter3;',
         'https://bob:hunter4@portal.acme.se/secret-path?key=hunter5',
       ].join('\n'),
-    ).join(' ');
+    );
+    const shown = findings.map((finding) => finding.name).join(' ');
     expect(shown).toContain('db.acme.se');
-    expect(shown).not.toMatch(/hunter|admin|bob|claims|secret-path|token|Database/i);
+    expect(shown).not.toMatch(/hunter|admin|bob|claims|secret-path/i);
+    // Secret findings are fixed detector labels, such as "Database connection URL".
+    const fromText = findings.filter((finding) => finding.kind !== 'secret');
+    expect(fromText.map((finding) => finding.name).join(' ')).not.toMatch(/token|Database/i);
   });
 
   it('reports one name once per file, and again for another file', () => {
@@ -282,5 +286,29 @@ describe('limits', () => {
     const started = performance.now();
     scanForLeaks([{ path: 'a', texts: [evil] }], options);
     expect(performance.now() - started).toBeLessThan(5000);
+  });
+});
+
+describe('secrets no rule caught', () => {
+  const documents = (text: string) => [{ path: 'config.env', texts: [text] }];
+  const options = { identity: { terms: [], domains: [] } };
+  it('warns by detector name and never carries the value', () => {
+    const { findings } = scanForLeaks(documents('DB_PASSWORD=Xk29fLq7Vb!mZ4pQ\n'), {
+      ...options,
+      masks: [],
+    });
+    expect(findings).toContainEqual({
+      path: 'config.env',
+      name: 'Password or secret variable',
+      kind: 'secret',
+    });
+    expect(JSON.stringify(findings)).not.toContain('Xk29fLq7Vb');
+  });
+  it('stays quiet about a value a rule already replaced', () => {
+    const { findings } = scanForLeaks(documents('DB_PASSWORD=REDACTED_ENV_PASSWORD_1\n'), {
+      ...options,
+      masks: ['REDACTED_ENV_PASSWORD_1'],
+    });
+    expect(findings.filter((finding) => finding.kind === 'secret')).toEqual([]);
   });
 });
