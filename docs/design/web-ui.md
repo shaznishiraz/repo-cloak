@@ -26,124 +26,32 @@ repo-cloak ui   (run anywhere)
           elsewhere              -> home: all repos and workspaces
 ```
 
-```
-+-----------------------------------------------------------+
-| repo-cloak                    [Repos v]  [Profiles] [Help] |
-+----------------+------------------------------------------+
-| Repos          |  northwind-platform-7c1e    @ feature-x   |
-|  acme-platform |  status: 3 modified, 1 added             |
-|   > ws 7c1e    |  last push  2026-10-16 14:05              |
-|     ws 91ad    |  history  2026-10-16 12:30  pull 42 files |
-|  other-repo    |  profiles: acme, common-secrets           |
-+----------------+------------------------------------------+
-```
-
-The original dashboard shipped with **repos and workspaces** (list, status,
-history), **profiles** (list, form editor, raw JSON, check conflicts). The dashboard now also supports
-guided creation, refresh and restoration; see the sync wizard design below.
-
 Sync workflows: [dashboard sync wizard](dashboard-sync.md), including
 first-run setup, preview and confirmed extraction/restoration from the browser.
 
-## Design
+## Session and security
 
-```
-repo-cloak ui
-   |
-   +-- start node:http server on 127.0.0.1:<random port>
-   +-- create random session token
-   +-- open browser at http://127.0.0.1:<port>/#token=<token>
-   |
-   v
-browser                               server (same process as the CLI)
-+-----------------------------+       +--------------------------------+
-| index.html  (one page)      |  GET  | static: index.html, app.js,    |
-| app.js      (vanilla ES     | ----> |         app.css  (from dist/)  |
-|              modules)       |       |                                |
-| app.css                     |  JSON | /api/workspaces   list, open   |
-|                             | <---> | /api/profiles     CRUD+validate|
-|                             |       | /api/schema/:kind JSON Schema  |
-+-----------------------------+       +---------------+----------------+
-                                                      |
-                                       shared application/ and core/ services
-```
+`repo-cloak ui` and the bare launcher share one process per machine store.
+`proper-lockfile` maintains a startup/shutdown guard at `ui.guard`; `ui.lock` holds
+the port, PID and session token and is written atomically with mode 0600 on POSIX. A
+second launch authenticates through `GET /api/session` before reusing the server.
+Stale guards recover after five seconds. Ctrl+C or SIGTERM closes connections and
+removes both session files. `--no-open` prints the address instead of opening it.
 
-Choices:
-
-- **No framework.** Plain HTML, CSS, and JavaScript. The existing tsup build
-  minifies browser JavaScript into `dist/ui/`; HTML and CSS are copied.
-  Shipped assets stay under 96 KB total.
-- **`node:http` only.** No Express or similar; a small router over a handful
-  of JSON routes.
-- **No new logic.** Every route calls the shared `application/` and `core/`
-  functions as the CLI, so the UI and CLI cannot disagree, and validation
-  errors look the same in both.
-- **Profiles are edited as forms backed by the JSON Schema**, with a raw JSON
-  view for power users and LLM-written profiles.
-
-Security:
-
-- Bound to `127.0.0.1` only.
-- Every API call needs the session token (sent as a header, never in logs).
-- `Host` and `Origin` headers checked, to block DNS-rebinding and other sites
-  calling the API.
-- Server exits when the CLI process stops (Ctrl+C).
-
-## Decisions
-
-- Vanilla JS over Preact, htmx, or similar: zero dependencies and nothing to
-  build, which matters more than developer convenience at this size. Revisited
-  for the [rebuild](#rebuilt-dashboard-foundation): the classic UI stays vanilla
-  until cutover.
-- One UI per machine, opened on the current context; no background service.
-- Repos and workspaces, profiles, Settings and the context-first sync wizard.
-  CLI and dashboard use the same prepared plans and writers.
-
-## Implementation (step 7)
-
-`repo-cloak ui` and the interactive UI entry share one process per machine
-store. `proper-lockfile` maintains a startup/shutdown guard at `ui.guard`;
-`ui.lock` contains the port, PID and session token and is written atomically
-with mode 0600 on POSIX. A second invocation authenticates the existing
-server before reusing it. Stale guards recover after five seconds. Ctrl+C
-or SIGTERM closes connections and removes both session files. Browser opening
-uses `open` for macOS, Windows and Linux; `--no-open` prints the address.
-
-The token starts in the URL fragment, is moved into tab-local session storage,
-and is removed from the address bar. API requests use `Authorization: Bearer`.
-No API request logging is enabled. Every response disables caching and sets a
-content security policy; the server accepts only its loopback Host and Origin.
-JSON write requests are limited to 1 MB. Only four named static assets (HTML,
-JavaScript, CSS and the SVG favicon) are
-served. All user-controlled text is rendered as text, not HTML.
-
-```
-GET     /api/session                       authenticate an existing server
-GET     /api/repos                         registered repos and workspace links
-GET     /api/workspaces/:repoId/:id         status and authenticated pull history
-GET     /api/profiles[?repoId=...]           global and selected repo profiles
-POST    /api/profiles                      create or update { scope, id?, profile }
-DELETE  /api/profiles                      remove { scope, id }
-POST    /api/profiles/check                validate [{ scope, id }, ...] together
-GET     /api/schema/:kind                  shared JSON Schemas
-```
-
-The profile form reads rule types and boundary choices from the profile
-schema. Raw JSON exposes advanced options and preserves extension fields.
-Saving, importing and checking use the same validation, merge and encrypted
-encrypted profile store as sync. Deletion is confirmed in the browser. Workspace
-status uses the shared status service; history comes from the authenticated
-manifest. Missing workspace folders are marked in the list.
-
-Sources live in `src/ui/`. The CLI build copies HTML/CSS and minifies JavaScript into `dist/ui/` using
-the existing tsup dependency. Tests enforce the 96 KB shipped asset budget.
+- Bound to `127.0.0.1` only, on `node:http` with no framework.
+- The token starts in the URL fragment, moves to tab-local session storage and leaves
+  the address bar. API requests use `Authorization: Bearer`, and nothing logs them.
+- `Host` and `Origin` are checked to block DNS rebinding and other sites.
+- Every response disables caching and sets a `'self'` content security policy. JSON
+  bodies are limited to 1 MB. Only the named static assets are served.
+- Every route calls shared `application/` and `core/` functions, so validation is
+  the same everywhere. User-controlled text renders as text, not HTML.
 
 ## Browser regression automation
 
-The separate `e2e/` test project uses TesterArmy's `e2e` runner and its
-Playwright web engine. Versions are pinned while the framework is pre-1.0.
-These deterministic tests use locators and assertions, without model calls.
-The test dependencies do not enter the published CLI or change its Node floor.
+The separate `e2e/` test project uses TesterArmy's `e2e` runner and its Playwright
+web engine, pinned while the framework is pre-1.0. Tests use locators and assertions,
+without model calls, and the test dependencies stay out of the published CLI.
 
 ```text
 npm run test:browser
@@ -154,57 +62,27 @@ npm run test:browser
     -> stop fixture -> remove temporary files
 ```
 
-The fixture exercises the real dashboard, store and sync adapters with
-synthetic names. It never opens the user's private store. Tests cover changed
-workspace status and pull history, fragment-token removal and reload,
-profile form/JSON editing, invalid rules, extension preservation, compatibility
-checks, canceled/confirmed deletion, and a 390-pixel layout. CI runs Chromium
-on Ubuntu/Node 24 and retains reports and failure traces. The existing native
-macOS/Windows/Linux CLI matrix remains required; this runner currently supports
-Windows through WSL only.
-
-## Compact profile and settings management
-
-Profiles use a narrow list and a wider editor. Only the editor body scrolls;
-its header and Save/Export actions remain visible. Rule controls use compact
-rows and a labelled trash icon. Long profile names truncate in the list and
-remain available on hover. On narrow screens, the open editor replaces the list.
-
-```
-Profiles                         [Check] [Import] [+ New]
-----------------------+----------------------------------
-[ ] Name       [Edit] | Profile name       [Delete] [Close]
-    Scope · N rules   | Scope                   Form / JSON
-                      | Name          Description
-                      | Exclude       Include
-                      | Rules                  [+ Add]
-                      |         scrollable fields
-                      |----------------------------------
-                      | [Save profile] [Export JSON]
-```
-
-Settings uses separated sections with a shared field width and left-aligned Save
-actions. Folder browsing sits alongside the path. Padded scroll areas and
-shrinkable grid columns leave room for input borders and focus outlines. The
-asset budget is 96 KB (previously 92 KB), allowing the additional responsive form
-styles while keeping build and package size checks enforced. No dependencies
-were added.
+The fixture uses the real dashboard, store and sync adapters with synthetic names and
+never opens the user's private store. The suite covers the shell today; each screen
+package adds its own journeys.
 
 ## Rebuilt dashboard (foundation)
 
 Plan: [rebuild index](../rebuild/INDEX.md), visual reference:
-[rebuild design](../rebuild/design/README.md). The sections above describe the
-classic UI in `src/ui/`, which stays the default until cutover.
+[rebuild design](../rebuild/design/README.md). The vanilla dashboard in `src/ui/` and
+its `/api/*` routes were removed before the screens landed, so **until packages 10-50
+merge, this branch's dashboard is the shell with placeholder screens and cannot run a
+sync**. The engine and its tests are unaffected.
 
 ```
-repo-cloak --next-ui  (or REPO_CLOAK_UI=next)
+repo-cloak
    |
    v
 server.ts: same loopback bind, token, Host/Origin checks and CSP 'self'
    |
-   +-- assets: dist/web/ (next) or dist/ui/ (classic); dist/web/supply-chain.json
+   +-- assets: dist/web/, including supply-chain.json
    |
-   +-- /api/*     classic routes, unchanged
+   +-- /api/session  lets a second launch authenticate this server, nothing else
    +-- /api/v2/*  server-v2/index.ts route table
                     foundation.ts  session, overview, operations/:id
                     home.ts new.ts push.ts profiles.ts admin.ts  (empty, one per package)
@@ -216,10 +94,6 @@ src/web/ (Preact + signals, bundled; devDependencies only)
    shell/ui/          primitives; shell/commands.ts  palette command registry
 ```
 
-- **One server per machine, one UI per server.** `/api/session` reports `ui`. A
-  launch that asks for the other UI fails with a clear message rather than opening
-  the wrong one. The v2 API is token-protected and present under both UIs; only the
-  assets differ.
 - **A package touches its own files.** Each has a `screens/<name>/` stub and a
   `server-v2/<package>.ts` route array already registered, typed against
   `contracts.ts`. Screens add palette entries with `registerCommands`.

@@ -66,11 +66,6 @@ const [pack] = JSON.parse(stdout);
 const files = new Set(pack.files.map((file) => file.path));
 for (const path of [
   'dist/cli.js',
-  'dist/ui/index.html',
-  'dist/ui/app.js',
-  'dist/ui/app.css',
-  'dist/ui/favicon.svg',
-  'dist/ui/favicon.ico',
   'dist/web/index.html',
   'dist/web/app.js',
   'dist/web/app.css',
@@ -85,11 +80,6 @@ for (const path of [
 ]) {
   assert.ok(files.has(path), `Package is missing ${path}`);
 }
-assert.ok(
-  pack.files
-    .filter((file) => file.path.startsWith('dist/ui/'))
-    .reduce((sum, file) => sum + file.size, 0) < 96_000,
-);
 assert.ok(
   pack.files
     .filter((file) => /^dist\/web\/.*\.(js|css|html)$/.test(file.path))

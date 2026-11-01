@@ -413,7 +413,7 @@ Design: [shared group folder](design/repository-groups.md#shared-folder-with-mov
 Plan: [00-foundation](rebuild/INDEX.md#00-foundation). Design:
 [rebuilt dashboard](design/web-ui.md#rebuilt-dashboard-foundation).
 
-- [x] Serve a Preact + signals shell from `dist/web/` behind `--next-ui`, with the
+- [x] Serve a Preact + signals shell from `dist/web/`, with the
       existing server security model and no new runtime dependencies.
 - [x] Add design tokens and accessible primitives; enforce 4.5:1 contrast by test.
 - [x] Add the top bar, rail, hash router, a placeholder per route and the ⌘K palette
@@ -430,5 +430,8 @@ Plan: [00-foundation](rebuild/INDEX.md#00-foundation). Design:
       `npm ls --omit=dev` shows no SDK.
 - [x] Pin versions; add `.npmrc`, SBOM, the CI audit gate, generated supply-chain
       numbers and the 160 KB budget test.
-- [x] Verify `--next-ui` in a real browser: counts, every route, ⌘K, token removal,
+- [x] Verify the shell in a real browser: counts, every route, ⌘K, token removal,
       390px layout, CSP. Linux and Windows keychain backends are tested with fakes only.
+- [x] Remove the vanilla dashboard, its `/api/*` routes and the `--next-ui` flag ahead of
+      cutover; keep their behaviour tests at the application layer and give every removed
+      capability a v2 route in `contracts.ts`.

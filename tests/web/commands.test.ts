@@ -16,8 +16,8 @@ const command = (id: string, title: string, extra: Partial<Command> = {}): Comma
 });
 
 it('lets screens add and remove commands, including their CLI equivalent', () => {
-  const remove = registerCommands(() => [command('a', 'Alpha', { cli: 'repo-cloak --next-ui' })]);
-  expect(commands.value.map((entry) => entry.cli)).toEqual(['repo-cloak --next-ui']);
+  const remove = registerCommands(() => [command('a', 'Alpha', { cli: 'repo-cloak ui' })]);
+  expect(commands.value.map((entry) => entry.cli)).toEqual(['repo-cloak ui']);
   remove();
   expect(commands.value).toEqual([]);
 });

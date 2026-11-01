@@ -38,9 +38,8 @@ coverage report is generated at `coverage/index.html`; a machine-readable
 summary is at `coverage/coverage-summary.json`. Reports are ignored by Git.
 
 Coverage includes **all backend TypeScript under `src/`**, including launcher and
-application services. It does not measure the browser JavaScript. The dashboard's
-API and main browser interactions have automated tests; layout and form
-interactions have also been checked in BrowserOS neo. A browser smoke check remains part of release review.
+application services and the `.ts` modules in `src/web/`. `.tsx` components are tested
+but not measured. A browser smoke check remains part of release review.
 
 ## Regression floors
 
@@ -75,7 +74,7 @@ inspect the missing behavior or resource contention first.
 
 The package smoke check verifies launcher help/version, rejects removed workflow
 commands without starting a server, validates shipped schema presence, and inspects
-the npm package file list and the 92 KB browser asset budget. It does not access
+the npm package file list and the 160 KB dashboard budget. It does not access
 the user's private machine store.
 
 ## Release gates
@@ -123,9 +122,8 @@ workspace using real adapters, binds a runner-selected loopback port, and
 removes the fixture on shutdown. Each test gets a fresh browser context. No AI
 subscription, API key, production data, or machine-store override is needed.
 
-The suite covers status/history, token removal and reload, profile form/JSON
-editing, rejected regex validation, extension preservation, compatibility
-checks, canceled/confirmed deletion and a narrow layout. Results and JUnit XML
+The suite covers the shell: real counts, token removal and reload, every route, the
+palette and a narrow layout. Each screen package adds its own journeys. Results and JUnit XML
 are in `e2e/.e2e/`, with traces retained on failure. CI uploads these for seven
 days. They contain synthetic fixture data only. Both framework packages and
 their dependency tree are locked separately from the CLI.
@@ -145,6 +143,4 @@ Git ignores disabled returned 4,001 paths in 101 ms.
 These are illustrative path-discovery measurements on the development machine,
 not end-to-end UI timings, cold-disk benchmarks, or performance guarantees. No
 application inventory cache was used; OS filesystem caches may have been warm.
-The fixture was removed afterwards. The browser regression suite verifies one
-inventory request per opening, fresh requests for checkbox changes/Refresh,
-local search without rescans, and same-origin-only resource requests.
+The fixture was removed afterwards.

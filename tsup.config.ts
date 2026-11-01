@@ -1,5 +1,5 @@
 import { defineConfig } from 'tsup';
-import { buildUi, buildWeb } from './scripts/build-ui.js';
+import { buildWeb } from './scripts/build-ui.js';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { documentKinds, jsonSchema } from './src/core/schemas.js';
 
@@ -13,7 +13,6 @@ export default defineConfig({
   sourcemap: true,
   banner: { js: '#!/usr/bin/env node' },
   async onSuccess() {
-    await buildUi('dist/ui');
     await buildWeb('dist/web');
     await mkdir('schemas', { recursive: true });
     await Promise.all(

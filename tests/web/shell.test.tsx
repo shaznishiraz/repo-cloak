@@ -47,7 +47,6 @@ const info: SessionInfo = {
   app: 'repo-cloak',
   protocol: 1,
   version: '2.0.0',
-  ui: 'next',
   port: 4000,
   store: {
     sealed: true,

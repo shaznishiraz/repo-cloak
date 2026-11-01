@@ -2,15 +2,12 @@
  * Types shared by the local server and the browser. Types only: this file must stay free of
  * runtime code so it can be imported on both sides.
  */
-export type UiKind = 'classic' | 'next';
-
 export type KeyStorageKind = 'file' | 'keychain';
 export type PolicyStatus = 'none' | 'active' | 'invalid';
 export type SessionInfo = {
   app: 'repo-cloak';
   protocol: 1;
   version: string;
-  ui: UiKind;
   port: number;
   store: {
     sealed: boolean;
@@ -185,7 +182,43 @@ export type GroupBulkRequest = {
   commitMessage?: string;
 };
 
+export type DesktopTarget = 'folder' | 'vscode' | 'zed' | 'orca';
+export type DesktopOption = { label: string; available: boolean; unavailableReason?: string };
+export type GroupMemberRef = { repoId: string; workspaceId: string; worktree: string };
+export type GroupInput = {
+  name: string;
+  members: GroupMemberRef[];
+  moveWorkspaces?: boolean;
+  folderRoot?: string;
+};
+export type GroupOperationState = {
+  operationId: string;
+  state: OperationState['state'];
+  expiresAt: string;
+  members: {
+    repoId: string;
+    state: 'pending' | 'running' | 'completed' | 'failed' | 'unattempted';
+    error?: string;
+  }[];
+};
+export type GroupAck = {
+  members: { repoId: string; deletions?: boolean; profiles?: boolean; force?: boolean }[];
+};
+export type ExportFile = {
+  index: number;
+  path: string;
+  added: number | null;
+  removed: number | null;
+  excluded: boolean;
+};
+
 /* ---------- 20-new-cloak ---------- */
+export type FolderListing = {
+  path: string;
+  folders: { name: string; path: string }[];
+  next: number | null;
+};
+export type WorktreeOption = { path: string; branch: string | null };
 export type ExistingCloak = { repoId: string; workspaceId: string; name: string; path: string };
 export type NewCloakContext = {
   repoId: string;
@@ -415,6 +448,17 @@ export type DashboardSettings = {
   security: SecuritySettings;
 };
 
+export type AgentAccess = { enabled: boolean; guidance: boolean; worktree?: string };
+export type AgentClientSetup = {
+  name: string;
+  command: string;
+  args: string[];
+  codexTarget: string;
+  claudeTarget: string;
+  codex: string;
+  claude: string;
+};
+
 /* ---------- Route map: `METHOD path` to its query, body and response ---------- */
 type R<Response, Body = never, Query = never> = { response: Response; body: Body; query: Query };
 export type V2Api = {
@@ -431,6 +475,32 @@ export type V2Api = {
   'POST /api/v2/workspaces/:repoId/:id/push': R<OperationPreview, { target: PushTarget }>;
   'GET /api/v2/groups/:id': R<GroupDetail>;
   'POST /api/v2/groups/:id/bulk': R<OperationPreview, GroupBulkRequest>;
+  'GET /api/v2/groups': R<{ groups: GroupDetail[] }>;
+  'POST /api/v2/groups': R<GroupDetail, GroupInput>;
+  'PUT /api/v2/groups/:id': R<GroupDetail, { revision: string; group: GroupInput }>;
+  'DELETE /api/v2/groups/:id': R<{ deleted: string }, { revision: string }>;
+  'POST /api/v2/groups/:id/members': R<GroupDetail, { revision: string; member: GroupMemberRef }>;
+  'POST /api/v2/groups/:id/open': R<{ opened: true }, { target: DesktopTarget }>;
+  'GET /api/v2/group-operations/:id': R<GroupOperationState>;
+  'POST /api/v2/group-operations/:id/apply': R<GroupOperationState, GroupAck>;
+  'POST /api/v2/group-operations/:id/retry': R<GroupOperationState>;
+  'DELETE /api/v2/group-operations/:id': R<GroupOperationState>;
+  'GET /api/v2/desktop': R<Record<DesktopTarget, DesktopOption>>;
+  'POST /api/v2/workspaces/:repoId/:id/open': R<{ opened: true }, { target: DesktopTarget }>;
+  'DELETE /api/v2/workspaces/:repoId/:id': R<{ deleted: string }, { path: string; confirm: true }>;
+  'GET /api/v2/workspaces/:repoId/:id/export/commits': R<
+    CommitEntry[],
+    never,
+    { offset?: string; ref?: string }
+  >;
+  'POST /api/v2/workspaces/:repoId/:id/export/files': R<
+    { files: ExportFile[] },
+    { commit: string }
+  >;
+  'POST /api/v2/workspaces/:repoId/:id/export/diff': R<
+    { patch: string },
+    { commit: string; indexes: number[]; includeExcluded?: boolean }
+  >;
   // 20-new-cloak
   'GET /api/v2/new/context': R<NewCloakContext, never, { repo: string; worktree: string }>;
   'GET /api/v2/new/changes': R<
@@ -445,6 +515,9 @@ export type V2Api = {
   >;
   'POST /api/v2/new/review': R<NewCloakReview, NewCloakSelection>;
   'POST /api/v2/new/create': R<OperationPreview, NewCloakCreate>;
+  'GET /api/v2/worktrees/:repoId': R<{ worktrees: WorktreeOption[] }>;
+  // Also used by the Settings and Known repos screens.
+  'GET /api/v2/folders': R<FolderListing, never, { path?: string; offset?: string }>;
   'GET /api/v2/setup': R<SetupState, never, { repo?: string }>;
   'PUT /api/v2/setup': R<SetupState, { workspacesRoot?: string; presets?: string[] }>;
   // 30-push
@@ -461,6 +534,11 @@ export type V2Api = {
   'DELETE /api/v2/profiles/:id': R<{ deleted: string }, { revision: string }>;
   'POST /api/v2/profiles/validate': R<{ problems: ProfileProblem[] }, { document: unknown }>;
   'POST /api/v2/profiles/test': R<ProfileTestResult, { document: unknown; text: string }>;
+  'POST /api/v2/profiles/check': R<
+    { profiles: number; rules: number },
+    { id: string; scope: ProfileScopeRef }[]
+  >;
+  'GET /api/v2/schema/:kind': R<unknown>;
   'GET /api/v2/profiles/suggestions': R<
     { suggestions: ProfileSuggestion[] },
     never,
@@ -471,7 +549,12 @@ export type V2Api = {
   'POST /api/v2/repos': R<KnownRepo, { path: string }>;
   'GET /api/v2/repos/:id': R<RepoDetail>;
   'PUT /api/v2/repos/:id': R<RepoDetail, { pinned?: boolean; rules?: RepoRules }>;
+  'DELETE /api/v2/repos/:id': R<{ removed: string }>;
   'GET /api/v2/requests': R<{ requests: AgentRequest[] }>;
+  'GET /api/v2/agents/:repoId/:workspaceId': R<AgentAccess>;
+  'PUT /api/v2/agents/:repoId/:workspaceId': R<AgentAccess, { enabled: boolean; rotate?: boolean }>;
+  'GET /api/v2/agents/:repoId/:workspaceId/mcp': R<AgentClientSetup>;
+  'POST /api/v2/agents/:repoId/:workspaceId/mcp/:provider': R<unknown, { confirm: true }>;
   'GET /api/v2/requests/:workspaceId/:id': R<AgentRequestDetail>;
   'POST /api/v2/requests/:workspaceId/:id': R<AgentRequestDetail, AgentDecision>;
   'GET /api/v2/audit': R<AuditPage, never, { q?: string; cursor?: string; limit?: string }>;

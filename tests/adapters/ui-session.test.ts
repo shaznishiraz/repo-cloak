@@ -1,7 +1,7 @@
 import { mkdtemp, readFile, readdir, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { buildUi, buildWeb } from '../../scripts/build-ui.js';
+import { buildWeb } from '../../scripts/build-ui.js';
 import { expect, it } from 'vitest';
 import { createStore } from '../../src/adapters/store.js';
 import { createDashboard } from '../../src/application/dashboard.js';
@@ -12,8 +12,8 @@ it('reuses one server for concurrent launches and removes session files on shutd
   const store = createStore(root);
   const dashboard = createDashboard(store, root);
   const sessions = await Promise.all([
-    startUiSession(root, dashboard, 0, resolve('src/ui')),
-    startUiSession(root, dashboard, 0, resolve('src/ui')),
+    startUiSession(root, dashboard, 0, resolve('src/web')),
+    startUiSession(root, dashboard, 0, resolve('src/web')),
   ]);
   const first = sessions.find((session) => !session.reused);
   const second = sessions.find((session) => session.reused);
@@ -38,21 +38,6 @@ it('reuses one server for concurrent launches and removes session files on shutd
   await rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
 });
 
-it('ships less than 96 KB of browser assets', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'cloak UI build '));
-  try {
-    await buildUi(root);
-    const sizes = await Promise.all(
-      ['index.html', 'app.js', 'app.css', 'favicon.svg', 'favicon.ico'].map(
-        async (name) => (await stat(join(root, name))).size,
-      ),
-    );
-    expect(sizes.reduce((sum, size) => sum + size, 0)).toBeLessThan(96_000);
-  } finally {
-    await rm(root, { recursive: true, force: true });
-  }
-});
-
 it('recovers a stale guard left by an exited process', async () => {
   const { mkdir, writeFile, utimes } = await import('node:fs/promises');
   const root = await mkdtemp(join(tmpdir(), 'cloak stale ui '));
@@ -64,7 +49,7 @@ it('recovers a stale guard left by an exited process', async () => {
     root,
     createDashboard(createStore(root), root),
     0,
-    resolve('src/ui'),
+    resolve('src/web'),
   );
   try {
     expect(session.reused).toBe(false);
@@ -84,10 +69,10 @@ it('releases its guard after a busy-port error so the next launch succeeds', asy
   try {
     const dashboard = createDashboard(createStore(root), root);
     await expect(
-      startUiSession(root, dashboard, address.port, resolve('src/ui')),
+      startUiSession(root, dashboard, address.port, resolve('src/web')),
     ).rejects.toMatchObject({ code: 'EADDRINUSE' });
     expect(await readdir(root)).toEqual([]);
-    const session = await startUiSession(root, dashboard, 0, resolve('src/ui'));
+    const session = await startUiSession(root, dashboard, 0, resolve('src/web'));
     await session.close();
     await session.close();
     expect(await readdir(root)).toEqual([]);
@@ -99,27 +84,19 @@ it('releases its guard after a busy-port error so the next launch succeeds', asy
   }
 });
 
-it('serves the next UI when asked and refuses to silently reuse a classic server', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'cloak ui next '));
+it('serves the built dashboard with the security headers', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'cloak ui web '));
   const out = join(root, 'assets');
   await buildWeb(out);
   const store = createStore(join(root, 'store'));
   const dashboard = createDashboard(store, root);
-  const session = await startUiSession(store.root, dashboard, 0, out, 'next');
+  const session = await startUiSession(store.root, dashboard, 0, out);
   try {
     const page = await fetch(`http://127.0.0.1:${session.port}/`);
     expect(await page.text()).toContain('id="app"');
     expect(page.headers.get('content-security-policy')).toContain("script-src 'self'");
     expect(page.headers.get('x-content-type-options')).toBe('nosniff');
-    const info = await fetch(`http://127.0.0.1:${session.port}/api/session`, {
-      headers: { Authorization: `Bearer ${session.token}` },
-    });
-    expect(await info.json()).toMatchObject({ ui: 'next' });
-    const again = await startUiSession(store.root, dashboard, 0, out, 'next');
-    expect(again.reused).toBe(true);
-    await expect(startUiSession(store.root, dashboard, 0, resolve('src/ui'))).rejects.toThrow(
-      /next UI is already running/,
-    );
+    expect((await startUiSession(store.root, dashboard, 0, out)).reused).toBe(true);
   } finally {
     await session.close();
     await rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });

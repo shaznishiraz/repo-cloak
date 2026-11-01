@@ -16,7 +16,6 @@ import type {
   Overview,
   OverviewWorkspace,
   SessionInfo,
-  UiKind,
 } from '../web/api/contracts.js';
 import type { createDashboardSync } from './dashboard-sync.js';
 import { runStatus } from './status.js';
@@ -140,7 +139,7 @@ export function createDashboardShell(
     };
   }
   return {
-    async session(ui: UiKind, port: number): Promise<SessionInfo> {
+    async session(port: number): Promise<SessionInfo> {
       const { sealed, keyId, storage, migrationAvailable, rotationPending } =
         await store.keyStatus();
       const policy = await store.policy();
@@ -149,7 +148,6 @@ export function createDashboardShell(
         app: 'repo-cloak',
         protocol: 1,
         version,
-        ui,
         port,
         store: { sealed, keyId, storage, migrationAvailable, rotationPending },
         policy: { status: policy.status, locked: security.locked },

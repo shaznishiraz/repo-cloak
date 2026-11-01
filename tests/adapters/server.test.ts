@@ -1,221 +1,80 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { join } from 'node:path';
 import { request } from 'node:http';
 import { afterEach, expect, it } from 'vitest';
 import { runGit } from '../../src/adapters/git.js';
 import { createStore } from '../../src/adapters/store.js';
 import { createDashboard } from '../../src/application/dashboard.js';
 import { createDashboardServer } from '../../src/adapters/server.js';
-import { createDesktop } from '../../src/adapters/desktop.js';
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => {
   for (const cleanup of cleanups.splice(0).reverse()) await cleanup();
 });
-async function fixture(desktop?: ReturnType<typeof createDesktop>) {
+async function fixture() {
   const root = await mkdtemp(join(tmpdir(), 'cloak dashboard '));
   cleanups.push(() => rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }));
+  const assets = join(root, 'assets');
+  await mkdir(assets);
+  await Promise.all(
+    ['index.html', 'app.js', 'app.css', 'favicon.svg', 'favicon.ico', 'supply-chain.json'].map(
+      (name) => writeFile(join(assets, name), `asset ${name}`),
+    ),
+  );
+  await writeFile(join(assets, 'key'), 'must never be served');
   const store = createStore(join(root, 'store'));
-  const dashboard = createDashboard(store, root, desktop);
-  const server = createDashboardServer(dashboard, 'test-token', resolve('src/ui'));
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const dashboard = createDashboard(store, root);
+  const server = createDashboardServer(dashboard, 'test-token', assets);
+  await new Promise<void>((done) => server.listen(0, '127.0.0.1', done));
   cleanups.push(
     () =>
-      new Promise<void>((resolve, reject) => {
-        server.close((error) => (error ? reject(error) : resolve()));
+      new Promise<void>((done, fail) => {
+        server.close((error) => (error ? fail(error) : done()));
         server.closeAllConnections();
       }),
   );
   const address = server.address();
   if (!address || typeof address === 'string') throw new Error('No port');
-  const base = `http://127.0.0.1:${address.port}`;
-  const call = (path: string, method = 'GET', body?: unknown) =>
-    fetch(`${base}${path}`, {
-      method,
-      headers: {
-        Authorization: 'Bearer test-token',
-        ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
-      },
-      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-    });
-  return { store, dashboard, server, address, base, call };
+  return { root, store, dashboard, address, base: `http://127.0.0.1:${address.port}` };
 }
+const auth = { Authorization: 'Bearer test-token' };
+const json = { 'Content-Type': 'application/json' };
+const foreign = { Origin: 'https://foreign.test' };
 
-it('requires a token on every API route and rejects foreign origins', async () => {
-  const { base, call } = await fixture();
-  for (const path of [
-    '/api/repos',
-    '/api/repos/aaaaaaaaaaaaaaaa',
-    '/api/profiles',
-    '/api/session',
-    '/api/settings',
-    '/api/folders',
-    '/api/schema/profile',
-    '/api/workspaces/a/b',
-    '/api/repos/a/worktrees',
-    '/api/repos/a/selection',
-    '/api/repos/a/inventory',
-    '/api/repos/a/selection-context',
-    '/api/sync/preview',
-    '/api/sync/example',
-    '/api/sync/example/apply',
-    '/api/groups',
-    '/api/desktop',
-    '/api/groups/example/open',
-    '/api/workspaces/a/b/open',
-    '/api/groups/example',
-    '/api/groups/example/preview',
-    '/api/group-sync/example',
-    '/api/group-sync/example/apply',
-    '/api/group-sync/example/retry',
-  ]) {
+it('requires the token and a local origin on every API path', async () => {
+  const { base } = await fixture();
+  for (const path of ['/api/session', '/api/v2/session', '/api/v2/overview', '/api/anything']) {
     expect((await fetch(`${base}${path}`)).status).toBe(401);
     expect(
       (await fetch(`${base}${path}`, { headers: { Authorization: 'Bearer wrong-token' } })).status,
     ).toBe(401);
+    expect((await fetch(`${base}${path}`, { headers: { ...auth, ...foreign } })).status).toBe(403);
   }
-  expect(
-    (
-      await fetch(`${base}/api/repos`, {
-        headers: { Authorization: 'Bearer test-token', Origin: 'https://foreign.test' },
-      })
-    ).status,
-  ).toBe(403);
-  expect(
-    (
-      await fetch(`${base}/api/repos`, {
-        headers: { Authorization: 'Bearer test-token', Origin: base },
-      })
-    ).status,
-  ).toBe(200);
-  expect(await (await call('/api/repos')).json()).toEqual([]);
+  const local = await fetch(`${base}/api/session`, { headers: { ...auth, Origin: base } });
+  expect(local.status).toBe(200);
+  expect(await local.json()).toEqual({ app: 'repo-cloak', protocol: 1, pid: process.pid });
 });
 
-it('removes repositories through an authenticated owner route without touching source files', async () => {
-  const { base, store, call } = await fixture();
-  const source = join(store.root, '..', 'source');
-  await mkdir(source);
-  await runGit(source, ['init', '-b', 'main']);
-  await writeFile(join(source, 'keep.txt'), 'keep source');
-  const added = await call('/api/repos', 'POST', { path: source });
-  const { repoId } = (await added.json()) as { repoId: string };
-  const route = `/api/repos/${repoId}`;
-  expect((await fetch(base + route, { method: 'DELETE' })).status).toBe(401);
-  expect(
-    (
-      await fetch(base + route, {
-        method: 'DELETE',
-        headers: { Authorization: 'Bearer test-token', Origin: 'https://foreign.test' },
-      })
-    ).status,
-  ).toBe(403);
-  expect((await call('/api/repos/not-a-repo', 'DELETE')).status).toBe(400);
-  expect((await call('/api/repos/aaaaaaaaaaaaaaaa', 'DELETE')).status).toBe(404);
-  expect((await call(route, 'DELETE')).status).toBe(200);
-  expect(await (await call('/api/repos')).json()).toEqual([]);
-  expect(await readFile(join(source, 'keep.txt'), 'utf8')).toBe('keep source');
-  expect((await call('/api/repos', 'POST', { path: source })).status).toBe(200);
-  expect(await (await call('/api/repos')).json()).toMatchObject([{ id: repoId }]);
-});
-
-it('opens only registered cloak/group folders through authenticated allowlisted desktop actions', async () => {
-  const opened: string[] = [];
-  const desktop = createDesktop(
-    'darwin',
-    async (_command, args) => {
-      opened.push((args[0] === 'repo' ? args[3] : args.at(-1)) ?? '');
-    },
-    async (name) => `/Applications/${name}`,
-    'orca',
-  );
-  const { dashboard, store, base, call } = await fixture(desktop);
-  const source = join(store.root, '..', 'source');
-  await mkdir(source);
-  await runGit(source, ['init', '-b', 'main']);
-  await writeFile(join(source, 'file.ts'), 'export const safe = true;');
-  await store.writePlain('config.json', 'config', {
-    kind: 'config',
-    schemaVersion: 1,
-    initGit: false,
-  });
-  const { repoId } = await dashboard.addRepository({ path: source });
-  const profile = await dashboard.saveProfile({
-    scope: { kind: 'repo', repoId },
-    profile: {
-      kind: 'profile',
-      schemaVersion: 1,
-      name: 'test',
-      rules: [],
-    },
-  });
-  const preview = await dashboard.sync.preview({
-    intent: 'create',
-    repoId,
-    worktree: source,
-    destination: join(source, '..', 'cloak'),
-    files: ['file.ts'],
-    profiles: [{ id: profile.id, scope: profile.scope }],
-  });
-  await dashboard.sync.apply(preview.operationId, {});
-  const state = await dashboard.sync.wait(preview.operationId);
-  if (!state.result) throw new Error(state.error ?? 'Missing fixture workspace');
-  const group = await dashboard.groups.save({
-    name: 'App',
-    members: [{ repoId, workspaceId: state.result.workspaceId, worktree: source }],
-    moveWorkspaces: true,
-  });
-  const route = `/api/groups/${group.id}/open`;
-  expect((await call('/api/desktop')).status).toBe(200);
-  expect((await fetch(base + route, { method: 'POST' })).status).toBe(401);
-  expect(
-    (
-      await fetch(base + route, {
-        method: 'POST',
-        headers: { Authorization: 'Bearer test-token', Origin: 'https://foreign.test' },
-      })
-    ).status,
-  ).toBe(403);
-  expect((await call(route, 'POST', { target: 'sh' })).status).toBe(400);
-  expect((await call(route, 'POST', { target: 'vscode', path: source })).status).toBe(400);
-  expect(opened).toEqual([]);
-  expect((await call(route, 'POST', { target: 'vscode' })).status).toBe(200);
-  expect(opened).toEqual([group.folder]);
-  expect(
-    (
-      await call(`/api/workspaces/${repoId}/${state.result.workspaceId}/open`, 'POST', {
-        target: 'folder',
-      })
-    ).status,
-  ).toBe(200);
-  const moved = await dashboard.sync.workspaceTarget(repoId, state.result.workspaceId);
-  expect(opened[1]).toBe(moved.path);
-  expect((await call(route, 'POST', { target: 'orca' })).status).toBe(200);
-  expect(opened[2]).toBe(group.folder);
-  expect((await call(route, 'POST', { target: 'orca', path: source })).status).toBe(400);
-  expect(
-    (
-      await call(`/api/workspaces/${repoId}/${state.result.workspaceId}/open`, 'POST', {
-        target: 'orca',
-      })
-    ).status,
-  ).toBe(200);
-  expect(opened[3]).toBe(moved.path);
+it('no longer serves the removed dashboard routes', async () => {
+  const { base } = await fixture();
+  for (const path of ['/api/repos', '/api/profiles', '/api/settings', '/api/groups', '/api/sync/x'])
+    expect((await fetch(`${base}${path}`, { headers: auth })).status).toBe(404);
 });
 
 it('binds loopback only, blocks a foreign Host, and serves only known assets', async () => {
   const { address, base } = await fixture();
   expect(address.address).toBe('127.0.0.1');
-  const status = await new Promise<number | undefined>((resolve, reject) => {
+  const status = await new Promise<number | undefined>((done, fail) => {
     const outgoing = request(
-      `${base}/api/repos`,
-      { headers: { Host: 'foreign.test', Authorization: 'Bearer test-token' } },
+      `${base}/api/session`,
+      { headers: { ...auth, Host: 'foreign.test' } },
       (response) => {
         response.resume();
-        resolve(response.statusCode);
+        done(response.statusCode);
       },
     );
-    outgoing.on('error', reject);
+    outgoing.on('error', fail);
     outgoing.end();
   });
   expect(status).toBe(403);
@@ -224,232 +83,29 @@ it('binds loopback only, blocks a foreign Host, and serves only known assets', a
   expect(page.headers.get('content-security-policy')).toContain("frame-ancestors 'none'");
   expect(page.headers.get('content-security-policy')).toContain("connect-src 'self'");
   expect(page.headers.get('cache-control')).toBe('no-store');
-  expect(await page.text()).toContain('Local dashboard');
+  expect(await page.text()).toBe('asset index.html');
   expect((await fetch(`${base}/key`)).status).toBe(404);
+  expect((await fetch(`${base}/../key`)).status).toBe(404);
   expect((await fetch(`${base}/app.js`)).headers.get('content-type')).toContain('javascript');
-  const favicon = await fetch(`${base}/favicon.svg`);
-  expect(favicon.status).toBe(200);
-  expect(favicon.headers.get('content-type')).toBe('image/svg+xml');
-  expect(await favicon.text()).toBe(await readFile(resolve('src/ui/favicon.svg'), 'utf8'));
-  for (const path of ['/favicon.ico', '/favicon.ico?v=2']) {
-    const fallback = await fetch(`${base}${path}`);
-    expect(fallback.status).toBe(200);
-    expect(fallback.headers.get('content-type')).toBe('image/x-icon');
-    expect(Buffer.from(await fallback.arrayBuffer())).toEqual(
-      await readFile(resolve('src/ui/favicon.ico')),
-    );
-  }
-});
-
-it('registers a launched source in an existing group and routes guarded group sync, revisions and deletion', async () => {
-  const { store, dashboard, call } = await fixture();
-  const source = join(store.root, '..', 'Backend');
-  const destination = join(store.root, '..', 'backend-cloak');
-  await mkdir(source);
-  await runGit(source, ['init', '-b', 'main']);
-  await writeFile(join(source, 'backend.ts'), 'export const backend = true;');
-  await store.writePlain('config.json', 'config', {
-    kind: 'config',
-    schemaVersion: 1,
-    initGit: false,
-  });
-  const { repoId, worktree } = await dashboard.addRepository({ path: source });
-  const profile = await dashboard.saveProfile({
-    scope: { kind: 'global' },
-    profile: { kind: 'profile', schemaVersion: 1, name: 'names', rules: [] },
-  });
-  const preview = await dashboard.sync.preview({
-    intent: 'create',
-    repoId,
-    worktree,
-    destination,
-    files: ['backend.ts'],
-    profiles: [{ id: profile.id, scope: profile.scope }],
-  });
-  await dashboard.sync.apply(preview.operationId, {});
-  const created = await dashboard.sync.wait(preview.operationId);
-  expect(created.state).toBe('completed');
-  if (!created.result) throw new Error('Workspace was not created');
-  const input = {
-    name: 'Product',
-    members: [{ repoId, workspaceId: created.result.workspaceId, worktree }],
-  };
-  expect((await call('/api/groups', 'POST', { name: 'Invalid', members: [] })).status).toBe(400);
-  const savedResponse = await call('/api/groups', 'POST', input);
-  expect(savedResponse.status).toBe(200);
-  const saved = (await savedResponse.json()) as { id: string; revision: string };
-  expect(await (await call('/api/groups')).json()).toMatchObject([{ ...saved, name: 'Product' }]);
-  const batch = (await (
-    await call(`/api/groups/${saved.id}/preview`, 'POST', {
-      revision: saved.revision,
-      intent: 'refresh',
-    })
-  ).json()) as { operationId: string };
-  expect(
-    (
-      await call(`/api/sync/${batch.operationId}/apply`, 'POST', {
-        deletions: true,
-        profiles: true,
-      })
-    ).status,
-  ).toBe(400);
-  expect(
-    (await call(`/api/group-sync/${batch.operationId}/apply`, 'POST', { members: [] })).status,
-  ).toBe(200);
-  await dashboard.groups.wait(batch.operationId);
-  expect(await (await call(`/api/group-sync/${batch.operationId}`)).json()).toMatchObject({
-    state: 'completed',
-    members: [{ state: 'completed' }],
-  });
-  expect((await call(`/api/group-sync/${batch.operationId}/retry`, 'POST', {})).status).toBe(400);
-  expect((await call(`/api/group-sync/${batch.operationId}`, 'DELETE')).status).toBe(200);
-  const edited = (await (
-    await call(`/api/groups/${saved.id}`, 'PUT', {
-      revision: saved.revision,
-      group: { ...input, name: 'Renamed' },
-    })
-  ).json()) as { revision: string };
-  expect(
-    (await call(`/api/groups/${saved.id}`, 'DELETE', { revision: saved.revision })).status,
-  ).toBe(409);
-  expect(
-    (await call(`/api/groups/${saved.id}`, 'DELETE', { revision: edited.revision })).status,
-  ).toBe(200);
-  expect(await (await call('/api/groups')).json()).toEqual([]);
-  expect(await readFile(join(destination, 'backend.ts'), 'utf8')).toContain('backend');
-  dashboard.sync.close();
-});
-
-it('uses CLI profile validation and supports save, edit, check and confirmed deletion', async () => {
-  const { call, store } = await fixture();
-  const profile = {
-    kind: 'profile',
-    schemaVersion: 1,
-    name: 'client',
-    rules: [{ id: 'company', type: 'literal', match: 'Acme', replace: 'Northwind' }],
-    extensions: { custom: true },
-  };
-  const scope = { kind: 'global' };
-  const invalid = await call('/api/profiles', 'POST', {
-    scope,
-    profile: { ...profile, rules: [{ id: 'broken', type: 'regex', match: '[', replace: 'x' }] },
-  });
-  expect(invalid.status).toBe(400);
-  expect(JSON.stringify(await invalid.json())).toContain('broken');
-  expect(await (await call('/api/profiles')).json()).toEqual([]);
-  const saved = (await (await call('/api/profiles', 'POST', { scope, profile })).json()) as {
-    id: string;
-  };
-  expect(saved.id).toMatch(/^pf_/);
-  const disk = await readFile(join(store.root, 'profiles', `${saved.id}.json`), 'utf8');
-  expect(disk).not.toContain('Acme');
-  expect(
-    (
-      await call('/api/profiles', 'POST', {
-        id: saved.id,
-        scope,
-        profile: { ...profile, description: 'edited' },
-      })
-    ).status,
-  ).toBe(200);
-  expect(
-    await (await call('/api/profiles/check', 'POST', [{ scope, id: saved.id }])).json(),
-  ).toEqual({ profiles: 1, rules: 1 });
-  expect(
-    (
-      await call('/api/profiles/check', 'POST', [
-        { scope, id: saved.id },
-        { scope, id: saved.id },
-      ])
-    ).status,
-  ).toBe(400);
-  expect((await call('/api/profiles', 'DELETE', { scope, id: saved.id })).status).toBe(200);
-  expect(await (await call('/api/profiles')).json()).toEqual([]);
+  expect((await fetch(`${base}/favicon.svg`)).headers.get('content-type')).toBe('image/svg+xml');
+  for (const path of ['/favicon.ico', '/favicon.ico?v=2'])
+    expect((await fetch(`${base}${path}`)).headers.get('content-type')).toBe('image/x-icon');
+  expect((await fetch(`${base}/app.js`, { method: 'POST' })).status).toBe(404);
 });
 
 it('rejects malformed and oversized requests', async () => {
   const { base } = await fixture();
-  expect(
-    (
-      await fetch(`${base}/api/profiles`, {
-        method: 'POST',
-        headers: { Authorization: 'Bearer test-token', 'Content-Type': 'application/json' },
-        body: '{',
-      })
-    ).status,
-  ).toBe(400);
-  expect(
-    (
-      await fetch(`${base}/api/profiles`, {
-        method: 'POST',
-        headers: { Authorization: 'Bearer test-token' },
-        body: '{}',
-      })
-    ).status,
-  ).toBe(415);
-  expect(
-    (
-      await fetch(`${base}/api/profiles`, {
-        method: 'POST',
-        headers: { Authorization: 'Bearer test-token', 'Content-Type': 'application/json' },
-        body: JSON.stringify('a'.repeat(1024 * 1024)),
-      })
-    ).status,
-  ).toBe(413);
+  const url = `${base}/api/v2/operations/missing/apply`;
+  const post = (headers: Record<string, string>, body: string) =>
+    fetch(url, { method: 'POST', headers: { ...auth, ...headers }, body });
+  expect((await post(json, '{')).status).toBe(400);
+  expect((await post({}, '{}')).status).toBe(415);
+  expect((await post(json, JSON.stringify('a'.repeat(1024 * 1024)))).status).toBe(413);
 });
 
-it('rejects unauthorized write requests before changing any saved profile', async () => {
-  const { call, base, store } = await fixture();
-  const scope = { kind: 'global' };
-  const profile = { kind: 'profile', schemaVersion: 1, name: 'protected', rules: [] };
-  const saved = (await (await call('/api/profiles', 'POST', { scope, profile })).json()) as {
-    id: string;
-  };
-  const path = join(store.root, 'profiles', `${saved.id}.json`);
-  const before = await readFile(path);
-  const requests = [
-    {
-      path: '/api/profiles',
-      method: 'POST',
-      body: { id: saved.id, scope, profile: { ...profile, name: 'changed' } },
-    },
-    { path: '/api/profiles', method: 'DELETE', body: { id: saved.id, scope } },
-    { path: '/api/profiles/check', method: 'POST', body: [{ id: saved.id, scope }] },
-  ];
-  for (const request of requests) {
-    const options = { method: request.method, body: JSON.stringify(request.body) };
-    expect(
-      (
-        await fetch(`${base}${request.path}`, {
-          ...options,
-          headers: { 'Content-Type': 'application/json' },
-        })
-      ).status,
-    ).toBe(401);
-    expect(
-      (
-        await fetch(`${base}${request.path}`, {
-          ...options,
-          headers: {
-            Authorization: 'Bearer test-token',
-            'Content-Type': 'application/json',
-            Origin: 'https://foreign.test',
-          },
-        })
-      ).status,
-    ).toBe(403);
-  }
-  expect(await readFile(path)).toEqual(before);
-  expect(await (await call('/api/profiles')).json()).toEqual([
-    expect.objectContaining({ id: saved.id }),
-  ]);
-});
-
-it('authenticates sync mutations and serves preview/apply/status with structured errors', async () => {
-  const { store, dashboard, base, call } = await fixture();
-  expect((await call('/api/folders?offset=-1')).status).toBe(400);
-  const source = join(store.root, '..', 'source');
-  const destination = join(store.root, '..', 'workspace');
+it('rejects unauthenticated and foreign mutations before they change an operation', async () => {
+  const { root, store, dashboard, base } = await fixture();
+  const source = join(root, 'source');
   await mkdir(source);
   await runGit(source, ['init', '-b', 'main']);
   await writeFile(join(source, 'Acme.txt'), 'Acme');
@@ -463,204 +119,46 @@ it('authenticates sync mutations and serves preview/apply/status with structured
       rules: [{ id: 'name', type: 'literal', match: 'Acme', replace: 'Northwind' }],
     },
   });
-  const input = {
+  const destination = join(root, 'workspace');
+  const preview = await dashboard.sync.preview({
     intent: 'create',
     repoId,
     worktree: source,
     destination,
     files: ['Acme.txt'],
     profiles: [{ id: saved.id, scope: saved.scope }],
-  };
-  for (const headers of [
-    { 'Content-Type': 'application/json' },
-    {
-      Authorization: 'Bearer test-token',
-      'Content-Type': 'application/json',
-      Origin: 'https://foreign.test',
-    },
-  ]) {
+  });
+  const operation = `${base}/api/v2/operations/${preview.operationId}`;
+  for (const [headers, status] of [
+    [json, 401],
+    [{ ...auth, ...json, ...foreign }, 403],
+  ] as const) {
     expect(
-      (
-        await fetch(`${base}/api/sync/preview`, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify(input),
-        })
-      ).status,
-    ).toBe(headers.Origin ? 403 : 401);
+      (await fetch(`${operation}/apply`, { method: 'POST', headers, body: '{}' })).status,
+    ).toBe(status);
+    expect((await fetch(operation, { method: 'DELETE', headers })).status).toBe(status);
   }
-  const preview = (await (await call('/api/sync/preview', 'POST', input)).json()) as {
-    operationId: string;
-  };
-  expect((await call(`/api/sync/${preview.operationId}`)).status).toBe(200);
-  for (const path of [
-    `/api/sync/${preview.operationId}/apply`,
-    `/api/sync/${preview.operationId}`,
-  ]) {
-    for (const headers of [
-      { 'Content-Type': 'application/json' },
-      {
-        Authorization: 'Bearer test-token',
-        'Content-Type': 'application/json',
-        Origin: 'https://foreign.test',
-      },
-    ]) {
-      expect(
-        (
-          await fetch(`${base}${path}`, {
-            method: path.endsWith('apply') ? 'POST' : 'DELETE',
-            headers,
-            ...(path.endsWith('apply') ? { body: '{}' } : {}),
-          })
-        ).status,
-      ).toBe(headers.Origin ? 403 : 401);
-    }
-  }
-  expect((await call(`/api/sync/${preview.operationId}/apply`, 'POST', {})).status).toBe(200);
+  expect(await (await fetch(operation, { headers: auth })).json()).toMatchObject({
+    state: 'pending',
+  });
+  const applied = await fetch(`${operation}/apply`, {
+    method: 'POST',
+    headers: { ...auth, ...json },
+    body: '{}',
+  });
+  expect(applied.status).toBe(200);
   await dashboard.sync.wait(preview.operationId);
-  expect(await (await call(`/api/sync/${preview.operationId}`)).json()).toMatchObject({
-    state: 'completed',
-  });
   expect(await readFile(join(destination, 'Northwind.txt'), 'utf8')).toBe('Northwind');
-  const invalid = await call('/api/sync/unknown');
-  expect(invalid.status).toBe(404);
-  expect(await invalid.json()).toMatchObject({ code: 'unknown' });
-  const cancelled = (await (
-    await call('/api/sync/preview', 'POST', {
-      intent: 'refresh',
-      repoId,
-      workspaceId: (await dashboard.sync.wait(preview.operationId)).result?.workspaceId,
-      worktree: source,
-    })
-  ).json()) as { operationId: string };
-  expect((await call(`/api/sync/${cancelled.operationId}`, 'DELETE')).status).toBe(200);
-  expect((await call(`/api/sync/${cancelled.operationId}/apply`, 'POST', {})).status).toBe(410);
-  const finished = await dashboard.sync.wait(preview.operationId);
-  const workspaceUrl = `/api/workspaces/${repoId}/${finished.result?.workspaceId}`;
-  const deletion = { path: finished.result?.workspace, confirm: true };
-  expect(
-    (
-      await fetch(base + workspaceUrl, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(deletion),
-      })
-    ).status,
-  ).toBe(401);
-  expect(
-    (
-      await fetch(base + workspaceUrl, {
-        method: 'DELETE',
-        headers: {
-          Authorization: 'Bearer test-token',
-          Origin: 'https://foreign.test',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(deletion),
-      })
-    ).status,
-  ).toBe(403);
-  expect((await call(workspaceUrl, 'DELETE', { path: destination })).status).toBe(400);
-  expect(await readFile(join(destination, 'Northwind.txt'), 'utf8')).toBe('Northwind');
-  const removed = await call(workspaceUrl, 'DELETE', deletion);
-  expect(removed.status, await removed.text()).toBe(200);
-  expect((await call(workspaceUrl)).status).toBe(400);
+  const unknown = await fetch(`${base}/api/v2/operations/unknown`, { headers: auth });
+  expect(unknown.status).toBe(404);
+  expect(await unknown.json()).toMatchObject({ code: 'unknown' });
 });
 
-it('searches nested paths across the repository while keeping directory browsing scoped', async () => {
-  const { store, call } = await fixture();
-  const source = join(store.root, '..', 'search-source');
-  await mkdir(join(source, 'src'), { recursive: true });
-  await runGit(source, ['init', '-b', 'main']);
-  await writeFile(join(source, 'src', 'Example.ts'), 'example');
-  const { repoId } = await createDashboard(store, source).context();
-  const query = new URLSearchParams({ worktree: source, query: 'EXAMPLE' });
-  expect(await (await call(`/api/repos/${repoId}/selection?${query}`)).json()).toMatchObject({
-    files: ['src/Example.ts'],
-    working: ['src/Example.ts'],
-    workingCount: 1,
-  });
-  query.set('directory', '');
-  expect(await (await call(`/api/repos/${repoId}/selection?${query}`)).json()).toMatchObject({
-    files: [],
-    directories: ['src'],
-  });
-});
-
-it('validates inventory ignore preferences and serves only fresh path metadata', async () => {
-  const { store, call } = await fixture();
-  const source = join(store.root, '..', 'inventory-source');
-  await mkdir(source);
-  await runGit(source, ['init', '-b', 'main']);
-  await writeFile(join(source, '.gitignore'), '.env\n');
-  await writeFile(join(source, '.env'), 'synthetic private content');
-  const { repoId } = await createDashboard(store, source).context();
-  const query = new URLSearchParams({ worktree: source });
-  const url = `/api/repos/${repoId}/inventory?${query}`;
-  expect(await (await call(url)).json()).toEqual({ files: ['.gitignore'] });
-  const shown = await (await call(url + '&respectGitIgnore=false')).json();
-  expect(shown).toEqual({ files: ['.env', '.gitignore'] });
-  expect(JSON.stringify(shown)).not.toContain('synthetic private content');
-  expect((await call(url + '&respectGitIgnore=invalid')).status).toBe(400);
-  await writeFile(join(source, 'fresh.ts'), 'fresh');
-  expect(await (await call(url)).json()).toEqual({ files: ['.gitignore', 'fresh.ts'] });
-  expect((await call(`/api/repos/${repoId}/selection-context?${query}`)).status).toBe(200);
-});
-
-it('registers an existing source from the dashboard and validates imported profile JSON', async () => {
-  const { store, call } = await fixture();
-  const source = join(store.root, '..', 'added source');
-  await mkdir(source);
-  await runGit(source, ['init', '-b', 'main']);
-  const registered = await call('/api/repos', 'POST', { path: source });
-  expect(registered.status).toBe(200);
-  const context = (await registered.json()) as { repoId: string; worktree: string };
-  expect(context.repoId).toMatch(/^[a-f0-9]{16}$/);
-  const repos = (await (await call('/api/repos')).json()) as { id: string }[];
-  expect(repos.map((repo) => repo.id)).toContain(context.repoId);
-  const profile = { kind: 'profile', schemaVersion: 1, name: 'imported', rules: [] };
-  expect(await (await call('/api/profiles/validate', 'POST', profile)).json()).toEqual(profile);
-  expect(
-    (
-      await call('/api/profiles/validate', 'POST', {
-        ...profile,
-        rules: [{ type: 'regex', id: 'bad', match: '(', replace: '' }],
-      })
-    ).status,
-  ).toBe(400);
-  expect((await call('/api/repos', 'POST', { path: store.root })).status).toBe(400);
-  const cloak = join(store.root, '..', 'cloak');
-  await mkdir(join(cloak, '.repo-cloak'), { recursive: true });
-  await writeFile(join(cloak, '.repo-cloak', 'manifest.json'), '{}');
-  expect((await call('/api/repos', 'POST', { path: cloak })).status).toBe(400);
-  for (const subject of ['first', 'second']) {
-    await runGit(source, [
-      '-c',
-      'user.name=Test',
-      '-c',
-      'user.email=test@example.com',
-      'commit',
-      '--allow-empty',
-      '-m',
-      subject,
-    ]);
-  }
-  const query = `worktree=${encodeURIComponent(context.worktree)}`;
-  const recent = (await (await call(`/api/repos/${context.repoId}/commits?${query}`)).json()) as {
-    id: string;
-    subject: string;
-  }[];
-  expect(recent.map((commit) => commit.subject)).toEqual(['second', 'first']);
-  const older = (await (
-    await call(`/api/repos/${context.repoId}/commits?${query}&offset=1`)
-  ).json()) as { subject: string }[];
-  expect(older.map((commit) => commit.subject)).toEqual(['first']);
-  const found = (await (
-    await call(`/api/repos/${context.repoId}/commits?${query}&ref=HEAD~1`)
-  ).json()) as { id: string }[];
-  expect(found[0]?.id).toBe(recent[1]?.id);
-  expect((await call(`/api/repos/${context.repoId}/commits?${query}&offset=-1`)).status).toBe(400);
-  expect((await call(`/api/repos/${context.repoId}/commits?${query}&ref=missing`)).status).toBe(
-    400,
-  );
+it('keeps agent routes direct-only and behind a scoped credential', async () => {
+  const { base } = await fixture();
+  const url = `${base}/agent/v1/info`;
+  expect((await fetch(url, { headers: foreign })).status).toBe(403);
+  expect((await fetch(url)).status).toBe(401);
+  // The dashboard session token is not an agent credential.
+  expect((await fetch(url, { headers: auth })).status).toBe(401);
 });

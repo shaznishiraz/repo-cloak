@@ -14,9 +14,8 @@ Status: **agreed, not started**. Designs: [`design/`](design/README.md).
 - **CLI + local browser stays the product.** `repo-cloak` in a worktree opens the
   dashboard on that context. A Tauri desktop shell may wrap `dist/web/` later; screens
   must only talk to the local HTTP API so that stays possible.
-- **Old UI stays default until cutover.** New UI is served when started with
-  `repo-cloak --next-ui` (or `REPO_CLOAK_UI=next`). Cutover (package 90) deletes
-  `src/ui/` and flips the default.
+- **The old UI is already gone.** `src/ui/` and `--next-ui` were removed at foundation
+  rather than at cutover; see "Removed ahead of cutover" below.
 - **Everything local.** Loopback only, session token, Host/Origin checks, CSP `'self'`,
   no telemetry, no CDN fonts. The only outbound call is an advisory check the user
   clicks in Settings.
@@ -50,7 +49,7 @@ plumbing only), `src/adapters/agent-mcp.ts`, new security modules below, `packag
 
 1. **Web scaffold.** `src/web/` with Preact + signals, TSX (`jsxImportSource: preact`;
    add a `tsconfig` for web with `lib: ["ES2023","DOM"]`), build to `dist/web/`, served
-   when `--next-ui`. Keep the existing server security headers and token flow
+   by default. Keep the existing server security headers and token flow
    (fragment token -> sessionStorage -> `Authorization: Bearer`).
 2. **Tokens + primitives.** `tokens.css` from `design/README.md`. Primitives in
    `src/web/shell/ui/`: Button (primary/secondary/ghost/danger, split button with menu),
@@ -97,7 +96,7 @@ plumbing only), `src/adapters/agent-mcp.ts`, new security modules below, `packag
    supply-chain numbers come from a build-time generated JSON.
 10. **Docs.** Update `docs/design/web-ui.md` and `docs/plan.md` for the above.
 
-Acceptance: `repo-cloak --next-ui` opens the shell with real counts from
+Acceptance: `repo-cloak` opens the shell with real counts from
 `/api/v2/overview`; every route renders its placeholder; ⌘K opens and navigates;
 audit chain verifies and detects a tampered line; keychain fake round-trips and
 migrates; policy locks a setting; MCP smoke test passes without the SDK;
@@ -105,9 +104,30 @@ migrates; policy locks a setting; MCP smoke test passes without the SDK;
 
 ---
 
+### Removed ahead of cutover
+
+`src/ui/`, the `/api/*` dashboard routes and `--next-ui` are gone, so until the screens
+land the dashboard is the shell only. Read `git show 860f5c7:src/ui/app.js` for the old
+behaviour. Keep the input checks the old routes did before calling `dashboard.*`: IDs
+are `decodeURIComponent`ed by `route()`, but query numbers, booleans and JSON are yours.
+
+| Capability                                   | Calls                                     | Owner |
+| -------------------------------------------- | ----------------------------------------- | ----- |
+| Workspace detail, delete, open, desktop list | `dashboard.workspace/deleteWorkspace`,    | 10    |
+|                                              | `dashboard.desktop.*`                     |       |
+| Group CRUD, join, open, sync, retry, cancel  | `dashboard.groups.*`                      | 10    |
+| Export commits, files and diff               | `dashboard.sync.export*`                  | 10    |
+| Selection, inventory, worktrees, commits     | `dashboard.sync.*`                        | 20    |
+| Folder browser, used by 20 and 50            | `browseFolders`, offset is a whole number | 20    |
+| Profiles, check, validate, JSON Schemas      | `dashboard.*Profile*`, `jsonSchema`       | 40    |
+| Repos, remove, exclusions, settings          | `dashboard.*`, `dashboard.settings.*`     | 50    |
+| Agent access, requests, MCP client setup     | `dashboard.agents.*`, `agentClientConfig` | 50    |
+
 ## 10-home — Workspaces home + group sync
+
 Design: `Main.dc.html`, `GroupSync.dc.html`. Owns `src/web/screens/home/**`,
 `src/web/screens/group/**`, `src/adapters/server-v2/home.ts`.
+
 - Grouped workspace list with status badges (to push, source moved, clean, folder
   missing), "Needs action" filter, bulk pull/push per group.
 - Detail: lineage strip (main repo -> worktree@sha -> cloak), 7-cell stat strip,
@@ -119,8 +139,10 @@ Design: `Main.dc.html`, `GroupSync.dc.html`. Owns `src/web/screens/home/**`,
   bulk rules (stop all on guard failure, same commit message), last bulk runs.
 
 ## 20-new-cloak — New cloak + first run
+
 Design: `NewCloak.dc.html`, `FirstRun.dc.html`. Owns `src/web/screens/new/**`,
 `src/web/screens/setup/**`, `src/adapters/server-v2/new.ts`.
+
 - Context banner (detected worktree/branch/ahead count; existing cloak -> Open / Add to it / New).
 - One sheet: uncommitted (from git status), commits (picker + search older), files &
   folders tree from `git ls-files` with excluded nodes shown and locked; profiles chips;
@@ -132,7 +154,9 @@ Design: `NewCloak.dc.html`, `FirstRun.dc.html`. Owns `src/web/screens/new/**`,
 - First run: key, cloak root, exclusion presets, first profile (with suggested names).
 
 ## 30-push — Push review
+
 Design: `PushReview.dc.html`. Owns `src/web/screens/push/**`, `src/adapters/server-v2/push.ts`.
+
 - Target picker in header; file list with per-file flags (clean, source moved/auto-merge,
   new derived name); side-by-side "what Claude edited (cloak)" vs "what lands in source
   (restored)" plus restored-diff-only toggle; 3-way merge note with Merge / Pull first /
@@ -143,8 +167,10 @@ Design: `PushReview.dc.html`. Owns `src/web/screens/push/**`, `src/adapters/serv
   members; backup of overwritten files kept 7 days with undo.
 
 ## 40-profiles — Profiles, rules, JSON
+
 Design: `Profiles.dc.html`, `ProfilesJson.dc.html`. Owns `src/web/screens/profiles/**`,
 `src/adapters/server-v2/profiles.ts`.
+
 - List (scope, rule/exclusion counts), exclusion presets.
 - Rules table: type (brand, keyword, business term, regex, secret), find, replace, case
   mode, hits; add-by-type buttons. Never-pull patterns (inherited global ones locked).
@@ -153,9 +179,11 @@ Design: `Profiles.dc.html`, `ProfilesJson.dc.html`. Owns `src/web/screens/profil
   and refuses secret values.
 
 ## 50-admin — Known repos, agent requests, history, settings
+
 Design: `KnownRepos.dc.html`, `AgentRequests.dc.html`, `History.dc.html`,
 `Settings.dc.html`. Owns `src/web/screens/{repos,requests,history,settings}/**`,
 `src/adapters/server-v2/admin.ts`.
+
 - Known repos: pinned, worktrees from `git worktree list` with ahead/behind and Cloak/Open,
   repo rules (default profiles, extra exclusions, allowed roots), exposure stats.
 - Agent requests: inbox with states, reason, policy check, cloaked preview, Approve &
@@ -166,14 +194,16 @@ Design: `KnownRepos.dc.html`, `AgentRequests.dc.html`, `History.dc.html`,
   AI tools & editor. Policy-locked fields shown locked.
 
 ## 90-cutover + hardening
-Flip default to the new UI, delete `src/ui/`, port e2e tests to the new screens,
-accessibility pass, 390px pass, budget check, security headers re-check.
+
+Check no capability in the table above was lost, complete the e2e journeys, accessibility pass, 390px pass, budget check, security headers re-check.
 
 ## 99-review
+
 A fresh agent reviews all packages against this file and the designs, and against the
 security rules above, and files findings before release.
 
 ## Compliance note
+
 ISO/IEC 27001 certifies an organisation's ISMS, not software. This tool supplies
 evidence for Annex A controls: access control (keychain, unlock, policy locks),
 logging (hash-chained audit, retention, signed export), cryptography (AES-256-GCM,

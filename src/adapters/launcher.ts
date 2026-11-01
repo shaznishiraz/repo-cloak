@@ -4,13 +4,12 @@ import { startUiSession } from './ui-session.js';
 
 export async function runUi(
   write: (text: string) => void,
-  options: { port?: number; open?: boolean; cwd?: string; nextUi?: boolean } = {},
+  options: { port?: number; open?: boolean; cwd?: string } = {},
 ) {
   const store = createStore();
   const dashboard = createDashboard(store, options.cwd);
   const context = await dashboard.context();
-  const ui = options.nextUi || process.env.REPO_CLOAK_UI === 'next' ? 'next' : 'classic';
-  const session = await startUiSession(store.root, dashboard, options.port, undefined, ui);
+  const session = await startUiSession(store.root, dashboard, options.port);
   await dashboard.agents.refreshDescriptors();
   const fragment = new URLSearchParams({ token: session.token });
   if (context.repoId) fragment.set('repo', context.repoId);

@@ -161,7 +161,7 @@ it('locks a setting: reports it, overrides the user value and rejects changes', 
   await f.dashboard.settings.saveSecurity({ auditRetentionDays: 365 });
   await f.dashboard.settings.saveSecurity({ allowExclusionOverride: false });
   expect((await f.dashboard.settings.security()).allowExclusionOverride).toBe(false);
-  const session = await f.dashboard.shell.session('next', 1);
+  const session = await f.dashboard.shell.session(1);
   expect(session.policy).toEqual({
     status: 'active',
     locked: ['auditRetentionDays', 'autoLockMinutes'],

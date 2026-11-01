@@ -14,10 +14,9 @@ export function createProgram(launch: typeof runUi = runUi): Command {
           throw new InvalidArgumentError('Port must be an integer from 1 to 65535');
         return Number(value);
       })
-      .option('--no-open', 'print the dashboard address without opening a browser')
-      .option('--next-ui', 'serve the rebuilt dashboard (also: REPO_CLOAK_UI=next)');
+      .option('--no-open', 'print the dashboard address without opening a browser');
   const start = async (command: Command) => {
-    const flags = command.optsWithGlobals<{ port?: number; open?: boolean; nextUi?: boolean }>();
+    const flags = command.optsWithGlobals<{ port?: number; open?: boolean }>();
     const write =
       program.configureOutput().writeOut ?? ((text: string) => process.stdout.write(text));
     await launch(write, flags);

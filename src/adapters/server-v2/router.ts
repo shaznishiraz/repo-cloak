@@ -1,6 +1,6 @@
 import type { IncomingMessage } from 'node:http';
 import type { Dashboard } from '../../application/dashboard.js';
-import type { UiKind, V2Api, V2Route } from '../../web/api/contracts.js';
+import type { V2Api, V2Route } from '../../web/api/contracts.js';
 
 export class RequestError extends Error {
   constructor(
@@ -31,7 +31,6 @@ export async function readBody(request: IncomingMessage): Promise<unknown> {
 
 export type RouteContext = {
   dashboard: Dashboard;
-  ui: UiKind;
   port: number;
   params: Record<string, string>;
   query: URLSearchParams;

@@ -4,7 +4,7 @@ The terminal is an entry point to the local dashboard. Workflow design:
 [dashboard-first](dashboard-first.md).
 
 ```text
-repo-cloak / cloak [--port N] [--no-open] [--next-ui]
+repo-cloak / cloak [--port N] [--no-open]
   -> detect source / worktree / cloak workspace
   -> register source if needed
   -> start or reuse local dashboard -> open browser
@@ -16,8 +16,6 @@ repo-cloak / cloak [--port N] [--no-open] [--next-ui]
   transport. It launches no dashboard and exposes no owner approval/sync tools.
 - `--port` accepts an integer from 1 through 65535; otherwise use a free port.
 - `--no-open` prints the local session URL without opening a browser.
-- `--next-ui` (or `REPO_CLOAK_UI=next`) serves the
-  [rebuilt dashboard](web-ui.md#rebuilt-dashboard-foundation) until cutover.
 - `--help` and `--version` exit without creating a dashboard or touching storage.
 - Removed workflow subcommands are rejected without running a sync.
 - Launcher failures print a concise message and exit with status 1.

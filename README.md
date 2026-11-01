@@ -176,7 +176,7 @@ npm run test:package
 ```
 
 Shared orchestration lives in `src/application/`, pure logic in `src/core/`,
-filesystem/Git/server I/O in `src/adapters/`, and browser assets in `src/ui/`.
+filesystem/Git/server I/O in `src/adapters/`, and the browser dashboard in `src/web/`.
 See [design](docs/design/dashboard-first.md), [plan](docs/plan.md), and
 [testing](docs/testing.md). Browser regression tooling is in `e2e/` and has its
 own locked dependencies. `npm run dev` rebuilds changes; backend changes require

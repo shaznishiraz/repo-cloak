@@ -13,7 +13,7 @@ const launchSchema = z.object({
 });
 
 export const foundationRoutes: Route[] = [
-  route('GET /api/v2/session', ({ dashboard, ui, port }) => dashboard.shell.session(ui, port)),
+  route('GET /api/v2/session', ({ dashboard, port }) => dashboard.shell.session(port)),
   route('GET /api/v2/overview', ({ dashboard, query }) =>
     dashboard.shell.overview(launchSchema.parse(Object.fromEntries(query))),
   ),

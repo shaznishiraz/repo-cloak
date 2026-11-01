@@ -25,7 +25,7 @@ async function fixture() {
   const services = createSyncServices(source, store);
   await services.git.runGit(source, ['init', '-b', 'main']);
   const dashboard = createDashboard(store, source);
-  const server = createDashboardServer(dashboard, 'test-token', resolve('src/ui'), 'next');
+  const server = createDashboardServer(dashboard, 'test-token', resolve('src/web'));
   await new Promise<void>((done) => server.listen(0, '127.0.0.1', done));
   cleanups.push(
     () =>
@@ -89,10 +89,10 @@ it('keeps the token and origin checks in front of every v2 route', async () => {
   expect(unknown.headers.get('content-security-policy')).toContain("default-src 'self'");
 });
 
-it('reports the session, UI kind and whether the store is sealed', async () => {
+it('reports the session and whether the store is sealed', async () => {
   const { get, address, dashboard } = await fixture();
   const fresh = (await (await get('/api/v2/session')).json()) as SessionInfo;
-  expect(fresh).toMatchObject({ app: 'repo-cloak', ui: 'next', port: address.port });
+  expect(fresh).toMatchObject({ app: 'repo-cloak', port: address.port });
   expect(fresh.store.sealed).toBe(false);
   await dashboard.context();
   const sealed = (await (await get('/api/v2/session')).json()) as SessionInfo;

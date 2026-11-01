@@ -15,7 +15,7 @@ const store = createStore(join(root, 'store'));
 const source = join(root, 'sample-source');
 const workspace = join(root, 'sample-workspace');
 const dashboard = createDashboard(store, source);
-const server = createDashboardServer(dashboard, 'browser-test-token', resolve('../dist/ui'));
+const server = createDashboardServer(dashboard, 'browser-test-token', resolve('../dist/web'));
 let closing: Promise<void> | undefined;
 function close() {
   return (closing ??= (async () => {
