@@ -1,13 +1,32 @@
 import { execFile } from 'node:child_process';
-import { chmod, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises';
+import {
+  chmod,
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  realpath,
+  rm,
+  utimes,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { afterEach, expect, it, vi } from 'vitest';
 import { createDashboardServer } from '../../src/adapters/server.js';
+import {
+  backupRoot,
+  readBackups,
+  readBytes,
+  readPart,
+  sealManifestCopy,
+  writePart,
+} from '../../src/adapters/server-v2/push/backups.js';
 import { createStore } from '../../src/adapters/store.js';
 import { createSyncServices } from '../../src/adapters/sync-services.js';
 import { createDashboard } from '../../src/application/dashboard.js';
+import { hashBytes } from '../../src/core/hash.js';
 import type {
   DiffLine,
   OperationState,
@@ -430,8 +449,202 @@ it('stores backups in the source Git directory, not the cloak', async () => {
     () => undefined,
   );
   expect(inCloak).toBeUndefined();
-  const inGit = await exec('grep', ['-r', '-l', 'line 2 of Acme', join(f.source, '.git')]);
-  expect(inGit.stdout).toContain('repo-cloak-backups');
+  const [backup] = await f.backups();
+  expect(backup?.files).toBe(1);
+  const parts = await backupParts(f.source);
+  expect(parts.map((part) => basename(part)).sort()).toEqual([
+    'f0.json',
+    'index.json',
+    'manifest.json',
+  ]);
+});
+
+async function backupParts(source: string) {
+  const root = join(source, '.git', 'repo-cloak-backups');
+  const found = await readdir(root, { recursive: true, withFileTypes: true }).catch(() => []);
+  return found.filter((entry) => entry.isFile()).map((entry) => join(entry.parentPath, entry.name));
+}
+
+it('seals backups: no source text, path or root is readable on disk', async () => {
+  const f = await fixture();
+  await f.edit('Northwind.ts', editedLines(f.lines, 1, 'edit'));
+  const keys = await readFile(join(f.workspace, 'keys.ts'), 'utf8');
+  await f.edit('keys.ts', keys.replace('name = "Northwind"', 'name = "x"'));
+  await f.apply((await f.reviewOf()).operationId);
+  const parts = await backupParts(f.source);
+  expect(parts.length).toBeGreaterThan(2);
+  for (const part of parts) {
+    const text = await readFile(part, 'utf8');
+    for (const leak of ['Acme', 'line 2 of', secret, f.root, 'keys.ts', 'manifestAfter'])
+      expect(text).not.toContain(leak);
+    expect(JSON.parse(text)).toMatchObject({
+      kind: 'push-backup',
+      sealed: { alg: 'A256GCM' },
+    });
+  }
+  // grep over the whole Git directory finds none of the old source text in a backup.
+  const hits = await exec('grep', [
+    '-r',
+    '-l',
+    secret,
+    join(f.source, '.git', 'repo-cloak-backups'),
+  ])
+    .then(({ stdout }) => stdout)
+    .catch(() => '');
+  expect(hits).toBe('');
+});
+
+it('undoes from sealed backups, and refuses a tampered or swapped part', async () => {
+  const f = await fixture();
+  const before = await f.read('Acme.ts');
+  await f.edit('Northwind.ts', editedLines(f.lines, 1, 'edit'));
+  await f.apply((await f.reviewOf()).operationId);
+  const [backup] = await f.backups();
+  const parts = await backupParts(f.source);
+  const blob = parts.find((part) => part.endsWith('f0.json')) ?? '';
+  const good = await readFile(blob, 'utf8');
+  const value = JSON.parse(good) as { sealed: { data: string } };
+  const data = Buffer.from(value.sealed.data, 'base64');
+  data[0] = (data[0] ?? 0) ^ 0xff;
+  value.sealed.data = data.toString('base64');
+  await writeFile(blob, JSON.stringify(value));
+  const pushed = await f.read('Acme.ts');
+  const tampered = await f.post(`/backups/${backup?.id}/undo`);
+  expect(tampered.ok).toBe(false);
+  expect(await f.read('Acme.ts')).toBe(pushed);
+  // The same bytes under another part's name fail as well: the name is authenticated.
+  const manifestPart = parts.find((part) => part.endsWith('manifest.json')) ?? '';
+  const manifestText = await readFile(manifestPart, 'utf8');
+  await writeFile(manifestPart, good);
+  await writeFile(blob, manifestText);
+  expect((await f.post(`/backups/${backup?.id}/undo`)).ok).toBe(false);
+  expect(await f.read('Acme.ts')).toBe(pushed);
+  await writeFile(blob, good);
+  await writeFile(manifestPart, manifestText);
+  expect(await (await f.post(`/backups/${backup?.id}/undo`)).json()).toEqual({ restored: 1 });
+  expect(await f.read('Acme.ts')).toBe(before);
+});
+
+it('seals a plaintext backup from before this change, keeping undo, and removes the plaintext', async () => {
+  const f = await fixture();
+  const before = await f.read('Acme.ts');
+  await f.edit('Northwind.ts', editedLines(f.lines, 1, 'edit'));
+  await f.apply((await f.reviewOf()).operationId);
+  const [backup] = await f.backups();
+  const parts = await backupParts(f.source);
+  const directory = dirname(parts[0] ?? '');
+  // Rebuild the old on-disk format from the sealed parts.
+  const vault = await f.dashboard.sync.vault();
+  const id = backup?.id ?? '';
+  const index = (await readPart(vault, directory, id, 'index')) as object;
+  await writeFile(join(directory, 'f0'), await readBytes(vault, directory, id, 'f0'));
+  await writeFile(
+    join(directory, 'manifest'),
+    sealManifestCopy(vault, await readPart(vault, directory, id, 'manifest')),
+  );
+  await rm(join(directory, 'f0.json'));
+  await rm(join(directory, 'manifest.json'));
+  await writeFile(
+    join(directory, 'index.json'),
+    JSON.stringify({
+      ...index,
+      manifestAfter: hashBytes(await readFile(join(f.workspace, '.repo-cloak', 'manifest.json'))),
+    }),
+  );
+  expect(await readFile(join(directory, 'f0'), 'utf8')).toContain('line 2 of Acme');
+
+  expect((await f.backups()).map((item) => item.id)).toEqual([id]);
+  const after = await readdir(directory);
+  expect(after.sort()).toEqual(['f0.json', 'index.json', 'manifest.json']);
+  expect(await readFile(join(directory, 'index.json'), 'utf8')).not.toContain(f.root);
+
+  // A crash after the commit point leaves plaintext, which the next read removes.
+  await writeFile(join(directory, 'f0'), 'leftover plaintext');
+  await f.backups();
+  expect(await readdir(directory)).not.toContain('f0');
+
+  expect(await (await f.post(`/backups/${id}/undo`)).json()).toEqual({ restored: 1 });
+  expect(await f.read('Acme.ts')).toBe(before);
+});
+
+it('keeps undo working across a key rotation', async () => {
+  const f = await fixture();
+  const before = await f.read('Acme.ts');
+  await f.edit('Northwind.ts', editedLines(f.lines, 1, 'edit'));
+  await f.apply((await f.reviewOf()).operationId);
+  const [backup] = await f.backups();
+  const part = (await backupParts(f.source)).find((item) => item.endsWith('f0.json')) ?? '';
+  const oldKey = (JSON.parse(await readFile(part, 'utf8')) as { sealed: { keyId: string } }).sealed
+    .keyId;
+  const rotated = await f.dashboard.security.rotateKey();
+  expect(rotated.pending).toEqual([]);
+  const newKey = (JSON.parse(await readFile(part, 'utf8')) as { sealed: { keyId: string } }).sealed
+    .keyId;
+  expect(newKey).not.toBe(oldKey);
+  expect(newKey).toBe(rotated.keyId);
+  expect(await (await f.post(`/backups/${backup?.id}/undo`)).json()).toEqual({ restored: 1 });
+  expect(await f.read('Acme.ts')).toBe(before);
+  // The restored manifest is sealed under the new key, so the workspace still opens.
+  expect((await f.reviewOf()).files.map((file) => file.path)).toEqual(['Northwind.ts']);
+});
+
+it('bounds retention by count and size, keeping the newest', async () => {
+  const f = await fixture();
+  const vault = await f.dashboard.sync.vault();
+  const commonDir = join(f.source, '.git');
+  const { base, relative } = backupRoot(commonDir, f.workspaceId);
+  const parent = join(base, relative);
+  const make = async (age: number, bytes = 0) => {
+    const id = crypto.randomUUID();
+    const directory = join(parent, id);
+    const createdAt = new Date(Date.now() - age);
+    await writePart(vault, directory, id, 'index', {
+      id,
+      workspaceId: f.workspaceId,
+      root: f.source,
+      createdAt: createdAt.toISOString(),
+      expiresAt: new Date(createdAt.getTime() + 7 * 86400000).toISOString(),
+      manifestAfter: 'x',
+      files: [],
+    });
+    if (bytes) await writeFile(join(directory, 'f0.json'), Buffer.alloc(bytes));
+    return id;
+  };
+  const ids: string[] = [];
+  for (let at = 0; at < 22; at++) ids.push(await make(at * 1000));
+  const kept = await readBackups(vault, commonDir, f.workspaceId);
+  expect(kept.map((item) => item.id)).toEqual(ids.slice(0, 20));
+  expect((await readdir(parent)).length).toBe(20);
+  await rm(parent, { recursive: true });
+
+  // Too large together: the oldest goes. The newest stays even if it alone is over the limit.
+  const big = 150 * 1024 * 1024;
+  const [newest, older] = [await make(0, big), await make(1000, big)];
+  expect((await readBackups(vault, commonDir, f.workspaceId)).map((item) => item.id)).toEqual([
+    newest,
+  ]);
+  await expect(readdir(join(parent, older))).rejects.toThrow();
+  await rm(parent, { recursive: true });
+  const huge = await make(0, 300 * 1024 * 1024);
+  expect((await readBackups(vault, commonDir, f.workspaceId)).map((item) => item.id)).toEqual([
+    huge,
+  ]);
+  await rm(parent, { recursive: true });
+});
+
+it('ages out the backups of other workspaces, without their key', async () => {
+  const f = await fixture();
+  const root = join(f.source, '.git', 'repo-cloak-backups');
+  const old = join(root, 'deleted-workspace', crypto.randomUUID());
+  const recent = join(root, 'other-workspace', crypto.randomUUID());
+  await mkdir(old, { recursive: true });
+  await mkdir(recent, { recursive: true });
+  await writeFile(join(old, 'f0.json'), '{}');
+  const past = new Date(Date.now() - 8 * 86400000);
+  await utimes(old, past, past);
+  await f.backups();
+  await expect(readdir(join(root, 'deleted-workspace'))).rejects.toThrow();
+  expect(await readdir(join(root, 'other-workspace'))).toHaveLength(1);
 });
 
 it('refuses to undo over newer work', async () => {

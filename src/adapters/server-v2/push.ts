@@ -118,7 +118,11 @@ export const pushRoutes: Route[] = [
   route('GET /api/v2/push/:repoId/:id/backups', async ({ dashboard, params }) => {
     const { repoId, workspaceId } = ids(params);
     await dashboard.sync.workspaceTarget(repoId, workspaceId);
-    const backups = await readBackups(await commonDirOf(dashboard, repoId), workspaceId);
+    const backups = await readBackups(
+      await dashboard.sync.vault(),
+      await commonDirOf(dashboard, repoId),
+      workspaceId,
+    );
     return {
       backups: backups.map(({ id, createdAt, expiresAt, files }): PushBackup => ({
         id,

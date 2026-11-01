@@ -65,11 +65,12 @@ export async function runPush(
   const root = summary.destination.path;
   const commonDir = await commonDirOf(dashboard, repoId);
   const touched = [...new Set([...summary.writes, ...summary.deletes])];
-  await readBackups(commonDir, workspaceId);
+  const vault = await dashboard.sync.vault();
+  await readBackups(vault, commonDir, workspaceId);
   const backup =
     isNewTree || !touched.length
       ? undefined
-      : await saveBackup(commonDir, workspaceId, workspace, root, touched);
+      : await saveBackup(vault, commonDir, workspaceId, workspace, root, touched);
   let result: SyncResult;
   try {
     result = await prepared.apply();
