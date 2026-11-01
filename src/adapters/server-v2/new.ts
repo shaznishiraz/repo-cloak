@@ -2,6 +2,7 @@ import { basename, join, resolve } from 'node:path';
 import pLimit from 'p-limit';
 import { z } from 'zod';
 import type { Dashboard } from '../../application/dashboard.js';
+import { firstRunPresets } from '../../core/exclusion-presets.js';
 import { mergeProfiles } from '../../core/merge.js';
 import type { PreviewMatch } from '../../core/ledger.js';
 import { anonymizePaths, validateRelativePath } from '../../core/paths.js';
@@ -83,20 +84,7 @@ type Selection = z.infer<typeof selectionSchema>;
  * profile and repository exclusions. It is added to every new cloak, whichever chips are on.
  */
 const neverPullName = 'Never pull';
-const presets = [
-  {
-    id: 'schemas',
-    name: 'Schemas & migrations',
-    patterns: ['*.schema.json', '*.sql', 'migrations/', '*DbContext.cs'],
-  },
-  {
-    id: 'lockfiles',
-    name: 'Lockfiles',
-    patterns: ['package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'Cargo.lock', 'poetry.lock'],
-  },
-  { id: 'env', name: 'Env files', patterns: ['.env', '.env.*'] },
-  { id: 'keys', name: 'Keys & certificates', patterns: ['*.pem', '*.key', '*.p12', '*.pfx'] },
-];
+const presets = firstRunPresets;
 const presetIds = presets.map((preset) => preset.id) as [string, ...string[]];
 const setupSchema = z
   .object({

@@ -1,3 +1,5 @@
+import { profilePresets } from '../../../core/exclusion-presets.js';
+import type { ExclusionPreset } from '../../../core/exclusion-presets.js';
 import type { ProfileRuleKind } from '../../api/contracts.js';
 
 /** The stored engine document. Unknown fields are kept: rules and profiles are loose objects. */
@@ -234,26 +236,8 @@ export const blankProfile = (): ProfileDoc => ({
   rules: [],
 });
 
-export type ExclusionPreset = { id: string; name: string; patterns: string[] };
-export const exclusionPresets: ExclusionPreset[] = [
-  { id: 'ef', name: 'EF Core: DbContext, Migrations', patterns: ['*DbContext.cs', 'Migrations/'] },
-  { id: 'snapshots', name: 'Snapshots: *.snap, schema.json', patterns: ['*.snap', 'schema.json'] },
-  {
-    id: 'lockfiles',
-    name: 'Lockfiles',
-    patterns: ['package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'Cargo.lock', 'poetry.lock'],
-  },
-  {
-    id: 'env',
-    name: 'Env & secrets: .env*, *.pfx',
-    patterns: ['.env*', '*.pfx', '*.pem', '*.key'],
-  },
-  {
-    id: 'infra',
-    name: 'Infra: terraform, helm values',
-    patterns: ['*.tfvars', 'terraform/', 'helm/'],
-  },
-];
+export { profilePresets as exclusionPresets };
+export type { ExclusionPreset };
 export function presetActive(doc: ProfileDoc, preset: ExclusionPreset) {
   const have = new Set(doc.exclude ?? []);
   return preset.patterns.every((pattern) => have.has(pattern));
