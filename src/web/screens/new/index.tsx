@@ -9,6 +9,7 @@ import type {
   WorktreeOption,
 } from '../../api/contracts.js';
 import { registerCommands } from '../../shell/commands.js';
+import { FolderPicker } from '../../shell/folder-picker.js';
 import { api } from '../../shell/load.js';
 import { navigate } from '../../shell/router.js';
 import { overview } from '../../shell/state.js';
@@ -23,7 +24,6 @@ import {
 } from '../../shell/ui/index.js';
 import { runCreate } from './create.js';
 import type { GroupChoice } from './create.js';
-import { FolderPicker } from './folder-picker.js';
 import { joinFolder, lastSegment, launchTarget, nameProblem, relativeTime } from './model.js';
 import type { Target } from './model.js';
 import { ReviewAside } from './review.js';

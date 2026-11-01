@@ -25,6 +25,10 @@ function storedLaunch(storage: SessionStore): LaunchParams {
   }
 }
 
+export function hasLaunchToken(hash: string) {
+  return !hash.startsWith('#/') && new URLSearchParams(hash.slice(1)).has('token');
+}
+
 /**
  * Moves the launch fragment (`#token=...&repo=...`) into sessionStorage so the token
  * leaves the address bar and history. A plain route fragment keeps the current session.
@@ -48,7 +52,7 @@ export function readSession(hash: string, storage: SessionStore): BrowserSession
   return { token: incoming, launch, route: landingRoute(launch) };
 }
 
-/** Forgets this tab's session. The server's token stays valid until the dashboard stops. */
+/** Forgets this tab's session. Revoking the token on the server is a separate step. */
 export function clearSession(storage: Pick<Storage, 'removeItem'>) {
   storage.removeItem(tokenKey);
   storage.removeItem(launchKey);

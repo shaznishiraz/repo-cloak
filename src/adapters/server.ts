@@ -1,5 +1,4 @@
 import { OperationError } from './ui-operations.js';
-import { timingSafeEqual } from 'node:crypto';
 import { createServer } from 'node:http';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { readFile } from 'node:fs/promises';
@@ -8,6 +7,7 @@ import { join } from 'node:path';
 import { z } from 'zod';
 import type { Dashboard } from '../application/dashboard.js';
 import { RequestError, matchRoute, readBody } from './server-v2/router.js';
+import { createSessionGate } from './session-gate.js';
 import { v2Routes } from './server-v2/index.js';
 
 const assets = new Map([
@@ -26,8 +26,19 @@ function errorMessage(error: unknown) {
   }
   return error instanceof Error ? error.message : 'Request failed';
 }
-export function createDashboardServer(dashboard: Dashboard, token: string, assetRoot?: string) {
+export function createDashboardServer(
+  dashboard: Dashboard,
+  token: string,
+  assetRoot?: string,
+  options: { launcherKey?: string; now?: () => number } = {},
+) {
   const assetDirectory = assetRoot ?? fileURLToPath(new URL('./web/', import.meta.url));
+  const session = createSessionGate({
+    token,
+    launcherKey: options.launcherKey,
+    idleLimit: async () => (await dashboard.settings.effective()).autoLockMinutes,
+    ...(options.now ? { now: options.now } : {}),
+  });
   function send(response: ServerResponse, status: number, value: unknown) {
     response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
     response.end(JSON.stringify(value));
@@ -121,6 +132,16 @@ export function createDashboardServer(dashboard: Dashboard, token: string, asset
       }
       return;
     }
+    // A second launch gets its own token here. A page cannot use this: browsers send Origin.
+    if (url.pathname === '/launcher/v1/session') {
+      if (request.headers.origin)
+        throw new RequestError(403, 'The launcher must use a direct local connection');
+      if (method !== 'POST') throw new RequestError(404, 'Not found');
+      const fresh = await session.launch(request.headers.authorization);
+      if (!fresh) throw new RequestError(401, 'Launcher credential required');
+      send(response, 200, { app: 'repo-cloak', protocol: 2, pid: process.pid, token: fresh });
+      return;
+    }
     if (!url.pathname.startsWith('/api/')) {
       const asset = assets.get(url.pathname);
       if (!asset || method !== 'GET') throw new RequestError(404, 'Not found');
@@ -130,13 +151,7 @@ export function createDashboardServer(dashboard: Dashboard, token: string, asset
       response.end(bytes);
       return;
     }
-    const supplied = request.headers.authorization;
-    const expected = `Bearer ${token}`;
-    if (
-      typeof supplied !== 'string' ||
-      Buffer.byteLength(supplied) !== Buffer.byteLength(expected) ||
-      !timingSafeEqual(Buffer.from(supplied), Buffer.from(expected))
-    )
+    if (!(await session.authorize(request.headers.authorization)))
       throw new RequestError(401, 'Session token required');
     if (url.pathname.startsWith('/api/v2/')) {
       const found = matchRoute(v2Routes, method, url.pathname);
@@ -146,17 +161,13 @@ export function createDashboardServer(dashboard: Dashboard, token: string, asset
         200,
         await found.route.handler({
           dashboard,
+          session,
           port: address.port,
           params: found.params,
           query: url.searchParams,
           body: () => readBody(request),
         }),
       );
-      return;
-    }
-    // The launcher authenticates a running server through this before reusing it.
-    if (method === 'GET' && url.pathname === '/api/session') {
-      send(response, 200, { app: 'repo-cloak', protocol: 1, pid: process.pid });
       return;
     }
     throw new RequestError(404, 'Not found');

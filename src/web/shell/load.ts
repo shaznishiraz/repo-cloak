@@ -1,8 +1,9 @@
-import { ApiError, createClient, poll } from '../api/client.js';
+import { createClient, poll } from '../api/client.js';
 import type { ApiClient } from '../api/client.js';
 import type { LaunchQuery } from '../api/contracts.js';
 import type { BrowserSession } from '../api/session.js';
-import { loadError, overview, sessionInfo } from './state.js';
+import { endSession } from './lock.js';
+import { loadError, locked, overview, sessionInfo } from './state.js';
 
 let active: ApiClient | undefined;
 /** The session's client, for screens. Only null before the shell has a token. */
@@ -21,18 +22,21 @@ function launchQuery(session: BrowserSession): LaunchQuery {
   };
 }
 function describe(error: unknown) {
-  if (error instanceof ApiError && error.status === 401)
-    return 'This dashboard session has ended. Run repo-cloak again to get a new link.';
   return error instanceof Error ? error.message : 'Could not reach the dashboard';
+}
+
+/** Ends the session on the server, for every tab, then locks this one. */
+export function lockTab() {
+  return endSession(() => api().call('POST /api/v2/session/lock'));
 }
 
 /** Connects the shell to the server; returns a function that stops refreshing. */
 export function startSession(session: BrowserSession, request?: typeof fetch) {
   if (!session.token) {
-    loadError.value = 'Open the link printed by repo-cloak; this tab has no session token.';
+    locked.value = true;
     return () => {};
   }
-  const client = createClient(session.token, request);
+  const client = createClient(session.token, request, () => void endSession());
   active = client;
   const query = launchQuery(session);
   return poll(

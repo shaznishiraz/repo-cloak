@@ -416,43 +416,6 @@
   display: flex;
   gap: 6px;
 }
-.adm-picker {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-top: 8px;
-}
-.adm-picker-head {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.adm-picker-head .adm-mono-cut {
-  flex: 1;
-}
-.adm-picker-list {
-  max-height: 200px;
-  margin: 0;
-  padding: 0;
-  overflow-y: auto;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-control);
-  list-style: none;
-}
-.adm-picker-item {
-  width: 100%;
-  padding: 4px 8px;
-  border: 0;
-  background: transparent;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  text-align: left;
-  cursor: pointer;
-}
-.adm-picker-item:hover {
-  background: var(--raised);
-}
-
 @media (max-width: 760px) {
   .adm-list,
   .adm-aside,

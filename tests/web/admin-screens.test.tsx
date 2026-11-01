@@ -16,7 +16,7 @@ import { HistoryScreen, whenLabel } from '../../src/web/screens/history/index.js
 import { ReposScreen, treeLabel } from '../../src/web/screens/repos/index.js';
 import { ago } from '../../src/web/screens/repos/shared.js';
 import { RequestsScreen, filterRequests } from '../../src/web/screens/requests/index.js';
-import { createIdleLock, lockTab } from '../../src/web/screens/settings/auto-lock.js';
+import { createIdleLock } from '../../src/web/screens/settings/auto-lock.js';
 import {
   SettingsScreen,
   changedFields,
@@ -24,7 +24,8 @@ import {
 } from '../../src/web/screens/settings/index.js';
 import { commands } from '../../src/web/shell/commands.js';
 import { startSession } from '../../src/web/shell/load.js';
-import { overview, sessionInfo } from '../../src/web/shell/state.js';
+import { endSession } from '../../src/web/shell/lock.js';
+import { locked as lockedTab, overview, sessionInfo } from '../../src/web/shell/state.js';
 import { toasts } from '../../src/web/shell/ui/index.js';
 
 type Call = { method: string; path: string; body: unknown };
@@ -706,7 +707,7 @@ it('manages agent access and MCP setup for the chosen cloak', async () => {
 
 /* ---------- Locking ---------- */
 
-it('locking removes the session the browser would read back', () => {
+it('locking removes the session the browser would read back', async () => {
   const values = new Map<string, string>();
   const storage = {
     getItem: (key: string) => values.get(key) ?? null,
@@ -715,7 +716,8 @@ it('locking removes the session the browser would read back', () => {
   };
   expect(readSession('#token=secret&repo=abc', storage).token).toBe('secret');
   const reload = vi.fn();
-  lockTab(storage, reload);
+  await endSession(() => Promise.resolve(), storage, reload);
+  lockedTab.value = false;
   expect(reload).toHaveBeenCalledOnce();
   expect(values.size).toBe(0);
   expect(readSession('#/settings', storage).token).toBeNull();

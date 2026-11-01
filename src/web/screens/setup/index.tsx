@@ -1,12 +1,12 @@
 import type { ComponentChildren } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import type { SetupState } from '../../api/contracts.js';
+import { FolderPicker } from '../../shell/folder-picker.js';
 import { api } from '../../shell/load.js';
 import { navigate } from '../../shell/router.js';
 import { overview, sessionInfo } from '../../shell/state.js';
 import { Button, Checkbox, Field, buttonClass, toast } from '../../shell/ui/index.js';
 import { refreshOverview } from '../new/create.js';
-import { FolderPicker } from '../new/folder-picker.js';
 import './setup.css';
 
 const message = (cause: unknown, fallback: string) =>

@@ -6,7 +6,7 @@ import { Palette, openPalette, paletteOpen } from './palette.js';
 import { navigate, route } from './router.js';
 import type { Route } from './router.js';
 import { Screen } from './screens.js';
-import { loadError, overview, sessionInfo } from './state.js';
+import { loadError, locked, overview, sessionInfo } from './state.js';
 import { Kbd, Mono, ToastHost, buttonClass } from './ui/index.js';
 
 function isTyping(target: EventTarget | null) {
@@ -224,10 +224,23 @@ function useFirstRun() {
   }, [data]);
 }
 
+function LockScreen() {
+  return (
+    <main class="lock-screen" aria-label="Locked">
+      <h1>Dashboard locked</h1>
+      <p>
+        Run <Mono>repo-cloak</Mono> in a terminal to open a new session. A sync already running
+        still finishes.
+      </p>
+    </main>
+  );
+}
+
 export function Shell() {
   useGlobalKeys();
   useFirstRun();
   const current = route.value;
+  if (locked.value) return <LockScreen />;
   return (
     <div class="shell">
       <TopBar />

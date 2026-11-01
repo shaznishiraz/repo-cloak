@@ -513,6 +513,8 @@ type R<Response, Body = never, Query = never> = { response: Response; body: Body
 export type V2Api = {
   // 00-foundation
   'GET /api/v2/session': R<SessionInfo>;
+  'POST /api/v2/session/lock': R<{ locked: true }>;
+  'POST /api/v2/session/activity': R<{ ok: true }>;
   'GET /api/v2/overview': R<Overview, never, LaunchQuery>;
   // Shared by every package that previews, applies or cancels an operation.
   'GET /api/v2/operations/:id': R<OperationState>;

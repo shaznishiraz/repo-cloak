@@ -1,3 +1,4 @@
+import { parentFolder } from '../../src/web/shell/folder-picker.js';
 import { expect, it } from 'vitest';
 import type { Overview, TreeNode } from '../../src/web/api/contracts.js';
 import {
@@ -5,7 +6,6 @@ import {
   joinFolder,
   launchTarget,
   nameProblem,
-  parentFolder,
   pickState,
   relativeTime,
   togglePick,

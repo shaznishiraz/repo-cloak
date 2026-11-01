@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { clearSession, readSession } from '../../src/web/api/session.js';
+import { clearSession, hasLaunchToken, readSession } from '../../src/web/api/session.js';
 
 function memory() {
   const items = new Map<string, string>();
@@ -45,4 +45,11 @@ it('forgets the token and launch context when a tab locks', () => {
   ]);
   clearSession({ removeItem: (key: string) => void items.delete(key) });
   expect([...items.keys()]).toEqual(['other']);
+});
+
+it('tells a launch link from a route', () => {
+  expect(hasLaunchToken('#token=abc&repo=r1')).toBe(true);
+  expect(hasLaunchToken('#/settings')).toBe(false);
+  expect(hasLaunchToken('#/new?token=abc')).toBe(false);
+  expect(hasLaunchToken('')).toBe(false);
 });

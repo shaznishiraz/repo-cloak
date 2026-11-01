@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
 import type { Inputs } from 'preact/hooks';
 import type { GuardCheck } from '../../api/contracts.js';
-import { api } from '../../shell/load.js';
-import { Button, toast } from '../../shell/ui/index.js';
+import { toast } from '../../shell/ui/index.js';
 import './admin.css';
 
 export function errorText(error: unknown) {
@@ -98,57 +97,5 @@ export function CheckList({ checks }: { checks: GuardCheck[] }) {
         </li>
       ))}
     </ul>
-  );
-}
-
-function parentOf(path: string) {
-  const parent = path.replace(/[/\\][^/\\]+[/\\]?$/, '');
-  return parent && parent !== path ? parent : /^[/\\]/.test(path) ? path.slice(0, 1) : path;
-}
-
-/** Browses folders on this machine; typing the path still works if the listing fails. */
-export function FolderPicker({
-  start,
-  onPick,
-}: {
-  start?: string | undefined;
-  onPick: (path: string) => void;
-}) {
-  const [path, setPath] = useState(start || undefined);
-  const listing = useLoad(
-    () => api().call('GET /api/v2/folders', { query: path ? { path } : {} }),
-    [path],
-  );
-  const current = listing.data?.path ?? path;
-  return (
-    <div class="adm-picker">
-      {listing.error && (
-        <p class="adm-error" role="alert">
-          Could not list folders: {listing.error}. Type the path instead.
-        </p>
-      )}
-      {listing.data && (
-        <>
-          <div class="adm-picker-head">
-            <span class="adm-mono-cut">{listing.data.path}</span>
-            <Button size="small" onClick={() => setPath(parentOf(listing.data?.path ?? ''))}>
-              Up
-            </Button>
-            <Button size="small" onClick={() => current && onPick(current)}>
-              Use this folder
-            </Button>
-          </div>
-          <ul class="adm-picker-list" aria-label="Folders">
-            {listing.data.folders.map((folder) => (
-              <li key={folder.path}>
-                <button type="button" class="adm-picker-item" onClick={() => setPath(folder.path)}>
-                  {folder.name}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
-    </div>
   );
 }
