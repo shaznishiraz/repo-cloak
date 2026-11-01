@@ -153,9 +153,6 @@ export function HomeScreen({ workspaceId }: { workspaceId?: string | undefined }
           >
             ↑ Push all
           </Button>
-          <Button size="small" variant="ghost" onClick={() => setCreating(true)}>
-            + Group
-          </Button>
         </div>
         <div class="ws-scroll">
           {visible.map((section) => (
@@ -180,6 +177,11 @@ export function HomeScreen({ workspaceId }: { workspaceId?: string | undefined }
             </div>
           ))}
           {!visible.length && <p class="ws-empty">Every workspace is clean.</p>}
+          <div class="ws-list-foot">
+            <Button size="small" variant="ghost" onClick={() => setCreating(true)}>
+              + Group
+            </Button>
+          </div>
         </div>
       </section>
       {selected && (

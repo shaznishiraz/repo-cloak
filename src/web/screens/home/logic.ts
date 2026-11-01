@@ -157,7 +157,7 @@ export function lineageNodes(detail: WorkspaceDetailView): LineageNode[] {
   nodes.push({
     kind: 'cloak',
     name: lineage.cloak.name,
-    ref: `${counts.tracked} files`,
+    ref: `${counts.tracked} ${counts.tracked === 1 ? 'file' : 'files'}`,
     tone: 'accent',
   });
   return nodes;

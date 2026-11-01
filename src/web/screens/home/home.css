@@ -365,6 +365,9 @@
   margin-left: auto;
   font-size: 12px;
 }
+.ws-list-foot {
+  padding: 8px 10px;
+}
 .ws-empty {
   margin: 0;
   padding: 14px 12px;
@@ -554,13 +557,17 @@
   .ws-stat {
     border-bottom: 1px solid var(--line);
   }
-  .ws-actions .menu-list {
-    right: auto;
-    left: 0;
+  /* Anchor both menus to the whole action row so neither can leave a phone screen. */
+  .ws-actions {
+    position: relative;
   }
-  .ws-push .menu-list {
+  .ws-actions .menu {
+    position: static;
+  }
+  .ws-actions .menu-list {
     right: 0;
-    left: auto;
+    left: 0;
+    width: auto;
   }
   .ws-history-row {
     grid-template-columns: 90px 44px minmax(0, 1fr);

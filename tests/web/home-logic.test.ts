@@ -117,6 +117,12 @@ it('words times the way the design does', () => {
 it('draws lineage through a worktree only when there is one', () => {
   expect(lineageNodes(detail()).map((node) => node.kind)).toEqual(['main repo', 'cloak']);
   expect(lineageNodes(detail())[0]?.ref).toBe('main@abcdef1');
+  const single = detail();
+  const oneFile = {
+    ...single,
+    workspace: { ...single.workspace, counts: { ...single.workspace.counts, tracked: 1 } },
+  };
+  expect(lineageNodes(oneFile).at(-1)?.ref).toBe('1 file');
   const nodes = lineageNodes(
     detail({
       workspace: workspace({
