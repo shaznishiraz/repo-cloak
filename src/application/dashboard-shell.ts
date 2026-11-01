@@ -8,6 +8,7 @@ import { createProfileStore } from '../adapters/profiles.js';
 import { createStatusIO } from '../adapters/status.js';
 import type { createStore } from '../adapters/store.js';
 import { createSyncStore } from '../adapters/sync-store.js';
+import { effectiveSecurity } from '../core/policy.js';
 import { version } from '../package.js';
 import type {
   LaunchContext,
@@ -142,6 +143,8 @@ export function createDashboardShell(
     async session(ui: UiKind, port: number): Promise<SessionInfo> {
       const { sealed, keyId, storage, migrationAvailable, rotationPending } =
         await store.keyStatus();
+      const policy = await store.policy();
+      const security = effectiveSecurity(await records.readConfig(), policy);
       return {
         app: 'repo-cloak',
         protocol: 1,
@@ -149,7 +152,8 @@ export function createDashboardShell(
         ui,
         port,
         store: { sealed, keyId, storage, migrationAvailable, rotationPending },
-        policy: { status: 'none', locked: [] },
+        policy: { status: policy.status, locked: security.locked },
+        auditFailures: sync.audit.failures(),
       };
     },
     async overview(query: LaunchQuery): Promise<Overview> {

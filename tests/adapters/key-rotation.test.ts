@@ -23,7 +23,7 @@ async function fixture(keychain = false) {
   const storeRoot = join(root, 'store');
   const fake = createFakeKeychain();
   const store = keychain
-    ? createStore(storeRoot, createKeyStorage(storeRoot, { keychain: fake.keychain }))
+    ? createStore(storeRoot, { keys: createKeyStorage(storeRoot, { keychain: fake.keychain }) })
     : createStore(storeRoot);
   const services = createSyncServices(source, store);
   await services.git.runGit(source, ['init', '-b', 'main']);

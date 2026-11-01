@@ -140,12 +140,9 @@ it('reads the keychain once per process', async () => {
 
 it('round-trips sealed documents through a store backed by the fake keychain', async () => {
   const f = await fixture();
-  const store = createStore(
-    join(f.root, 'store'),
-    createKeyStorage(join(f.root, 'store'), {
-      keychain: f.fake.keychain,
-    }),
-  );
+  const store = createStore(join(f.root, 'store'), {
+    keys: createKeyStorage(join(f.root, 'store'), { keychain: f.fake.keychain }),
+  });
   await store.writeSealed('profiles/p.json', 'p', 'profile', {
     kind: 'profile',
     schemaVersion: 1,

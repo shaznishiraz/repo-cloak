@@ -30,7 +30,7 @@ export async function deleteWorkspace(
   try {
     const releaseRepo = await lock(join(store.root, 'repos', repoId), { retries: 0 });
     try {
-      const current = await records.readRepo(repoId);
+      const current = await records.readRepoRecord(repoId);
       if (!current || current.workspaces[id]?.path !== path || (await exists(path)) !== present)
         throw new Error('Workspace changed; refresh before deleting');
       if (present && (await lstat(path)).isSymbolicLink())

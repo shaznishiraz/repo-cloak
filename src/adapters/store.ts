@@ -8,13 +8,29 @@ import { errorCode, writeAtomic } from './atomic.js';
 import { keyId, open, seal } from './crypto.js';
 import { defaultKeyStorage } from './key-storage.js';
 import type { KeyStorage, KeyStorageSetting } from './key-storage.js';
+import { loadPolicy } from './policy.js';
+import type { LoadedPolicy } from '../core/policy.js';
 
 const defaultRoot = () => resolve(homedir(), '.repo-cloak');
 
-export function createStore(root = defaultRoot(), injectedKeys?: KeyStorage) {
+let machinePolicy: Promise<LoadedPolicy> | undefined;
+
+/**
+ * The OS keychain and machine policy apply to the real store. A store anywhere else (tests,
+ * fixtures) stays self-contained unless they are passed in.
+ */
+export function createStore(
+  root = defaultRoot(),
+  options: { keys?: KeyStorage; policy?: () => Promise<LoadedPolicy> } = {},
+) {
   root = resolve(root);
+  const policy =
+    options.policy ??
+    (root === defaultRoot()
+      ? () => (machinePolicy ??= loadPolicy())
+      : () => Promise.resolve<LoadedPolicy>({ status: 'none' }));
   const keys =
-    injectedKeys ??
+    options.keys ??
     defaultKeyStorage(
       root,
       root === defaultRoot(),
@@ -68,6 +84,7 @@ export function createStore(root = defaultRoot(), injectedKeys?: KeyStorage) {
     opener,
     keys,
     keyStatus: keys.status,
+    policy,
     async listDirectories(relative: string): Promise<string[]> {
       try {
         return (await readdir(path(relative), { withFileTypes: true }))

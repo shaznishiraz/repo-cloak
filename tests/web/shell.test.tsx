@@ -57,6 +57,7 @@ const info: SessionInfo = {
     rotationPending: false,
   },
   policy: { status: 'none', locked: [] },
+  auditFailures: 0,
 };
 
 let root: HTMLElement;

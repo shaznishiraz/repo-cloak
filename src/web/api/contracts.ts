@@ -22,6 +22,8 @@ export type SessionInfo = {
     rotationPending: boolean;
   };
   policy: { status: PolicyStatus; locked: string[] };
+  /** Audit events that could not be written since this server started. */
+  auditFailures: number;
 };
 
 export type WorkspaceState = 'clean' | 'to-push' | 'source-moved' | 'missing' | 'unreadable';

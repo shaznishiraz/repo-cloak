@@ -8,6 +8,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import pLimit from 'p-limit';
 import { createAuditStore } from '../adapters/audit-store.js';
 import { maxAuditFiles } from '../core/audit.js';
+import { effectiveSecurity } from '../core/policy.js';
 import { z } from 'zod';
 import { createStore } from '../adapters/store.js';
 import { createSyncServices } from '../adapters/sync-services.js';
@@ -95,7 +96,8 @@ export function createDashboardSync(
   const operations = createUiOperations(limits);
   const services = createSyncServices(process.cwd(), store);
   const audit = createAuditStore(store, {
-    retentionDays: async () => (await services.store.readConfig()).auditRetentionDays ?? null,
+    retentionDays: async () =>
+      effectiveSecurity(await services.store.readConfig(), await store.policy()).auditRetentionDays,
   });
   /** Paths and content hashes only; a file that cannot be read is logged without a hash. */
   async function auditFiles(root: string, paths: string[]) {
@@ -459,7 +461,12 @@ export function createDashboardSync(
       const problem = patternProblem(pattern);
       if (problem) throw new OperationError('validation', `${pattern}: ${problem}`);
     }
-    await services.store.saveRepoExclusions(repoId, patterns);
+    const policy = await store.policy();
+    const locked = policy.status === 'active' ? (policy.policy.lockedExclusions ?? []) : [];
+    await services.store.saveRepoExclusions(
+      repoId,
+      patterns.filter((pattern) => !locked.includes(pattern)),
+    );
     await audit.record({
       op: 'settings',
       outcome: 'ok',
@@ -565,6 +572,8 @@ export function createDashboardSync(
       const { root, snapshot } = await exportContext(repoId, id);
       const repo = await registered(repoId);
       const isExcluded = compilePatterns(repo.exclude ?? []);
+      const security = effectiveSecurity(await services.store.readConfig(), await store.policy());
+      const isLocked = compilePatterns(security.lockedExclusions);
       const input = z
         .object({
           commit: z.string().regex(/^[a-f0-9]{40,64}$/),
@@ -580,7 +589,9 @@ export function createDashboardSync(
       const paths = indexes.map((index) => {
         const path = changed[index];
         if (!path) throw new OperationError('validation', 'A selected file is not in this commit');
-        if (!input.includeExcluded && isExcluded(path))
+        if (isLocked(path))
+          throw new OperationError('validation', 'Machine policy excludes this file');
+        if (isExcluded(path) && !(input.includeExcluded && security.allowExclusionOverride))
           throw new OperationError(
             'validation',
             'Enable the repository-exclusion override to export this file',

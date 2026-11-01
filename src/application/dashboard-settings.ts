@@ -4,10 +4,21 @@ import { createStore } from '../adapters/store.js';
 import { absoluteFolder } from '../adapters/folders.js';
 import { createAuditStore } from '../adapters/audit-store.js';
 import { documentSchema } from '../core/schemas.js';
+import { effectiveSecurity } from '../core/policy.js';
+import { OperationError } from '../adapters/ui-operations.js';
 
 const settingsSchema = documentSchema.config
   .pick({ workspacesRoot: true, postCreateCommands: true })
   .strict();
+const securitySchema = documentSchema.config
+  .pick({
+    keyStorage: true,
+    auditRetentionDays: true,
+    allowExclusionOverride: true,
+    autoLockMinutes: true,
+  })
+  .strict();
+
 export function createDashboardSettings(store = createStore(), audit = createAuditStore(store)) {
   const services = createSyncServices(process.cwd(), store);
   async function validateRoot(value: string) {
@@ -20,7 +31,59 @@ export function createDashboardSettings(store = createStore(), audit = createAud
       );
     return root;
   }
+  async function effective() {
+    return effectiveSecurity(await services.store.readConfig(), await store.policy());
+  }
+  async function security() {
+    const [config, values, policy] = await Promise.all([
+      services.store.readConfig(),
+      effective(),
+      store.policy(),
+    ]);
+    return {
+      ...values,
+      keyStorage: config.keyStorage ?? ('auto' as const),
+      policy:
+        policy.status === 'active'
+          ? {
+              status: policy.status,
+              path: policy.path,
+              signed: policy.signed,
+              ...(policy.userWritable
+                ? {
+                    message:
+                      'This account can edit the policy file, so it is not enforced by the OS',
+                  }
+                : {}),
+            }
+          : policy.status === 'invalid'
+            ? { status: policy.status, path: policy.path, signed: false, message: policy.message }
+            : { status: policy.status, path: null, signed: false },
+    };
+  }
   return {
+    effective,
+    security,
+    /** Rejects a change to a policy-locked field rather than quietly ignoring it. */
+    async saveSecurity(value: unknown) {
+      const input = securitySchema.parse(value);
+      const current = await effective();
+      for (const field of [
+        'auditRetentionDays',
+        'allowExclusionOverride',
+        'autoLockMinutes',
+      ] as const)
+        if (field in input && current.locked.includes(field) && input[field] !== current[field])
+          throw new OperationError('validation', `${field} is locked by machine policy`);
+      const config = await services.store.readConfig();
+      await services.store.saveConfig({ ...config, ...input });
+      await audit.record({
+        op: 'settings',
+        outcome: 'ok',
+        detail: `Changed ${Object.keys(input).join(', ') || 'nothing'}`,
+      });
+      return security();
+    },
     validateRoot,
     async read() {
       const config = await services.store.readConfig();

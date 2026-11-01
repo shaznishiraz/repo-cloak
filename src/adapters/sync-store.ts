@@ -18,9 +18,19 @@ export function createSyncStore(store: ReturnType<typeof createStore>) {
       ? store.readPlain('config.json', 'config')
       : { kind: 'config', schemaVersion: 1 };
   }
-  async function readRepo(repoId: string): Promise<Document<'repo'> | undefined> {
+  /** The stored record, for read-modify-write. Policy exclusions never get persisted into it. */
+  async function readRepoRecord(repoId: string): Promise<Document<'repo'> | undefined> {
     const path = `repos/${repoId}/repo.json`;
     return (await exists(join(store.root, path))) ? store.readSealed(path, 'repo') : undefined;
+  }
+  /** What every reader enforces: the repo's exclusions plus any locked by machine policy. */
+  async function readRepo(repoId: string): Promise<Document<'repo'> | undefined> {
+    const repo = await readRepoRecord(repoId);
+    if (!repo) return undefined;
+    const policy = await store.policy();
+    const locked = policy.status === 'active' ? (policy.policy.lockedExclusions ?? []) : [];
+    if (!locked.length) return repo;
+    return { ...repo, exclude: [...new Set([...locked, ...(repo.exclude ?? [])])] };
   }
   async function readSnapshot(
     root: string,
@@ -42,6 +52,7 @@ export function createSyncStore(store: ReturnType<typeof createStore>) {
   return {
     readConfig,
     readRepo,
+    readRepoRecord,
     readSnapshot,
     /** Registered source repos whose folder still exists. */
     async listRepos(): Promise<{ repoId: string; path: string }[]> {
@@ -62,7 +73,7 @@ export function createSyncStore(store: ReturnType<typeof createStore>) {
         retries: { retries: 8, minTimeout: 25, maxTimeout: 100 },
       });
       try {
-        const current = await readRepo(repo.repoId);
+        const current = await readRepoRecord(repo.repoId);
         if (current) {
           if (current.hidden)
             await store.writeSealed(`repos/${repo.repoId}/repo.json`, repo.repoId, 'repo', {
@@ -89,7 +100,7 @@ export function createSyncStore(store: ReturnType<typeof createStore>) {
         retries: { retries: 8, minTimeout: 25, maxTimeout: 100 },
       });
       try {
-        const record = await readRepo(repoId);
+        const record = await readRepoRecord(repoId);
         if (!record) throw new Error('Repository is not registered');
         await store.writeSealed(`repos/${repoId}/repo.json`, repoId, 'repo', { ...record, hidden });
       } finally {
@@ -102,7 +113,7 @@ export function createSyncStore(store: ReturnType<typeof createStore>) {
         retries: { retries: 8, minTimeout: 25, maxTimeout: 100 },
       });
       try {
-        const record = await readRepo(repoId);
+        const record = await readRepoRecord(repoId);
         if (!record) throw new Error('Repository is not registered');
         await store.writeSealed(`repos/${repoId}/repo.json`, repoId, 'repo', {
           ...record,
@@ -136,7 +147,7 @@ export function createSyncStore(store: ReturnType<typeof createStore>) {
       const directory = join(store.root, 'repos', repoId);
       const release = await lock(directory, { retries: 0 });
       try {
-        const repo = await readRepo(repoId);
+        const repo = await readRepoRecord(repoId);
         if (!repo || repo.hidden || repo.workspaces[workspaceId]?.path !== expectedPath)
           throw new Error('Workspace registration changed while moving');
         await store.writeSealed(`repos/${repoId}/repo.json`, repoId, 'repo', {
@@ -163,7 +174,7 @@ export function createSyncStore(store: ReturnType<typeof createStore>) {
         retries: { retries: 8, minTimeout: 25, maxTimeout: 100 },
       });
       try {
-        const record = await readRepo(repo.repoId);
+        const record = await readRepoRecord(repo.repoId);
         const previous = record?.workspaces[plan.plain.workspaceId];
         await store.writeSealed(`repos/${repo.repoId}/repo.json`, repo.repoId, 'repo', {
           ...record,
