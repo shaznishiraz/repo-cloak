@@ -22,6 +22,7 @@ import { canonicalPath, filterPaths, readSourceFiles } from '../files.js';
 import { absoluteFolder, browseFolders } from '../folders.js';
 import { commitFiles, repoState, runGit } from '../git.js';
 import { OperationError } from '../ui-operations.js';
+import { scanWithRepoIdentity } from './leak-guard.js';
 import { route } from './router.js';
 import type { Route } from './router.js';
 
@@ -379,6 +380,8 @@ function cliEquivalent(input: Selection, chosen: { profile: Profile }[], uncommi
   ].join(' ');
 }
 
+const maxLeftovers = 100;
+
 /** Dry run over the same engine pieces as a pull, so a review cannot promise what a pull refuses. */
 async function reviewSelection(dashboard: Dashboard, input: Selection): Promise<NewCloakReview> {
   const selection = await resolveSelection(dashboard, input);
@@ -412,13 +415,18 @@ async function reviewSelection(dashboard: Dashboard, input: Selection): Promise<
     if (leftovers.size < 50) leftovers.set(`${path}\0${name}`, { path, name });
   };
   let lines = 0;
+  const documents: { path: string; texts: string[] }[] = [];
   for (const file of present) {
     const cloaked = cloakedPath.get(file.path) ?? file.path;
     for (const name of findNames(cloaked, tokens)) leftover(file.path, name);
-    if (file.text === undefined) continue;
+    if (file.text === undefined) {
+      documents.push({ path: file.path, texts: [cloaked] });
+      continue;
+    }
     lines += file.text.split('\n').length;
     const result = replacer.anonymize(file.text, { file: file.path, scope: 'content' }, ledger);
     ledger = result.ledger;
+    documents.push({ path: file.path, texts: [cloaked, result.text] });
     matches.push(...result.preview);
     for (const name of findNames(result.text, tokens)) leftover(file.path, name);
     for (const match of result.preview) {
@@ -431,6 +439,11 @@ async function reviewSelection(dashboard: Dashboard, input: Selection): Promise<
       leftover(file.path, name ?? match.original);
     }
   }
+  const scan = await scanWithRepoIdentity(repoPath, documents, rules, ledger);
+  const found: NewCloakReview['leftovers'] = [...leftovers.values()];
+  for (const finding of scan.findings)
+    if (found.length < maxLeftovers && !leftovers.has(`${finding.path}\0${finding.name}`))
+      found.push(finding);
   const hits = new Map<Rule, number>();
   for (const match of matches) {
     if (match.status !== 'replaced') continue;
@@ -459,7 +472,12 @@ async function reviewSelection(dashboard: Dashboard, input: Selection): Promise<
       { source: basename(repoPath), cloaked: cloakedFolder(basename(repoPath), rules) },
       ...changed.slice(0, 5).map((path) => ({ source: path.original, cloaked: path.anonymized })),
     ],
-    leftovers: [...leftovers.values()],
+    leftovers: found,
+    leakScan: {
+      filesScanned: scan.filesScanned,
+      filesTotal: scan.filesTotal,
+      partial: scan.partial,
+    },
     cli: cliEquivalent(input, selection.chosen, input.uncommitted.length > 0),
   };
 }

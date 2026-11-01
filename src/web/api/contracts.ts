@@ -144,11 +144,15 @@ export type PendingChange = {
   additions: number;
   deletions: number;
 };
+/** Heuristic, and can hold real names: for this local dashboard only, never logs or agents. */
+export type LeakKind = 'identity' | 'server' | 'domain' | 'email' | 'connection' | 'url';
+export type LeakFinding = { path: string; name: string; kind: LeakKind };
 export type GuardCheck = {
   id: string;
   state: 'ok' | 'warning' | 'blocked' | 'info';
   title: string;
   detail?: string;
+  findings?: LeakFinding[];
 };
 export type WorkspaceDetail = {
   workspace: OverviewWorkspace;
@@ -277,7 +281,9 @@ export type NewCloakReview = {
   heldBack: { path: string; rule: string }[];
   replacements: { find: string; replace: string; hits: number }[];
   pathPreview: { source: string; cloaked: string }[];
-  leftovers: { path: string; name: string }[];
+  /** `kind` is set on heuristic findings; without it the name came from a rule or the repo name. */
+  leftovers: { path: string; name: string; kind?: LeakKind }[];
+  leakScan?: { filesScanned: number; filesTotal: number; partial: boolean };
   cli: string;
 };
 export type NewCloakCreate = NewCloakSelection & {

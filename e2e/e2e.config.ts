@@ -14,6 +14,7 @@ export default {
     '62-push.e2e.ts',
     '60-sync-engine.e2e.ts',
     '64-session-lock.e2e.ts',
+    'leak-guard.e2e.ts',
   ],
   workers: 1,
   retries: 0,

@@ -122,6 +122,8 @@ function PendingPanel({ detail }: { detail: WorkspaceDetailView }) {
   );
 }
 
+const findingLimit = 8;
+
 function GuardPanel({ checks }: { checks: GuardCheck[] }) {
   return (
     <Section title="Guard" note="checked on load">
@@ -134,6 +136,19 @@ function GuardPanel({ checks }: { checks: GuardCheck[] }) {
             <span class="ws-guard-text">
               <span>{check.title}</span>
               {check.detail && <span class="mono tone-muted ws-small">{check.detail}</span>}
+              {check.findings?.slice(0, findingLimit).map((item) => (
+                <span class="mono ws-small" key={`${item.path}\0${item.name}`}>
+                  {item.name}{' '}
+                  <span class="tone-muted">
+                    · {item.kind} · {item.path}
+                  </span>
+                </span>
+              ))}
+              {(check.findings?.length ?? 0) > findingLimit && (
+                <span class="tone-muted ws-small">
+                  and {(check.findings?.length ?? 0) - findingLimit} more
+                </span>
+              )}
             </span>
           </li>
         ))}

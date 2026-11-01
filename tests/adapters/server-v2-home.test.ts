@@ -1,6 +1,6 @@
-import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { join, relative, resolve } from 'node:path';
 import { afterEach, expect, it, vi } from 'vitest';
 import { countLines, homeRoutes } from '../../src/adapters/server-v2/home.js';
 import { createDashboardServer } from '../../src/adapters/server.js';
@@ -241,6 +241,101 @@ it('flags a real name that reached the cloak, without revealing it in the guard 
   const leak = data.guards.find((guard) => guard.id === 'leaks');
   expect(leak).toMatchObject({ state: 'blocked', detail: 'Other.ts' });
   expect(`${leak?.title} ${leak?.detail}`).not.toContain('Acme');
+});
+
+const heuristic = (data: WorkspaceDetailView) =>
+  data.guards.find((guard) => guard.id === 'leak-heuristics');
+
+it('warns about an unrelated server name, without blocking and with no claim of safety', async () => {
+  const { call, base, workspace } = await fixture();
+  await writeFile(join(workspace, 'Other.ts'), 'const host = "ch-prod-sql01";\n');
+  const { data } = await call<WorkspaceDetailView>('GET', base);
+  const guard = heuristic(data);
+  expect(guard?.state).toBe('warning');
+  expect(guard?.title).toMatch(/heuristic/);
+  expect(guard?.findings).toEqual([{ path: 'Other.ts', name: 'ch-prod-sql01', kind: 'server' }]);
+  expect(`${guard?.title} ${guard?.detail}`).not.toContain('ch-prod-sql01');
+  expect(data.guards.find((item) => item.id === 'leaks')?.state).toBe('ok');
+});
+
+it('never calls a quiet scan safe', async () => {
+  const { call, base } = await fixture();
+  const { data } = await call<WorkspaceDetailView>('GET', base);
+  const guard = heuristic(data);
+  expect(guard).toMatchObject({ state: 'info', title: expect.stringMatching(/heuristic/i) });
+  expect(guard?.detail).toContain('not proof');
+  expect(guard?.findings).toBeUndefined();
+  const leaks = data.guards.find((item) => item.id === 'leaks');
+  expect(leaks?.title).toContain('from the ledger');
+  expect(JSON.stringify(data.guards)).not.toMatch(/no real names found in the cloak/i);
+});
+
+it('does not flag replaced values or common public names', async () => {
+  const { call, base, workspace } = await fixture();
+  await writeFile(
+    join(workspace, 'Other.ts'),
+    'Northwind-prod-sql01 http://localhost:3000 dev@example.com https://registry.npmjs.org/x\n',
+  );
+  const { data } = await call<WorkspaceDetailView>('GET', base);
+  expect(heuristic(data)?.findings).toBeUndefined();
+});
+
+it('looks for the source repository identity from its remote and authors', async () => {
+  const { call, base, git, source, workspace } = await fixture();
+  await git('remote', 'add', 'origin', 'https://token:hunter2@git.contoso.se/fabrikam/thing.git');
+  await writeFile(join(source, 'Later.ts'), 'later\n');
+  await git('add', '-A');
+  await git('-c', 'user.email=dev@adatum-corp.se', '-c', 'user.name=t', 'commit', '-qm', 'later');
+  await writeFile(join(workspace, 'Other.ts'), 'FabrikamClient adatum-corp\n');
+  const { data } = await call<WorkspaceDetailView>('GET', base);
+  expect(heuristic(data)?.findings?.map((finding) => [finding.name, finding.kind])).toEqual([
+    ['FabrikamClient', 'identity'],
+    ['adatum-corp', 'identity'],
+  ]);
+  expect(JSON.stringify(data)).not.toContain('hunter2');
+});
+
+it('says when the scan stopped at a limit', async () => {
+  const { call, base, workspace } = await fixture();
+  await writeFile(join(workspace, 'Other.ts'), `${'x\n'.repeat(200_000)}ch-prod-sql01\n`);
+  const { data } = await call<WorkspaceDetailView>('GET', base);
+  const guard = heuristic(data);
+  expect(guard?.findings).toBeUndefined();
+  expect(guard?.detail).toContain('partial scan');
+  expect(guard?.detail).toContain('not proof');
+});
+
+it('keeps findings out of the audit log, agent responses and the cloak workspace', async () => {
+  const { call, base, workspace, dashboard } = await fixture();
+  const name = 'ch-prod-sql01';
+  await writeFile(join(workspace, 'Planted.ts'), `const host = "${name}";\n`);
+  const { data } = await call<WorkspaceDetailView>('GET', base);
+  expect(JSON.stringify(heuristic(data)?.findings)).toContain(name);
+
+  const audit = await dashboard.sync.audit.list({ limit: 1000 });
+  expect(JSON.stringify(audit)).not.toContain(name);
+
+  const token = (await readFile(join(workspace, '.repo-cloak/agent/token'), 'utf8')).trim();
+  const doc = await dashboard.agents.authenticate(token);
+  if (!doc) throw new Error('Agent token unavailable');
+  const responses = [
+    await dashboard.agents.agentCall(doc, 'info', {}),
+    await dashboard.agents.agentCall(doc, 'probe', { paths: ['Planted.ts', 'Other.ts'] }),
+    await dashboard.agents.agentCall(doc, 'requests', {
+      clientRequestId: 'leak-guard',
+      paths: ['Other.ts'],
+      reason: 'Check nothing is passed on.',
+    }),
+  ];
+  expect(JSON.stringify(responses)).not.toContain(name);
+
+  const holders: string[] = [];
+  for (const entry of await readdir(workspace, { recursive: true, withFileTypes: true })) {
+    if (!entry.isFile()) continue;
+    const path = join(entry.parentPath, entry.name);
+    if ((await readFile(path, 'utf8')).includes(name)) holders.push(relative(workspace, path));
+  }
+  expect(holders).toEqual(['Planted.ts']);
 });
 
 it('reports source movement as a count of tracked files and blocks on overlap', async () => {
