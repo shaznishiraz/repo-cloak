@@ -23,7 +23,11 @@ export type CallOptions<K extends V2Route> = Optional<
     query?: V2Api[K]['query'] extends never ? never : V2Api[K]['query'];
   };
 
-export function createClient(token: string, request: typeof fetch = (...args) => fetch(...args)) {
+export function createClient(
+  token: string,
+  request: typeof fetch = (...args) => fetch(...args),
+  onUnauthorized: () => void = () => {},
+) {
   async function call<K extends V2Route>(
     route: K,
     ...[options]: [V2Api[K]['body'], RouteParams<PathOf<K>>] extends [never, never]
@@ -52,6 +56,7 @@ export function createClient(token: string, request: typeof fetch = (...args) =>
       },
       ...(hasBody ? { body: JSON.stringify(options.body) } : {}),
     });
+    if (response.status === 401) onUnauthorized();
     const text = await response.text();
     let value: unknown;
     try {

@@ -1,4 +1,4 @@
-/* global location, sessionStorage, document, window */
+/* global location, document, window */
 import { test } from '@e2e-dev/web';
 import { expect } from 'e2e';
 
@@ -105,9 +105,6 @@ test('settings shows every section and locking ends the session', async ({
   await expect(browser.locator('#settings-integrations')).toContainText('repo-cloak-');
   await screen.getByRole('button', { name: 'Verify chain' }).click();
   await expect(browser.locator('#settings-compliance')).toContainText('chain verified');
-  await screen.getByRole('button', { name: 'Lock store now' }).click();
-  await expect(browser.locator('body')).toContainText('no session token');
-  expect(await browser.evaluate(() => sessionStorage.getItem('cloak-token'))).toBeNull();
 });
 
 test('every admin screen fits the phone width', async ({ app, browser }) => {

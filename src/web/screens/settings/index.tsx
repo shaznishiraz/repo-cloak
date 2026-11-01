@@ -2,7 +2,7 @@ import { useEffect, useState } from 'preact/hooks';
 import { loadSupplyChain } from '../../api/client.js';
 import type { DashboardSettings, LockedSetting, V2Api } from '../../api/contracts.js';
 import { registerCommands } from '../../shell/commands.js';
-import { api } from '../../shell/load.js';
+import { api, lockTab } from '../../shell/load.js';
 import { sessionInfo } from '../../shell/state.js';
 import {
   Badge,
@@ -17,7 +17,7 @@ import {
 import { exportSignedLog } from '../history/audit-actions.js';
 import { FolderPicker, LoadError, copyText, errorText, useLoad } from '../repos/shared.js';
 import { AiTools } from './ai-tools.js';
-import { idleLock, lockTab } from './auto-lock.js';
+import { idleLock } from './auto-lock.js';
 
 type Patch = V2Api['PUT /api/v2/settings']['body'];
 type Draft = {
@@ -178,7 +178,7 @@ function KeyActions({ onLock }: { onLock: () => void }) {
         Lock store now
       </Button>
       <span class="adm-note">
-        Locking ends this tab's session. Run repo-cloak for a new link to get back in.
+        Locking ends the session in every tab. Run repo-cloak for a new link to get back in.
       </span>
       <Dialog
         title="Rotate the store key?"
@@ -221,7 +221,7 @@ export function SettingsScreen() {
           title: 'Lock store now',
           icon: '■',
           keywords: ['security'],
-          run: () => lockTab(),
+          run: () => void lockTab(),
         },
       ]),
     [],
@@ -373,7 +373,7 @@ export function SettingsScreen() {
                 <div class="adm-setting">
                   <span>
                     Auto-lock store <Lock on={isLocked('autoLockMinutes')} />
-                    <div class="adm-meta">Minutes idle before this tab ends its session</div>
+                    <div class="adm-meta">Minutes idle before the session ends in every tab</div>
                   </span>
                   <Field
                     label={<span class="sr-only">Auto-lock minutes</span>}
@@ -415,7 +415,7 @@ export function SettingsScreen() {
                   </span>
                   <span class="adm-value">not available</span>
                 </div>
-                <KeyActions onLock={() => lockTab()} />
+                <KeyActions onLock={() => void lockTab()} />
               </Panel>
             </div>
             <div id="settings-exclusions">

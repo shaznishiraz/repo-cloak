@@ -301,3 +301,14 @@
     margin-top: 24px;
   }
 }
+
+.lock-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 100vh;
+  padding: 16px;
+  text-align: center;
+}

@@ -12,6 +12,6 @@ history.replaceState(null, '', `/${session.route}`);
 startRouter();
 registerShellCommands();
 startSession(session);
-startAutoLock();
+if (session.token) startAutoLock();
 const root = document.getElementById('app');
 if (root) render(<Shell />, root);

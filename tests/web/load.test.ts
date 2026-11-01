@@ -1,18 +1,21 @@
+// @vitest-environment happy-dom
 import { afterEach, expect, it, vi } from 'vitest';
-import { api, startSession } from '../../src/web/shell/load.js';
-import { loadError, overview, sessionInfo } from '../../src/web/shell/state.js';
+import { api, lockTab, startSession } from '../../src/web/shell/load.js';
+import { loadError, locked, overview, sessionInfo } from '../../src/web/shell/state.js';
 
 afterEach(() => {
+  vi.unstubAllGlobals();
+  locked.value = false;
   loadError.value = null;
   overview.value = null;
   sessionInfo.value = null;
 });
 
-it('explains a tab that has no token instead of calling the server', () => {
+it('locks a tab that has no token instead of calling the server', () => {
   const request = vi.fn<typeof fetch>();
   startSession({ token: null, launch: {}, route: '#/' }, request);
   expect(request).not.toHaveBeenCalled();
-  expect(loadError.value).toMatch(/link printed by repo-cloak/);
+  expect(locked.value).toBe(true);
 });
 
 it('loads session and overview with the launch context', async () => {
@@ -35,11 +38,34 @@ it('loads session and overview with the launch context', async () => {
   expect(api()).toBeDefined();
 });
 
-it('tells the user to relaunch when the token is rejected', async () => {
+it('locks and forgets the token when any call is rejected as unauthorized', async () => {
   const request = vi.fn<typeof fetch>(
     async () => new Response(JSON.stringify({ error: 'Session token required' }), { status: 401 }),
   );
+  sessionStorage.setItem('cloak-token', 'old');
   const stop = startSession({ token: 'old', launch: {}, route: '#/' }, request);
-  await vi.waitFor(() => expect(loadError.value).toMatch(/Run repo-cloak again/));
+  await vi.waitFor(() => expect(locked.value).toBe(true));
   stop();
+  expect(sessionStorage.getItem('cloak-token')).toBeNull();
+});
+
+it('does not lock on other failures', async () => {
+  const request = vi.fn<typeof fetch>(
+    async () => new Response(JSON.stringify({ error: 'Busy' }), { status: 500 }),
+  );
+  const stop = startSession({ token: 't', launch: {}, route: '#/' }, request);
+  await vi.waitFor(() => expect(loadError.value).toBe('Busy'));
+  stop();
+  expect(locked.value).toBe(false);
+});
+
+it('locking revokes on the server with the session token', async () => {
+  const request = vi.fn<typeof fetch>(async () => new Response('{}'));
+  const stop = startSession({ token: 't', launch: {}, route: '#/' }, request);
+  await lockTab();
+  stop();
+  const call = request.mock.calls.find(([url]) => url === '/api/v2/session/lock');
+  expect(call?.[1]?.method).toBe('POST');
+  expect(call?.[1]?.headers).toMatchObject({ Authorization: 'Bearer t' });
+  expect(locked.value).toBe(true);
 });
