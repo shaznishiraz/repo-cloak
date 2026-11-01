@@ -1,14 +1,12 @@
-import { join, basename } from 'node:path';
+import { basename, join } from 'node:path';
 import { createReplacer } from '../../../core/replacer.js';
 import { hashBytes } from '../../../core/hash.js';
-import { chmod, lstat } from 'node:fs/promises';
 import type { Dashboard } from '../../../application/dashboard.js';
-import { writeAtomic } from '../../atomic.js';
-import { checkSourceDestination, exists } from '../../files.js';
+import { exists } from '../../files.js';
 import { runGit } from '../../git.js';
 import { OperationError } from '../../ui-operations.js';
 import type { PreparedOperation, SyncResult } from '../../ui-operations.js';
-import { commonDirOf, readBackups, saveBackup, withLocks } from './backups.js';
+import { commonDirOf, readBackups, saveBackup } from './backups.js';
 import type { Inspection } from './inspect.js';
 import type { Options, Pending } from './state.js';
 
@@ -53,14 +51,37 @@ async function stageAndCommit(root: string, paths: string[], options: Options) {
   await runGit(root, [...literal, 'commit', '--only', '-m', options.message, '--', ...eligible]);
   return { warnings, commit: (await runGit(root, ['rev-parse', '--short', 'HEAD'])).trim() };
 }
-export async function runPush(
+/** The reviewed operation, narrowed to this selection with its merges in the same write. */
+export function chooseReviewed(
+  dashboard: Dashboard,
+  pending: Pending,
+  reviewed: PreparedOperation,
+  paths: string[] | undefined,
+): PreparedOperation {
+  if (!reviewed.select) throw new Error('This operation cannot be narrowed');
+  const { merges, options } = pending;
+  const landing = new Set(paths?.map((path) => pending.files.get(path)));
+  const selected = (path: string) => !paths || landing.has(path);
+  const merged = new Map<string, Uint8Array>();
+  if (options.mergeMode === 'merge')
+    for (const [path, bytes] of merges) if (bytes && selected(path)) merged.set(path, bytes);
+  const chosen = reviewed.select({ paths, merged });
+  const forced = options.mergeMode === 'overwrite' && [...merges.keys()].some(selected);
+  return {
+    ...chosen,
+    summary: { ...chosen.summary, forced },
+    apply: () => runPush(dashboard, pending.workspace, pending, chosen, pending.isNewTree, merged),
+  };
+}
+async function runPush(
   dashboard: Dashboard,
   workspace: string,
-  pending: Pending,
+  pending: Pick<Pending, 'repoId' | 'workspaceId' | 'options'>,
   prepared: PreparedOperation,
   isNewTree: boolean,
+  merged: ReadonlyMap<string, Uint8Array>,
 ): Promise<SyncResult> {
-  const { repoId, workspaceId, merges, options } = pending;
+  const { repoId, workspaceId, options } = pending;
   const { summary } = prepared;
   const root = summary.destination.path;
   const commonDir = await commonDirOf(dashboard, repoId);
@@ -80,36 +101,14 @@ export async function runPush(
   }
   const warnings = [...result.warnings];
   const auditTarget = { repoId, id: workspaceId, name: basename(workspace) };
-  if (options.mergeMode === 'merge' && merges.size) {
-    try {
-      const written = await withLocks(workspace, commonDir, async () => {
-        const files: { path: string; hash: string }[] = [];
-        for (const [path, bytes] of merges) {
-          if (!bytes) throw new Error(`${path}: cannot be merged`);
-          await checkSourceDestination(root, path);
-          const target = join(root, ...path.split('/'));
-          const mode = (await lstat(target)).mode & 0o777;
-          await writeAtomic(target, bytes);
-          if (process.platform !== 'win32') await chmod(target, mode);
-          files.push({ path, hash: hashBytes(bytes) });
-        }
-        return files;
-      });
-      await dashboard.sync.audit.record({
-        op: 'push',
-        outcome: 'ok',
-        workspace: auditTarget,
-        files: written,
-        detail: '3-way merge with upstream',
-      });
-    } catch (error) {
-      await backup?.finish();
-      throw new Error(
-        `Your version landed but merging upstream changes failed; undo from the backup. ${describeError(error)}`,
-        { cause: error },
-      );
-    }
-  }
+  if (merged.size)
+    await dashboard.sync.audit.record({
+      op: 'push',
+      outcome: 'ok',
+      workspace: auditTarget,
+      files: [...merged].map(([path, bytes]) => ({ path, hash: hashBytes(bytes) })),
+      detail: '3-way merge with upstream',
+    });
   try {
     const { warnings: notes, commit } = await stageAndCommit(root, touched, options);
     warnings.push(...notes);
@@ -192,17 +191,18 @@ async function pushMembers(
               target.snapshot.data.ledger,
               { file: 'commit message', scope: 'content' },
             ).text;
+      if (!prepared.select) throw new Error('This operation cannot be narrowed');
       await runPush(
         dashboard,
         target.path,
         {
           repoId: member.repoId,
           workspaceId: member.workspaceId,
-          merges: new Map(),
           options: { ...options, message, includeGroupMembers: false },
         },
-        prepared,
+        prepared.select({}),
         false,
+        new Map(),
       );
       notes.push(`${name}: ${summary.writes.length} files pushed`);
     } catch (error) {

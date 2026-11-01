@@ -15,7 +15,6 @@ import { canonicalPath } from '../../files.js';
 import { repoState, runGit } from '../../git.js';
 import { OperationError } from '../../ui-operations.js';
 import type { PreparedOperation } from '../../ui-operations.js';
-import { runPush } from './apply.js';
 import { diffLines, linesOf, wordAround } from './diff.js';
 import { baselineOf, inspect, readOne } from './inspect.js';
 import type { Baseline, Inspection, RestoredFile } from './inspect.js';
@@ -294,7 +293,16 @@ export async function review(
   const readOnly = target.kind === 'dry-run' || target.kind === 'patch';
   if (readOnly || !files.length) return finish(files, null, false);
 
-  const pending: Pending = { repoId, workspaceId, merges, options: defaultOptions };
+  const pending: Pending = {
+    repoId,
+    workspaceId,
+    merges,
+    files: new Map(files.map((file) => [file.path, file.restoredPath])),
+    deletes: summary.deletes,
+    workspace: inspection.workspace,
+    isNewTree,
+    options: defaultOptions,
+  };
   const all = pendingFor(dashboard);
   // One review per workspace holds plan memory; the newest replaces the last.
   for (const [id, item] of all) {
@@ -315,8 +323,10 @@ export async function review(
   const preview = await dashboard.sync.operations.preview(() =>
     Promise.resolve({
       ...prepared,
+      // Only the push route can apply this, with a selection and acknowledgements of its own.
+      owner: 'push-review',
       bytes: prepared.bytes + mergedBytes,
-      apply: () => runPush(dashboard, inspection.workspace, pending, prepared, isNewTree),
+      apply: () => Promise.reject(new OperationError('validation', 'Apply this from Push review')),
     }),
   );
   all.set(preview.operationId, pending);

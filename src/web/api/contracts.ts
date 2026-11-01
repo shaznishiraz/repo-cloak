@@ -325,6 +325,12 @@ export type PushApply = {
   repull: boolean;
   includeGroupMembers: boolean;
   mergeMode: 'merge' | 'overwrite';
+  /** Cloaked paths from the review. Leave out to push every file; the rest stay pending. */
+  paths?: string[];
+  /** Restored paths this selection deletes, exactly as the screen listed them. */
+  confirmDeletes?: string[];
+  /** Restored paths whose upstream changes `overwrite` drops, exactly as listed. */
+  confirmOverwrites?: string[];
 };
 export type PushBackup = { id: string; createdAt: string; expiresAt: string; files: number };
 

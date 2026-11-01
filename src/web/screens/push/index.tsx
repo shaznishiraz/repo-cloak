@@ -6,6 +6,7 @@ import type {
   GuardCheck,
   OperationResult,
   PushBackup,
+  PushFile,
   PushReview,
   WorktreeOption,
 } from '../../api/contracts.js';
@@ -42,6 +43,7 @@ import {
 import './push.css';
 
 const pollMs = 400;
+const restored = (file: PushFile) => file.restoredPath;
 type Confirm = 'overwrite' | 'deletes' | 'undo' | 'new-worktree' | null;
 
 function errorText(error: unknown) {
@@ -187,6 +189,17 @@ export function PushScreen({ workspaceId }: { workspaceId: string }) {
           repull: form.repull,
           includeGroupMembers: form.includeGroupMembers,
           mergeMode,
+          // Exactly what the dialogs listed; the server refuses anything else.
+          ...(deletes
+            ? { confirmDeletes: files.filter((item) => item.status === 'deleted').map(restored) }
+            : {}),
+          ...(mergeMode === 'overwrite'
+            ? {
+                confirmOverwrites: files
+                  .filter((item) => item.flags.includes('source-moved'))
+                  .map(restored),
+              }
+            : {}),
         },
       });
       while (state.state === 'pending' || state.state === 'running') {

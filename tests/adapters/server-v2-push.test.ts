@@ -13,7 +13,7 @@ import {
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { promisify } from 'node:util';
-import { afterEach, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createDashboardServer } from '../../src/adapters/server.js';
 import {
   backupRoot,
@@ -298,7 +298,10 @@ it('blocks overlapping edits unless overwrite is chosen, and overwrite is revers
   await expect(f.apply(review.operationId)).rejects.toThrow(/overlap upstream/);
   expect(await f.read('Acme.ts')).toBe(upstream);
   // A refused apply keeps the review alive for a different choice.
-  const done = await f.apply(review.operationId, { mergeMode: 'overwrite' });
+  const done = await f.apply(review.operationId, {
+    mergeMode: 'overwrite',
+    confirmOverwrites: ['Acme.ts'],
+  });
   expect(done.state).toBe('completed');
   expect(await f.read('Acme.ts')).toContain('cloak side');
   const [backup] = await f.backups();
@@ -411,7 +414,9 @@ it('keeps a backup, lists it for 7 days, and undoes the push and its baseline', 
   await f.edit('Northwind2.ts', 'new file\n');
   await rm(join(f.workspace, 'gone.ts'));
   const review = await f.reviewOf();
-  expect((await f.apply(review.operationId)).state).toBe('completed');
+  expect((await f.apply(review.operationId, { confirmDeletes: ['gone.ts'] })).state).toBe(
+    'completed',
+  );
   await expect(f.read('gone.ts')).rejects.toThrow();
   const backups = await f.backups();
   expect(backups).toHaveLength(1);
@@ -812,4 +817,223 @@ it('validates every body, query and identifier', async () => {
   expect(unknown.status).toBe(404);
   const anonymous = await fetch(`${f.base}/backups`);
   expect(anonymous.status).toBe(401);
+});
+
+describe('acknowledgements are enforced by the server', () => {
+  it('refuses a deletion without its exact confirmation, then accepts it', async () => {
+    const f = await fixture();
+    await rm(join(f.workspace, 'gone.ts'));
+    const review = await f.reviewOf();
+    await expect(f.apply(review.operationId)).rejects.toThrow(/Confirm the listed deletions/);
+    await expect(f.apply(review.operationId, { confirmDeletes: [] })).rejects.toThrow(/Confirm/);
+    await expect(f.apply(review.operationId, { confirmDeletes: ['other.ts'] })).rejects.toThrow(
+      /Confirm/,
+    );
+    expect(await f.read('gone.ts')).toBe('to be removed\n');
+    expect(await f.backups()).toEqual([]);
+    const done = await f.apply(review.operationId, { confirmDeletes: ['gone.ts'] });
+    expect(done.state).toBe('completed');
+    await expect(f.read('gone.ts')).rejects.toThrow();
+  });
+
+  it('refuses an overwrite without its exact confirmation', async () => {
+    const f = await fixture();
+    await f.edit('Northwind.ts', editedLines(f.lines, 5, 'cloak side'));
+    const upstream = `${f.lines.map((line, index) => (index === 5 ? 'upstream side' : line)).join('\n')}\n`;
+    await writeFile(join(f.source, 'Acme.ts'), upstream);
+    const review = await f.reviewOf();
+    await expect(f.apply(review.operationId, { mergeMode: 'overwrite' })).rejects.toThrow(
+      /Confirm forced overwrites/,
+    );
+    await expect(
+      f.apply(review.operationId, { mergeMode: 'overwrite', confirmOverwrites: ['other.ts'] }),
+    ).rejects.toThrow(/Confirm forced overwrites/);
+    expect(await f.read('Acme.ts')).toBe(upstream);
+    expect(await f.backups()).toEqual([]);
+  });
+
+  it('asks for no force on a clean push or a clean merge', async () => {
+    const f = await fixture();
+    await f.edit('Northwind.ts', editedLines(f.lines, 20, 'cloak edit'));
+    const upstream = f.lines.map((line, index) => (index === 2 ? 'upstream of Acme' : line));
+    await writeFile(join(f.source, 'Acme.ts'), `${upstream.join('\n')}\n`);
+    expect((await f.apply((await f.reviewOf()).operationId)).state).toBe('completed');
+  });
+
+  it('cannot be applied through the generic operations route', async () => {
+    const f = await fixture();
+    await rm(join(f.workspace, 'gone.ts'));
+    const review = await f.reviewOf();
+    const base = f.base.slice(0, f.base.indexOf('/api/v2/'));
+    const response = await fetch(`${base}/api/v2/operations/${review.operationId}/apply`, {
+      method: 'POST',
+      headers: f.headers,
+      body: JSON.stringify({ deletions: true, force: true }),
+    });
+    expect(response.ok).toBe(false);
+    expect(await f.read('gone.ts')).toBe('to be removed\n');
+  });
+});
+
+describe('per-file push', () => {
+  async function edited() {
+    const f = await fixture();
+    await f.edit('Northwind.ts', editedLines(f.lines, 1, 'edit one'));
+    await f.edit('other.ts', 'class NorthwindOther { edit() {} }\n');
+    await f.edit('NorthwindNew.ts', 'new Northwind file\n');
+    await rm(join(f.workspace, 'gone.ts'));
+    return f;
+  }
+  const paths = (review: PushReview) => review.files.map((file) => file.path).sort();
+  const all = ['Northwind.ts', 'NorthwindNew.ts', 'gone.ts', 'other.ts'];
+
+  it('writes only the selection and leaves the rest pending, intact and pushable', async () => {
+    const f = await edited();
+    const ledger = (await f.dashboard.sync.workspaceTarget(f.repoId, f.workspaceId)).snapshot.data
+      .ledger;
+    const cloak = {
+      main: await readFile(join(f.workspace, 'Northwind.ts'), 'utf8'),
+      added: await readFile(join(f.workspace, 'NorthwindNew.ts'), 'utf8'),
+    };
+    const sourceBefore = await f.read('Acme.ts');
+    const review = await f.reviewOf();
+    expect(paths(review)).toEqual(all);
+    const done = await f.apply(review.operationId, { paths: ['other.ts'] });
+    expect(done.state).toBe('completed');
+    expect(done.result?.writes).toEqual(['other.ts']);
+    expect(done.result?.deletes).toEqual([]);
+
+    // Source: only the selected file changed.
+    expect(await f.read('other.ts')).toContain('class AcmeOther { edit');
+    expect(await f.read('Acme.ts')).toBe(sourceBefore);
+    expect(await f.read('gone.ts')).toBe('to be removed\n');
+    await expect(f.read('AcmeNew.ts')).rejects.toThrow();
+    // Cloak: nothing was touched.
+    expect(await readFile(join(f.workspace, 'Northwind.ts'), 'utf8')).toBe(cloak.main);
+    expect(await readFile(join(f.workspace, 'NorthwindNew.ts'), 'utf8')).toBe(cloak.added);
+    await expect(readFile(join(f.workspace, 'gone.ts'))).rejects.toThrow();
+    // Ledger unchanged; the manifest moved on for the selected file only.
+    const { snapshot } = await f.dashboard.sync.workspaceTarget(f.repoId, f.workspaceId);
+    expect(snapshot.data.ledger).toEqual(ledger);
+    expect(snapshot.plain.files['gone.ts']).toBeDefined();
+    expect(snapshot.plain.files['NorthwindNew.ts']).toBeUndefined();
+
+    // Repeat push sees everything else, and can finish the job.
+    const again = await f.reviewOf();
+    expect(paths(again)).toEqual(['Northwind.ts', 'NorthwindNew.ts', 'gone.ts']);
+    const rest = await f.apply(again.operationId, { confirmDeletes: ['gone.ts'] });
+    expect(rest.state).toBe('completed');
+    expect(await f.read('Acme.ts')).toContain('edit one');
+    expect(await f.read('AcmeNew.ts')).toBe('new Acme file\n');
+    await expect(f.read('gone.ts')).rejects.toThrow();
+    expect((await f.reviewOf()).files).toEqual([]);
+  });
+
+  it('keeps unselected edits out of the workspace checkpoint', async () => {
+    const f = await edited();
+    await f.apply((await f.reviewOf()).operationId, { paths: ['other.ts'] });
+    expect(await f.git(f.workspace, 'show', '--name-only', '--format=', 'HEAD')).not.toContain(
+      'Northwind.ts',
+    );
+    const status = await f.git(f.workspace, 'status', '--porcelain');
+    expect(status).toContain('Northwind.ts');
+    expect(status).toContain('NorthwindNew.ts');
+    expect(status).not.toContain('other.ts');
+  });
+
+  it('survives a re-pull with unselected edits intact', async () => {
+    const f = await edited();
+    const main = await readFile(join(f.workspace, 'Northwind.ts'), 'utf8');
+    const done = await f.apply((await f.reviewOf()).operationId, {
+      paths: ['other.ts'],
+      repull: true,
+      mode: 'stage',
+    });
+    expect(done.state).toBe('completed');
+    expect(done.result?.warnings.join()).not.toContain('re-pull failed');
+    expect(await readFile(join(f.workspace, 'Northwind.ts'), 'utf8')).toBe(main);
+    expect(paths(await f.reviewOf())).toEqual(['Northwind.ts', 'NorthwindNew.ts', 'gone.ts']);
+    expect(await f.git(f.source, 'diff', '--cached', '--name-only')).toBe('other.ts');
+  });
+
+  it('commits only the selection', async () => {
+    const f = await edited();
+    await f.apply((await f.reviewOf()).operationId, {
+      paths: ['other.ts'],
+      mode: 'commit',
+      commitMessage: 'Only other',
+    });
+    expect(await f.git(f.source, 'show', '--name-only', '--format=', 'HEAD')).toBe('other.ts');
+  });
+
+  it('asks to confirm only the deletions and overwrites it selected', async () => {
+    const f = await edited();
+    const upstream = `${f.lines.map((line, index) => (index === 1 ? 'upstream' : line)).join('\n')}\n`;
+    await writeFile(join(f.source, 'Acme.ts'), upstream);
+    const review = await f.reviewOf();
+    expect(review.files.find((file) => file.path === 'Northwind.ts')?.flags).toContain('conflict');
+    // The overlap and the deletion are outside this selection, so neither blocks nor needs a yes.
+    const done = await f.apply(review.operationId, { paths: ['other.ts'] });
+    expect(done.state).toBe('completed');
+    expect(await f.read('Acme.ts')).toBe(upstream);
+    expect(await f.read('gone.ts')).toBe('to be removed\n');
+
+    const next = await f.reviewOf();
+    await expect(f.apply(next.operationId, { paths: ['Northwind.ts'] })).rejects.toThrow(/overlap/);
+    await expect(f.apply(next.operationId, { paths: ['gone.ts'] })).rejects.toThrow(/Confirm/);
+    expect(
+      (
+        await f.apply(next.operationId, {
+          paths: ['gone.ts'],
+          confirmDeletes: ['gone.ts'],
+        })
+      ).result?.deletes,
+    ).toEqual(['gone.ts']);
+  });
+
+  it('backs up and undoes only the selection', async () => {
+    const f = await edited();
+    const before = await f.read('other.ts');
+    await f.apply((await f.reviewOf()).operationId, { paths: ['other.ts'] });
+    const [backup] = await f.backups();
+    expect(backup?.files).toBe(1);
+    expect(await (await f.post(`/backups/${backup?.id}/undo`)).json()).toEqual({ restored: 1 });
+    expect(await f.read('other.ts')).toBe(before);
+    expect(paths(await f.reviewOf())).toEqual(all);
+  });
+
+  it('refuses paths the review did not list, and stays open', async () => {
+    const f = await edited();
+    const review = await f.reviewOf();
+    await expect(f.apply(review.operationId, { paths: ['keys.ts'] })).rejects.toThrow(
+      /not in this review/,
+    );
+    await expect(f.apply(review.operationId, { paths: ['../escape'] })).rejects.toThrow(
+      /not in this review/,
+    );
+    await expect(f.apply(review.operationId, { paths: [] })).rejects.toThrow(/Invalid request/);
+    expect((await f.apply(review.operationId, { paths: ['other.ts'] })).state).toBe('completed');
+  });
+
+  it('refuses when an unselected file changed after the review', async () => {
+    const f = await edited();
+    const review = await f.reviewOf();
+    await f.edit('Northwind.ts', 'changed after review of Northwind\n');
+    const done = await f.apply(review.operationId, { paths: ['other.ts'] });
+    expect(done.state).toBe('failed');
+    expect(done.code).toBe('stale');
+    expect(await f.read('other.ts')).toBe('class AcmeOther {}\n');
+  });
+
+  it('applies a selection to a new worktree, leaving the rest pending', async () => {
+    const f = await edited();
+    const review = await f.reviewOf({ kind: 'new-worktree', branch: 'part' });
+    const done = await f.apply(review.operationId, { paths: ['other.ts'] });
+    expect(done.state).toBe('completed');
+    const tree = done.result?.warnings.join() ?? '';
+    const worktree = /New worktree: (.*?) \(/.exec(tree)?.[1] ?? '';
+    expect(await f.read('other.ts', worktree)).toContain('edit()');
+    expect(await f.read('Acme.ts', worktree)).not.toContain('edit one');
+    expect(paths(await f.reviewOf())).toEqual(['Northwind.ts', 'NorthwindNew.ts', 'gone.ts']);
+  });
 });

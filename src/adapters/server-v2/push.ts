@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { validateRelativePath } from '../../core/paths.js';
 import type { DiffLine, PushBackup } from '../../web/api/contracts.js';
 import { OperationError } from '../ui-operations.js';
-import { restoredMessage } from './push/apply.js';
+import { chooseReviewed, restoredMessage } from './push/apply.js';
 import { backupIdSchema, commonDirOf, readBackups, undo } from './push/backups.js';
 import { diffLines, linesOf, maskSecrets } from './push/diff.js';
 import { baselineOf, inspect } from './push/inspect.js';
@@ -32,6 +32,9 @@ const applySchema = z
     repull: z.boolean(),
     includeGroupMembers: z.boolean(),
     mergeMode: z.enum(['merge', 'overwrite']),
+    paths: z.array(z.string().min(1).max(4096)).min(1).max(5000).optional(),
+    confirmDeletes: z.array(z.string().min(1).max(4096)).max(5000).optional(),
+    confirmOverwrites: z.array(z.string().min(1).max(4096)).max(5000).optional(),
   })
   .strict()
   .refine((value) => value.mode !== 'commit' || value.commitMessage !== undefined, {
@@ -45,6 +48,11 @@ function ids(params: Record<string, string>) {
     repoId: repoIdSchema.parse(params.repoId),
     workspaceId: workspaceIdSchema.parse(params.id),
   };
+}
+
+function sameMembers(given: string[] | undefined, expected: string[]) {
+  const set = new Set(given);
+  return set.size === expected.length && expected.every((path) => set.has(path));
 }
 
 export const pushRoutes: Route[] = [
@@ -101,7 +109,14 @@ export const pushRoutes: Route[] = [
     const pending = pendingFor(dashboard).get(input.operationId);
     if (!pending || pending.repoId !== repoId || pending.workspaceId !== workspaceId)
       throw new OperationError('unknown', 'This review has ended; review the push again');
-    if (input.mergeMode === 'merge' && [...pending.merges.values()].includes(null))
+    const paths = input.paths && [...new Set(input.paths)];
+    for (const path of paths ?? [])
+      if (!pending.files.has(path))
+        throw new OperationError('validation', 'A selected file is not in this review');
+    const landing = paths && new Set(paths.map((path) => pending.files.get(path)));
+    const inSelection = (path: string) => !landing || landing.has(path);
+    const merges = [...pending.merges].filter(([path]) => inSelection(path));
+    if (input.mergeMode === 'merge' && merges.some(([, bytes]) => !bytes))
       throw new OperationError(
         'conflict',
         'Some files overlap upstream changes. Pull first, or choose to overwrite them.',
@@ -112,8 +127,20 @@ export const pushRoutes: Route[] = [
         : undefined;
     const { mode, repull, includeGroupMembers, mergeMode } = input;
     pending.options = { mode, repull, includeGroupMembers, mergeMode, message };
-    // The review listed the deletions and overwrites, and the screen confirmed them.
-    return dashboard.sync.operations.apply(input.operationId, { deletions: true, force: true });
+    // A confirmation names exactly what it covers, so a blanket or stale "yes" is not one.
+    const acknowledgements = {
+      deletions: sameMembers(input.confirmDeletes, pending.deletes.filter(inSelection)),
+      force: sameMembers(
+        input.confirmOverwrites,
+        merges.map(([path]) => path),
+      ),
+    };
+    return dashboard.sync.operations.apply(
+      input.operationId,
+      acknowledgements,
+      'push-review',
+      (reviewed) => chooseReviewed(dashboard, pending, reviewed, paths),
+    );
   }),
   route('GET /api/v2/push/:repoId/:id/backups', async ({ dashboard, params }) => {
     const { repoId, workspaceId } = ids(params);

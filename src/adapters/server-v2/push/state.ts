@@ -3,7 +3,10 @@ import type { PushApply } from '../../../web/api/contracts.js';
 
 export const concurrency = 16;
 
-export type Options = Omit<PushApply, 'operationId' | 'commitMessage'> & {
+export type Options = Omit<
+  PushApply,
+  'operationId' | 'commitMessage' | 'paths' | 'confirmDeletes' | 'confirmOverwrites'
+> & {
   message: string | undefined;
 };
 export const defaultOptions: Options = {
@@ -18,6 +21,12 @@ export type Pending = {
   workspaceId: string;
   /** Restored path to merged bytes, or null when the two sides overlap. */
   merges: Map<string, Uint8Array | null>;
+  /** What the review listed, cloaked path to restored path. Nothing else can be selected. */
+  files: Map<string, string>;
+  /** Restored paths the full review would delete. */
+  deletes: string[];
+  workspace: string;
+  isNewTree: boolean;
   options: Options;
 };
 
