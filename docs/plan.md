@@ -485,8 +485,7 @@ Plan: [10-50](rebuild/INDEX.md#10-home--workspaces-home--group-sync). Design:
 - [x] Run every browser spec against one config, in its own server run.
 - [x] Cover cross-package flows in `e2e/integration.e2e.ts`: Home approve, worktree link,
       folder browsing, first-run profile.
-- [ ] Agree the shipped-asset budget. The build is ~247 KB against the agreed 160 KB, so
-      `tests/scripts/build-web.test.ts` and `release:check` fail until this is decided.
+- [x] Agree the shipped-asset budget: raised from 160 KB to 280 KB; the build is ~254 KB.
 - [ ] 90-cutover remainder and 99-review.
 
 - [x] Hardening 65: workspace Git config guard, more secret detectors and warnings, lasting

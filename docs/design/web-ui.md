@@ -98,7 +98,7 @@ src/web/ (Preact + signals, bundled; devDependencies only)
   `contracts.ts`. Screens add palette entries with `registerCommands`.
 - **Polling, not SSE.** The server keeps its 15 second request timeout. `poll()`
   skips hidden tabs after the first load and refreshes as soon as a tab is shown.
-- **Budget.** `dist/web` (JS, CSS, HTML) is limited to 160 KB by test and by
+- **Budget.** `dist/web` (JS, CSS, HTML) is limited to 280 KB by test and by
   `check-package`. No fonts are bundled or fetched: the stack falls back to system
   fonts. `--faint` fails 4.5:1, so it is for decoration only.
 

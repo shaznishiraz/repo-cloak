@@ -10,7 +10,7 @@ Status: **00-50 merged; 90-cutover and 99-review remain**, see [plan](../plan.md
 - **Rebuild the dashboard fresh** in `src/web/` with **Preact + @preact/signals**, TSX,
   bundled by the existing tsup/esbuild into `dist/web/`. Both are devDependencies and
   get bundled, so the published package gains **no runtime dependency**.
-  New shipped-asset budget: **160 KB** minified (JS+CSS+HTML), enforced by test.
+  Shipped-asset budget: **280 KB** minified (JS+CSS+HTML), enforced by test.
 - **CLI + local browser stays the product.** `repo-cloak` in a worktree opens the
   dashboard on that context. A Tauri desktop shell may wrap `dist/web/` later; screens
   must only talk to the local HTTP API so that stays possible.
@@ -100,7 +100,7 @@ Acceptance: `repo-cloak` opens the shell with real counts from
 `/api/v2/overview`; every route renders its placeholder; ⌘K opens and navigates;
 audit chain verifies and detects a tampered line; keychain fake round-trips and
 migrates; policy locks a setting; MCP smoke test passes without the SDK;
-`npm ls --omit=dev` shows no MCP SDK; budget test enforces 160 KB.
+`npm ls --omit=dev` shows no MCP SDK; budget test enforces 280 KB.
 
 ---
 

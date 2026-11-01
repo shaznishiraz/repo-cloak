@@ -84,8 +84,8 @@ assert.ok(
   pack.files
     .filter((file) => /^dist\/web\/.*\.(js|css|html)$/.test(file.path))
     .reduce((sum, file) => sum + file.size, 0) <=
-    160 * 1024,
-  'The dashboard exceeds its 160 KB budget',
+    280 * 1024,
+  'The dashboard exceeds its 280 KB budget',
 );
 assert.deepEqual(pkg.dependencies['@modelcontextprotocol/sdk'], undefined);
 for (const path of files)

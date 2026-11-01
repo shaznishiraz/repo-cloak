@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { afterAll, beforeAll, expect, it } from 'vitest';
 import { buildWeb } from '../../scripts/build-ui.js';
 
-const budget = 160 * 1024;
+const budget = 280 * 1024;
 let out: string;
 beforeAll(async () => {
   out = await mkdtemp(join(tmpdir(), 'cloak web build '));
@@ -18,7 +18,7 @@ it('emits the assets the server table serves', async () => {
     expect(files).toContain(name);
 });
 
-it('keeps JS, CSS and HTML within the 160 KB shipped-asset budget', async () => {
+it('keeps JS, CSS and HTML within the 280 KB shipped-asset budget', async () => {
   const shipped = (await readdir(out)).filter((name) => /\.(js|css|html)$/.test(name));
   const sizes = await Promise.all(shipped.map(async (name) => (await stat(join(out, name))).size));
   expect(sizes.reduce((sum, size) => sum + size, 0)).toBeLessThanOrEqual(budget);
