@@ -1,0 +1,497 @@
+/* Shared by Known repos, Agent requests, History and Settings. Tokens only, so themes follow. */
+.adm-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--line);
+  background: var(--topbar);
+}
+.adm-title {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+.adm-sub,
+.adm-meta {
+  color: var(--text-3);
+  font-size: var(--text-meta);
+}
+.adm-head-end {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+.adm-split {
+  display: flex;
+  flex-wrap: wrap;
+}
+.adm-list {
+  flex: 1 1 320px;
+  min-width: 0;
+  max-width: 400px;
+  border-right: 1px solid var(--line);
+}
+.adm-list-wide {
+  flex-basis: 520px;
+  max-width: 640px;
+}
+.adm-body {
+  display: flex;
+  flex: 999 1 480px;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 14px 18px;
+}
+.adm-aside {
+  display: flex;
+  flex: 1 1 340px;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  max-width: 420px;
+  padding: 14px 16px;
+  background: var(--rail);
+}
+.adm-h1 {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.adm-mono,
+.adm-meta-mono,
+.adm-mono-cut {
+  font-family: var(--font-mono);
+}
+.adm-meta-mono {
+  color: var(--text-3);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.adm-mono-cut {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.adm-flex {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.adm-grow {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+.adm-error {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: var(--radius-button);
+  background: var(--blocked-bg);
+  color: var(--blocked);
+  font-size: var(--text-row);
+}
+.adm-note {
+  margin: 0;
+  color: var(--text-3);
+  font-size: var(--text-meta);
+}
+.adm-pad {
+  padding: 10px 12px;
+}
+.adm-cols {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.adm-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+  gap: 8px;
+}
+.adm-stat {
+  font-family: var(--font-mono);
+  font-size: 17px;
+}
+.adm-stat-ok {
+  color: var(--ok);
+}
+.adm-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.adm-chip {
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--raised);
+  color: var(--text-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  overflow-wrap: anywhere;
+}
+.adm-chip-locked {
+  color: var(--push);
+}
+.adm-area {
+  width: 100%;
+  min-height: 90px;
+  padding: 6px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  background: var(--ground);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  resize: vertical;
+}
+.adm-select {
+  height: var(--height-button);
+  padding: 0 6px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  background: var(--ground);
+  font-size: var(--text-row);
+}
+.adm-code {
+  margin: 0;
+  padding: 8px 12px;
+  overflow-x: auto;
+  color: var(--text-2);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.7;
+  white-space: pre;
+}
+
+/* These panels' rows carry their own padding, as in the designs. */
+.adm-body .panel-body,
+.adm-aside .panel-body {
+  padding: 0;
+}
+
+/* Table-like lists whose rows hold more than one control. */
+.adm-labels,
+.adm-repo,
+.adm-event {
+  display: grid;
+  gap: 10px;
+  align-items: center;
+  padding: 7px 14px;
+  border-left: 2px solid transparent;
+}
+.adm-labels {
+  border-bottom: 1px solid var(--line);
+  color: var(--text-3);
+  font-size: var(--text-label);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+.adm-repo,
+.adm-event {
+  border-bottom: 1px solid var(--divider);
+}
+.adm-selected {
+  border-left-color: var(--accent);
+  background: var(--raised);
+}
+.adm-repo-grid {
+  grid-template-columns: 20px minmax(0, 1.6fr) 78px 54px 64px;
+}
+.adm-pick {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.adm-star {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--line-strong);
+  font-size: 13px;
+  cursor: pointer;
+}
+.adm-star[aria-pressed='true'] {
+  color: var(--push);
+}
+.adm-gone {
+  color: var(--blocked);
+}
+.adm-tree {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) 90px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--divider);
+}
+.adm-branch {
+  color: var(--pull);
+}
+.adm-cloak {
+  color: var(--accent-soft);
+}
+
+.adm-request {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  min-width: 0;
+}
+.adm-request-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.adm-push-end {
+  margin-left: auto;
+}
+.adm-reason {
+  padding: 8px 10px;
+  border: 1px solid var(--accent-line);
+  border-radius: var(--radius-button);
+  background: var(--accent-bg-2);
+  color: var(--accent-soft);
+  font-size: var(--text-row);
+  overflow-wrap: anywhere;
+}
+.adm-checks {
+  margin: 0;
+  padding: 6px 12px;
+  list-style: none;
+}
+.adm-check {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  gap: 8px;
+  padding: 3px 0;
+  font-size: var(--text-row);
+  overflow-wrap: anywhere;
+}
+.adm-check-glyph {
+  font-family: var(--font-mono);
+}
+.adm-check-ok .adm-check-glyph {
+  color: var(--ok);
+}
+.adm-check-warning .adm-check-glyph {
+  color: var(--push);
+}
+.adm-check-blocked .adm-check-glyph {
+  color: var(--blocked);
+}
+
+.adm-filter {
+  width: 300px;
+  max-width: 100%;
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+}
+.adm-scroll {
+  overflow-x: auto;
+}
+.adm-event-grid {
+  grid-template-columns: 96px 96px minmax(0, 1fr) minmax(0, 1.4fr) 44px 64px;
+  min-width: 700px;
+}
+.adm-event {
+  width: 100%;
+  border-top: 0;
+  border-right: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+.adm-event.adm-selected {
+  background: var(--raised);
+}
+.adm-op-failed {
+  color: var(--blocked);
+}
+.adm-facts {
+  display: grid;
+  grid-template-columns: 90px minmax(0, 1fr);
+  gap: 4px 10px;
+  margin: 0;
+  font-size: 12px;
+}
+.adm-facts dt {
+  color: var(--text-3);
+}
+.adm-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.adm-file {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.adm-nav {
+  display: flex;
+  flex: 1 1 180px;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 200px;
+  padding: 10px 8px;
+  border-right: 1px solid var(--line);
+  background: var(--rail);
+}
+.adm-nav-item {
+  padding: 6px 8px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--text-2);
+  font-size: var(--text-row);
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.adm-nav-item:hover {
+  background: var(--raised);
+  color: var(--text);
+}
+.adm-settings {
+  flex-basis: 640px;
+  max-width: 920px;
+}
+.adm-form {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  gap: 10px 14px;
+  align-items: center;
+  padding: 10px 12px;
+  font-size: var(--text-row);
+}
+.adm-form-label {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.adm-setting {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, auto);
+  gap: 14px;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--divider);
+  font-size: var(--text-row);
+}
+.adm-setting .input {
+  width: 90px;
+}
+.adm-value {
+  padding: 3px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.adm-value-ok {
+  color: var(--ok);
+}
+.adm-root {
+  display: flex;
+  gap: 6px;
+}
+.adm-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+.adm-picker-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.adm-picker-head .adm-mono-cut {
+  flex: 1;
+}
+.adm-picker-list {
+  max-height: 200px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  list-style: none;
+}
+.adm-picker-item {
+  width: 100%;
+  padding: 4px 8px;
+  border: 0;
+  background: transparent;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+.adm-picker-item:hover {
+  background: var(--raised);
+}
+
+@media (max-width: 760px) {
+  .adm-list,
+  .adm-aside,
+  .adm-nav {
+    flex-basis: 100%;
+    max-width: none;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .adm-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .adm-body {
+    padding: 12px 16px;
+  }
+  .adm-cols,
+  .adm-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .adm-repo-grid {
+    grid-template-columns: 20px minmax(0, 1fr) 48px;
+  }
+  .adm-repo-grid > .adm-wide {
+    display: none;
+  }
+  .adm-tree {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .adm-setting {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .adm-setting .adm-value {
+    justify-self: start;
+    white-space: normal;
+  }
+}
+.adm-flush {
+  gap: 0;
+  padding: 0;
+  border-right: 1px solid var(--line);
+}
