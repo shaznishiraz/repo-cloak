@@ -9,18 +9,11 @@ import { errorCode, writeAtomic } from '../../atomic.js';
 import { checkSourceDestination } from '../../files.js';
 import { runGit } from '../../git.js';
 import { OperationError } from '../../ui-operations.js';
-import {
-  backupRoot,
-  commonDirOf,
-  fileHashes,
-  finishBackup,
-  journalIds,
-  manifestHashes,
-  readBytes,
-  readJournal,
-  withLocks,
-} from './backups.js';
-import type { Journal, Vault } from './backups.js';
+import { backupRoot, commonDirOf, readBytes } from './backup-parts.js';
+import type { Vault } from './backup-parts.js';
+import { withLocks } from './backups.js';
+import { fileHashes, finishBackup, journalIds, manifestHashes, readJournal } from './journal.js';
+import type { Journal } from './journal.js';
 import { noticesFor } from './state.js';
 
 const plural = (count: number, noun: string) => `${count} ${noun}${count === 1 ? '' : 's'}`;

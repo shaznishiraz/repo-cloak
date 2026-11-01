@@ -5,12 +5,12 @@ import { promisify } from 'node:util';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   backupRoot,
-  readBackups,
   readBytes,
   readPart,
   sealManifestCopy,
   writePart,
-} from '../../src/adapters/server-v2/push/backups.js';
+} from '../../src/adapters/server-v2/push/backup-parts.js';
+import { readBackups } from '../../src/adapters/server-v2/push/backups.js';
 import { hashBytes } from '../../src/core/hash.js';
 import type { PostCheckView, PushReview } from '../../src/web/api/contracts.js';
 import { cleanupFixtures, editedLines, fixture, secret } from '../support/push-fixture.js';

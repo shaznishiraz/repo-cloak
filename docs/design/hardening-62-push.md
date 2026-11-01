@@ -14,7 +14,9 @@ server-v2/push/
   inspect.ts                 read one workspace, find the verified baseline
   merge.ts                   three-way merge plan and notes
   review.ts                  guard checks, opens the operation
-  backups.ts                 sealed backup directory, retention, undo
+  backup-parts.ts            sealed parts, on-disk layout, manifest copies
+  backups.ts                 reading backups, retention, legacy sealing, undo
+  journal.ts                 one push's backup session and write-ahead journal
   recovery.ts                recover interrupted pushes on the next run
   apply.ts                   run one push: write, stage/commit, re-pull, members
   post-check.ts              post-check routes' logic: config, one run per dashboard
@@ -192,16 +194,16 @@ click "Run post-check" -> dialog names the command and says it runs agent-edited
 
 ## Failure behaviour
 
-| Failure                                  | Result                                                    |
-| ---------------------------------------- | --------------------------------------------------------- |
-| Source changed after review              | `stale`, nothing written, no backup left                  |
-| I/O failure during the write             | writer rolls back, backup dropped                         |
-| Rollback fails too                       | error names recovery copies, journal kept for next run    |
-| Crash before journal                     | nothing changed; incomplete directory expires             |
-| Crash during the write                   | next review rolls back, or reports if files moved on      |
-| Crash after the write                    | next review offers undo; reports staging may be missing   |
-| Store record update fails after write    | error reported, undo still available                      |
-| Stage or commit fails                    | warning, files stay pushed (unchanged)                    |
-| Backup part tampered or key lost         | undo refused or not listed, nothing written               |
-| Missing or stale acknowledgement         | refused, review stays open                                |
-| Post-check fails or times out            | shown with output, audited; the push stays                |
+| Failure                               | Result                                                  |
+| ------------------------------------- | ------------------------------------------------------- |
+| Source changed after review           | `stale`, nothing written, no backup left                |
+| I/O failure during the write          | writer rolls back, backup dropped                       |
+| Rollback fails too                    | error names recovery copies, journal kept for next run  |
+| Crash before journal                  | nothing changed; incomplete directory expires           |
+| Crash during the write                | next review rolls back, or reports if files moved on    |
+| Crash after the write                 | next review offers undo; reports staging may be missing |
+| Store record update fails after write | error reported, undo still available                    |
+| Stage or commit fails                 | warning, files stay pushed (unchanged)                  |
+| Backup part tampered or key lost      | undo refused or not listed, nothing written             |
+| Missing or stale acknowledgement      | refused, review stays open                              |
+| Post-check fails or times out         | shown with output, audited; the push stays              |
