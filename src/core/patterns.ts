@@ -32,7 +32,7 @@ export function patternProblem(pattern: string): string | undefined {
   if (trimmed.includes('\0')) return 'pattern cannot contain a NUL character';
   if (trimmed.split('/').includes('..')) return 'pattern cannot point outside the repository';
   if (!/[^/.]/.test(trimmed)) return 'pattern must name a file or folder';
-  if (new Minimatch(normalizePattern(trimmed), options).makeRe() === false)
+  if (!new Minimatch(normalizePattern(trimmed), options).set.length)
     return 'not a valid glob pattern';
   return undefined;
 }
