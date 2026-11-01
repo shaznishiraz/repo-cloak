@@ -15,6 +15,8 @@ export type SourceWrite = {
   manifest: Uint8Array;
   checkpoint?: { paths: string[]; generated: string[] };
   recheck(): Promise<void>;
+  /** Runs under both locks after the recheck, just before the first file changes. */
+  beforeWrite?(): Promise<void>;
   afterSave(): Promise<void>;
   prepare?(): Promise<void>;
   rollback?(): Promise<void>;
@@ -74,6 +76,7 @@ export function createSourceWriter(write = writeAtomic) {
           [...request.checkpoint.paths, '.repo-cloak/manifest.json'],
           request.checkpoint.generated,
         );
+      await request.beforeWrite?.();
       started = true;
       for (const path of request.plan.deletes) await unlink(join(request.root, ...path.split('/')));
       for (const file of outputs) {

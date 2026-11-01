@@ -9,6 +9,8 @@ import { sourceForWorkspace } from './pull-source.js';
 import type { SyncOptions } from './pull-setup.js';
 import { prepareNewWorktree } from './push-worktree.js';
 import { compilePatterns } from '../core/patterns.js';
+import type { PushPlan } from '../core/push.js';
+import type { PushSelection } from '../adapters/ui-operations.js';
 
 export async function preparePushRun(
   services: SyncServices,
@@ -134,35 +136,40 @@ export async function preparePushRun(
   const source =
     commitSource ?? (await services.files.readSourceFiles(repo.path, paths, concurrency));
   if (source.warnings.length) throw new Error(source.warnings.join('\n'));
-  const plan = planPush(activePrevious, current.files, source.files, {
-    ...options,
-    fullSnapshot: Boolean(newTree),
-  });
   const sourceInventory = commitSource
     ? { paths: commitSource.paths }
     : await services.files.readWorkspace(repo.path, [], concurrency);
-  const outputs = new Set(plan.writes.map((file) => file.path));
-  const deleted = new Set(plan.deletes);
-  checkPathCollisions(
-    [...new Set([...sourceInventory.paths.filter((path) => !deleted.has(path)), ...outputs])].map(
-      (path) => ({ original: path, anonymized: path }),
-    ),
-    false,
-  );
-  plan.data = {
-    ...plan.data,
-    source: { ...plan.data.source, path: target.path, commonDir: target.commonDir },
-    target: { ...plan.data.target, branch: target.branch },
-  };
-  if (newTree) {
-    plan.warnings.push(
-      `New worktree: ${newTree.path} (${newTree.branch}, base ${newTree.base.slice(0, 12)})`,
+  const planFor = (only?: ReadonlySet<string>) => {
+    const planned = planPush(activePrevious, current.files, source.files, {
+      ...options,
+      fullSnapshot: Boolean(newTree),
+      ...(only ? { only } : {}),
+    });
+    const outputs = new Set(planned.writes.map((file) => file.path));
+    const deleted = new Set(planned.deletes);
+    checkPathCollisions(
+      [...new Set([...sourceInventory.paths.filter((path) => !deleted.has(path)), ...outputs])].map(
+        (path) => ({ original: path, anonymized: path }),
+      ),
+      false,
     );
-    if (previous.data.origin.dirty)
-      plan.warnings.push(
-        'The full workspace snapshot includes the uncommitted source changes captured during extraction',
+    planned.data = {
+      ...planned.data,
+      source: { ...planned.data.source, path: target.path, commonDir: target.commonDir },
+      target: { ...planned.data.target, branch: target.branch },
+    };
+    if (newTree) {
+      planned.warnings.push(
+        `New worktree: ${newTree.path} (${newTree.branch}, base ${newTree.base.slice(0, 12)})`,
       );
-  }
+      if (previous.data.origin.dirty)
+        planned.warnings.push(
+          'The full workspace snapshot includes the uncommitted source changes captured during extraction',
+        );
+    }
+    return planned;
+  };
+  const plan = planFor();
   const recheck = async () => {
     if (hashJson(eligibility(await eligibilityProfiles())) !== profileEligibilityHash)
       throw new Error('Profile file exclusions changed while preparing restore; retry');
@@ -202,8 +209,16 @@ export async function preparePushRun(
     )
       throw new Error('Source worktree changed while preparing restore; retry');
   };
-  const apply = async () => {
+  const applyPlan = async (
+    plan: PushPlan,
+    only?: ReadonlySet<string>,
+    beforeWrite?: PushSelection['beforeWrite'],
+  ) => {
     const manifest = await services.store.sealManifest(plan);
+    // The workspace's own history must not absorb files that were left out of this push.
+    const checkpoint = (
+      only ? [...only] : [...new Set([...tracked, ...Object.keys(plan.plain.files)])]
+    ).filter((path) => !plan.conflicts.includes(path));
     await services.writeSource({
       root: target.path,
       commonDir: repo.commonDir ?? repo.path,
@@ -211,11 +226,19 @@ export async function preparePushRun(
       plan,
       manifest,
       checkpoint: {
-        paths: [...new Set([...tracked, ...Object.keys(plan.plain.files)])].filter(
-          (path) => !plan.conflicts.includes(path),
-        ),
+        paths: checkpoint,
         generated: previous.data.guidance?.generated ?? [],
       },
+      ...(beforeWrite
+        ? {
+            beforeWrite: () =>
+              beforeWrite(manifest, {
+                writes: plan.writes,
+                deletes: plan.deletes,
+                checkpoint: [...checkpoint, '.repo-cloak/manifest.json'],
+              }),
+          }
+        : {}),
       ...(newTree
         ? {
             prepare: () =>
@@ -231,7 +254,7 @@ export async function preparePushRun(
       afterSave: () => services.store.record(target, workspace, plan, manifest, services.now()),
     });
   };
-  const result = {
+  const resultOf = (plan: PushPlan) => ({
     status: 'written' as const,
     workspace,
     workspaceId: previous.plain.workspaceId,
@@ -244,6 +267,27 @@ export async function preparePushRun(
       ...plan.conflicts.map((path) => `${path}: skipped source conflict`),
     ],
     profileChanges: [] as string[],
+  });
+  const result = resultOf(plan);
+  /** Re-plans from the bytes already held, so this writes what was reviewed or nothing at all. */
+  const select = ({ paths, merged, beforeWrite }: PushSelection) => {
+    const only = paths ? new Set(paths) : undefined;
+    const base = only ? planFor(only) : plan;
+    const landing = new Set(base.writes.map((file) => file.path));
+    for (const path of merged?.keys() ?? [])
+      if (!landing.has(path)) throw new Error(`${path}: a merge has no file to land on`);
+    const chosen: PushPlan = {
+      ...base,
+      writes: base.writes.map((file) => ({
+        ...file,
+        bytes: merged?.get(file.path) ?? file.bytes,
+      })),
+    };
+    return {
+      plan: chosen,
+      result: resultOf(chosen),
+      apply: () => applyPlan(chosen, only, beforeWrite),
+    };
   };
   return {
     plan,
@@ -255,6 +299,7 @@ export async function preparePushRun(
     bytes: estimateRetainedBytes({ previous, workspaceBytes, current, source, plan }),
     result,
     recheck,
-    apply,
+    apply: () => applyPlan(plan),
+    select,
   };
 }

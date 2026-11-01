@@ -7,7 +7,13 @@ import { createReplacer } from './replacer.js';
 import type { PreviewMatch } from './ledger.js';
 import { instructionFiles, stripAgentGuidance } from './agent-guidance.js';
 
-export type PushOptions = { force?: boolean; skipConflicts?: boolean; fullSnapshot?: boolean };
+export type PushOptions = {
+  force?: boolean;
+  skipConflicts?: boolean;
+  fullSnapshot?: boolean;
+  /** Anonymized paths to push. Anything else keeps its old baseline, so it stays pending. */
+  only?: ReadonlySet<string>;
+};
 
 /** Restore a complete snapshot in memory before any source file can be touched. */
 export function planPush(
@@ -46,14 +52,10 @@ export function planPush(
     const baseline = Object.hasOwn(previous.plain.files, path)
       ? previous.plain.files[path]
       : undefined;
-    if (
-      !options.fullSnapshot &&
-      file?.bytes &&
-      target?.bytes !== undefined &&
-      baseline &&
-      hashBytes(file.bytes) === baseline.hash
-    )
-      continue;
+    const unchanged = file?.bytes && baseline && hashBytes(file.bytes) === baseline.hash;
+    // A new worktree is a whole snapshot: only pending changes can be left out of it.
+    if (options.only && !options.only.has(path) && !(options.fullSnapshot && unchanged)) continue;
+    if (!options.fullSnapshot && target?.bytes !== undefined && unchanged) continue;
     if (!file && !baseline) continue;
     const old = Object.hasOwn(previous.data.files, path) ? previous.data.files[path] : undefined;
     let bytes: Uint8Array | undefined;
