@@ -44,21 +44,20 @@ const foreign = { Origin: 'https://foreign.test' };
 
 it('requires the token and a local origin on every API path', async () => {
   const { base } = await fixture();
-  for (const path of ['/api/session', '/api/v2/session', '/api/v2/overview', '/api/anything']) {
+  for (const path of ['/api/v2/session', '/api/v2/overview', '/api/anything']) {
     expect((await fetch(`${base}${path}`)).status).toBe(401);
     expect(
       (await fetch(`${base}${path}`, { headers: { Authorization: 'Bearer wrong-token' } })).status,
     ).toBe(401);
     expect((await fetch(`${base}${path}`, { headers: { ...auth, ...foreign } })).status).toBe(403);
   }
-  const local = await fetch(`${base}/api/session`, { headers: { ...auth, Origin: base } });
+  const local = await fetch(`${base}/api/v2/session`, { headers: { ...auth, Origin: base } });
   expect(local.status).toBe(200);
-  expect(await local.json()).toEqual({ app: 'repo-cloak', protocol: 1, pid: process.pid });
 });
 
 it('no longer serves the removed dashboard routes', async () => {
   const { base } = await fixture();
-  for (const path of ['/api/repos', '/api/profiles', '/api/settings', '/api/groups', '/api/sync/x'])
+  for (const path of ['/api/session', '/api/repos', '/api/profiles', '/api/settings', '/api/groups', '/api/sync/x'])
     expect((await fetch(`${base}${path}`, { headers: auth })).status).toBe(404);
 });
 
@@ -67,7 +66,7 @@ it('binds loopback only, blocks a foreign Host, and serves only known assets', a
   expect(address.address).toBe('127.0.0.1');
   const status = await new Promise<number | undefined>((done, fail) => {
     const outgoing = request(
-      `${base}/api/session`,
+      `${base}/api/v2/session`,
       { headers: { ...auth, Host: 'foreign.test' } },
       (response) => {
         response.resume();

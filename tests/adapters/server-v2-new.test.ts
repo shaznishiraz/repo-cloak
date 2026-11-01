@@ -700,6 +700,7 @@ it('reading first-run state creates no key; saving the presets creates it', asyn
     return (body?: unknown) =>
       found.handler({
         dashboard,
+        session: { activity() {}, revoke() {} },
         port: 1,
         params: {},
         query: new URLSearchParams(),

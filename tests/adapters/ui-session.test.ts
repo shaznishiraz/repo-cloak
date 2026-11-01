@@ -24,11 +24,18 @@ it('reuses one server for concurrent launches and removes session files on shutd
   try {
     expect(second.reused).toBe(true);
     expect(second.port).toBe(first.port);
-    expect(second.token).toBe(first.token);
+    expect(second.token).not.toBe(first.token);
     await second.close();
     expect((await fetch(`http://127.0.0.1:${first.port}/`)).status).toBe(200);
-    const record = JSON.parse(await readFile(join(root, 'ui.lock'), 'utf8')) as { token: string };
-    expect(record.token).toBe(first.token);
+    // Browser tokens never reach the disk, so reading the file cannot resume a locked session.
+    const record = await readFile(join(root, 'ui.lock'), 'utf8');
+    expect(record).not.toContain(first.token);
+    expect(record).not.toContain(second.token);
+    expect(Object.keys(JSON.parse(record) as object).sort()).toEqual([
+      'launcherKey',
+      'pid',
+      'port',
+    ]);
     if (process.platform !== 'win32')
       expect((await stat(join(root, 'ui.lock'))).mode & 0o777).toBe(0o600);
   } finally {
@@ -102,3 +109,74 @@ it('serves the built dashboard with the security headers', async () => {
     await rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
   }
 }, 60_000);
+
+const sessionStatus = (port: number, token: string) =>
+  fetch(`http://127.0.0.1:${port}/api/v2/session`, {
+    headers: { Authorization: `Bearer ${token}` },
+  }).then((response) => response.status);
+
+it('a relaunch after a lock gets a fresh working token; the old ones stay dead', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'cloak relaunch '));
+  const dashboard = createDashboard(createStore(root), root);
+  const first = await startUiSession(root, dashboard, 0, resolve('src/web'));
+  try {
+    const other = await startUiSession(root, dashboard, 0, resolve('src/web'));
+    expect(await sessionStatus(first.port, first.token)).toBe(200);
+    expect(await sessionStatus(first.port, other.token)).toBe(200);
+    const locked = await fetch(`http://127.0.0.1:${first.port}/api/v2/session/lock`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${first.token}` },
+    });
+    expect(locked.status).toBe(200);
+    expect(await sessionStatus(first.port, first.token)).toBe(401);
+    expect(await sessionStatus(first.port, other.token)).toBe(401);
+    const next = await startUiSession(root, dashboard, 0, resolve('src/web'));
+    expect(next).toMatchObject({ reused: true, port: first.port });
+    expect(next.token).not.toBe(first.token);
+    expect(next.token).not.toBe(other.token);
+    expect(await sessionStatus(first.port, next.token)).toBe(200);
+    expect(await sessionStatus(first.port, first.token)).toBe(401);
+    expect(await sessionStatus(first.port, other.token)).toBe(401);
+  } finally {
+    await first.close();
+    await rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+  }
+});
+
+it('does not reuse a server that answers with another pid', async () => {
+  const { createServer } = await import('node:http');
+  const { mkdir, writeFile } = await import('node:fs/promises');
+  const root = await mkdtemp(join(tmpdir(), 'cloak impostor '));
+  const impostor = createServer((_request, response) => {
+    response.writeHead(200, { 'Content-Type': 'application/json' });
+    response.end(
+      JSON.stringify({ app: 'repo-cloak', protocol: 2, pid: 999_999, token: 'a'.repeat(64) }),
+    );
+  });
+  await new Promise<void>((done) => impostor.listen(0, '127.0.0.1', done));
+  const address = impostor.address();
+  if (!address || typeof address === 'string') throw new Error('No port');
+  await mkdir(join(root, 'ui.guard'));
+  await writeFile(
+    join(root, 'ui.lock'),
+    JSON.stringify({ port: address.port, launcherKey: 'b'.repeat(64), pid: process.pid }),
+  );
+  const session = await startUiSession(
+    root,
+    createDashboard(createStore(root), root),
+    0,
+    resolve('src/web'),
+  );
+  try {
+    // The guard goes stale and this launch takes over, rather than trusting that answer.
+    expect(session.reused).toBe(false);
+    expect(session.token).not.toBe('a'.repeat(64));
+  } finally {
+    await session.close();
+    await new Promise<void>((done) => {
+      impostor.close(() => done());
+      impostor.closeAllConnections();
+    });
+    await rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+  }
+}, 30_000);

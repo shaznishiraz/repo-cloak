@@ -14,6 +14,15 @@ const launchSchema = z.object({
 
 export const foundationRoutes: Route[] = [
   route('GET /api/v2/session', ({ dashboard, port }) => dashboard.shell.session(port)),
+  route('POST /api/v2/session/lock', ({ session }) => {
+    session.revoke();
+    return { locked: true as const };
+  }),
+  // Only user input calls this. Polling must never keep a session alive.
+  route('POST /api/v2/session/activity', ({ session }) => {
+    session.activity();
+    return { ok: true as const };
+  }),
   route('GET /api/v2/overview', ({ dashboard, query }) =>
     dashboard.shell.overview(launchSchema.parse(Object.fromEntries(query))),
   ),

@@ -10,8 +10,14 @@ import type { Dashboard } from '../application/dashboard.js';
 
 const sessionSchema = z.object({
   port: z.number().int().min(1).max(65535),
-  token: z.string().regex(/^[a-f0-9]{64}$/),
+  launcherKey: z.string().regex(/^[a-f0-9]{64}$/),
   pid: z.number().int().positive(),
+});
+const launchSchema = z.object({
+  app: z.literal('repo-cloak'),
+  protocol: z.literal(2),
+  pid: z.number().int().positive(),
+  token: z.string().regex(/^[a-f0-9]{64}$/),
 });
 export type UiSession = { port: number; token: string; reused: boolean; close(): Promise<void> };
 
@@ -38,19 +44,16 @@ export async function startUiSession(
       if (errorCode(error) !== 'ELOCKED') throw error;
       try {
         const session = sessionSchema.parse(JSON.parse(await readFile(metadata, 'utf8')));
-        const response = await fetch(`http://127.0.0.1:${session.port}/api/session`, {
-          headers: { Authorization: `Bearer ${session.token}` },
+        // Every launch gets its own token, so this works after a lock as well.
+        const response = await fetch(`http://127.0.0.1:${session.port}/launcher/v1/session`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${session.launcherKey}` },
           signal: AbortSignal.timeout(300),
           redirect: 'error',
         });
-        const info = (await response.json()) as { app?: string; protocol?: number; pid?: number };
-        if (
-          response.ok &&
-          info.app === 'repo-cloak' &&
-          info.protocol === 1 &&
-          info.pid === session.pid
-        )
-          return { ...session, reused: true, close: async () => {} };
+        const info = launchSchema.parse(await response.json());
+        if (response.ok && info.pid === session.pid)
+          return { port: session.port, token: info.token, reused: true, close: async () => {} };
       } catch {
         /* The owner may still be starting, or its guard may be stale. */
       }
@@ -59,7 +62,8 @@ export async function startUiSession(
   }
   if (!release) throw new Error('The dashboard is starting or shutting down; try again shortly');
   const token = randomBytes(32).toString('hex');
-  const server = createDashboardServer(dashboard, token, assetRoot);
+  const launcherKey = randomBytes(32).toString('hex');
+  const server = createDashboardServer(dashboard, token, assetRoot, { launcherKey });
   const unlock = release;
   let closing: Promise<void> | undefined;
   const close = () =>
@@ -88,7 +92,7 @@ export async function startUiSession(
     if (!address || typeof address === 'string') throw new Error('Could not bind dashboard port');
     await writeAtomic(
       metadata,
-      `${JSON.stringify({ port: address.port, token, pid: process.pid })}\n`,
+      `${JSON.stringify({ port: address.port, launcherKey, pid: process.pid })}\n`,
     );
     return { port: address.port, token, reused: false, close };
   } catch (error) {
