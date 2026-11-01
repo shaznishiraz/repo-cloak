@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promi
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterEach, expect, it, vi } from 'vitest';
-import { expandPostCreateCommand } from '../../src/adapters/server-v2/new.js';
+import { expandPostCreateCommand, newRoutes } from '../../src/adapters/server-v2/new.js';
 import { createDashboardServer } from '../../src/adapters/server.js';
 import { createStore } from '../../src/adapters/store.js';
 import { createSyncServices } from '../../src/adapters/sync-services.js';
@@ -688,6 +688,44 @@ it('enforces saved presets on every new cloak, whichever profiles are chosen', a
   expect(profiles.filter((saved) => saved.profile.name === 'Never pull')).toHaveLength(1);
   const audit = await dashboard.sync.audit.list({ limit: 50 });
   expect(JSON.stringify(audit)).toContain('never-pull presets');
+});
+
+it('reading first-run state creates no key; saving the presets creates it', async () => {
+  const root = await realpath(await mkdtemp(join(tmpdir(), 'cloak fresh ')));
+  cleanups.push(() => rm(root, { recursive: true, force: true }));
+  const dashboard = createDashboard(createStore(join(root, 'store')), root);
+  const handler = (key: string) => {
+    const found = newRoutes.find((item) => `${item.method} ${item.path}` === key);
+    if (!found) throw new Error(`No route ${key}`);
+    return (body?: unknown) =>
+      found.handler({
+        dashboard,
+        port: 1,
+        params: {},
+        query: new URLSearchParams(),
+        body: () => Promise.resolve(body),
+      }) as Promise<SetupState>;
+  };
+  const first = await handler('GET /api/v2/setup')();
+  expect(first.key).toEqual({ exists: false, storage: null });
+  expect(first.workspacesRoot).toBeNull();
+  expect((await handler('GET /api/v2/setup')()).key.exists).toBe(false);
+  const saved = await handler('PUT /api/v2/setup')({ presets: ['env'] });
+  expect(saved.key).toEqual({ exists: true, storage: 'file' });
+});
+
+it('serves the profile list until 40-profiles registers its own', async () => {
+  const { call, profileId } = await fixture();
+  const { profiles } = await call<{ profiles: unknown[] }>('/api/v2/profiles');
+  expect(profiles).toEqual([
+    {
+      id: profileId,
+      name: 'contoso',
+      scope: { kind: 'global' },
+      ruleCount: 1,
+      exclusionCount: 1,
+    },
+  ]);
 });
 
 it('blocks review when machine policy is invalid', async () => {
