@@ -4,7 +4,10 @@ import type { Rule } from './rules.js';
 import { getSecretDetector } from './secrets.js';
 import { compileVariants, splitWords, usesScope } from './variants.js';
 
-export type DynamicRule = { rule: Rule; pattern: RegExp; entropy: number };
+/** Regex rules carry no compiled pattern: they only ever run through a RegexEngine. */
+export type DynamicRule =
+  | { rule: Extract<Rule, { type: 'regex' }> }
+  | { rule: Extract<Rule, { type: 'secret' }>; pattern: RegExp; entropy: number };
 
 export function compileScope(rules: Rule[], scope: TextContext['scope']) {
   const variants = compileVariants(rules, scope);
@@ -19,7 +22,7 @@ export function compileScope(rules: Rule[], scope: TextContext['scope']) {
       const originals = new Set(splitWords(rule.match));
       for (const word of splitWords(rule.replace)) if (!originals.has(word)) residue.add(word);
     } else if (rule.type === 'regex') {
-      dynamic.push({ rule, pattern: new RegExp(rule.match, `${rule.flags ?? ''}dg`), entropy: 0 });
+      dynamic.push({ rule });
     } else {
       const detector = getSecretDetector(rule.detector);
       dynamic.push({

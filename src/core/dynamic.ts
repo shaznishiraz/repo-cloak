@@ -1,4 +1,6 @@
-import type { CompiledScope } from './compile.js';
+import type { CompiledScope, DynamicRule } from './compile.js';
+import { RegexLimitError } from './errors.js';
+import type { RegexHit, RegexRun } from './regex-engine.js';
 import type { PreviewMatch, Replacement, TextContext } from './ledger.js';
 import { selectMatches } from './matcher.js';
 import { expandReplacement } from './regex.js';
@@ -8,32 +10,65 @@ import type { createLocator } from './text.js';
 
 type DynamicMatch = Replacement & { detector?: string };
 
+type Found = { start: number; end: number; hit?: RegexHit };
+
+function matchesOf(
+  compiled: DynamicRule,
+  text: string,
+  run: RegexRun,
+  context: TextContext,
+): Found[] {
+  const { rule } = compiled;
+  if (rule.type === 'regex') {
+    try {
+      return run(rule.match, rule.flags ?? '', text).map((hit) => ({
+        start: hit.index,
+        end: hit.index + (hit.captures[0] ?? '').length,
+        hit,
+      }));
+    } catch (cause) {
+      if (cause instanceof RegexLimitError)
+        throw new RegexLimitError(`${context.file}: ${rule.id}: ${cause.message}`, { cause });
+      throw cause;
+    }
+  }
+  if (!('pattern' in compiled)) return [];
+  compiled.pattern.lastIndex = 0;
+  const found: Found[] = [];
+  for (const match of text.matchAll(compiled.pattern)) {
+    const range = match.indices?.groups?.secret;
+    const start = range?.[0] ?? match.index;
+    const end = range?.[1] ?? start + match[0].length;
+    if (compiled.entropy && entropy(text.slice(start, end)) < compiled.entropy) continue;
+    found.push({ start, end });
+  }
+  return found;
+}
+
 export function findDynamicMatches(
   text: string,
   scope: CompiledScope,
   literals: Replacement[],
   context: TextContext,
   locate: ReturnType<typeof createLocator>,
+  run: RegexRun,
 ) {
   const preview: PreviewMatch[] = [];
   const dynamic: DynamicMatch[] = [];
   for (const compiled of scope.dynamic) {
-    const { rule, pattern } = compiled;
-    pattern.lastIndex = 0;
-    for (const match of text.matchAll(pattern)) {
-      const range = rule.type === 'secret' ? match.indices?.groups?.secret : undefined;
-      const start = range?.[0] ?? match.index;
-      const end = range?.[1] ?? start + match[0].length;
+    const { rule } = compiled;
+    for (const match of matchesOf(compiled, text, run, context)) {
+      const start = match.start;
+      const end = match.end;
       const original = text.slice(start, end);
-      if (compiled.entropy && entropy(original) < compiled.entropy) continue;
       if (!original)
         throw new Error(
           `${context.file}:${locate(start).line}: ${rule.id}: empty regex match cannot be restored`,
         );
       let anonymized = '';
-      if (rule.type === 'regex') {
+      if (match.hit) {
         try {
-          anonymized = expandReplacement(rule.replace, match);
+          anonymized = expandReplacement(rule.type === 'regex' ? rule.replace : '', match.hit);
         } catch (cause) {
           throw new Error(`${context.file}: ${rule.id}: invalid regex replacement`, { cause });
         }

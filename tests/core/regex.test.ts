@@ -1,5 +1,12 @@
 import { expect, it } from 'vitest';
-import { expandReplacement } from '../../src/core/regex.js';
+import { expandReplacement as expand } from '../../src/core/regex.js';
+
+const expandReplacement = (template: string, match: RegExpExecArray) =>
+  expand(template, {
+    index: match.index,
+    captures: [...match],
+    ...(match.groups ? { groups: match.groups } : {}),
+  });
 
 it.each(['$1', '$2', '$10', '$99', '$0', '$00', '$01', '$$', '$&', '$<missing>', '$1-$$-$2'])(
   'matches JavaScript capture semantics for %s',
