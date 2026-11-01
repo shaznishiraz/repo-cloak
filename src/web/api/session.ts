@@ -25,6 +25,10 @@ function storedLaunch(storage: SessionStore): LaunchParams {
   }
 }
 
+export function hasLaunchToken(hash: string) {
+  return !hash.startsWith('#/') && new URLSearchParams(hash.slice(1)).has('token');
+}
+
 /**
  * Moves the launch fragment (`#token=...&repo=...`) into sessionStorage so the token
  * leaves the address bar and history. A plain route fragment keeps the current session.
