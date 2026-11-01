@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Repo Cloak — Profiles</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0D0E10}
+a{color:#A992FF}a:hover{color:#C7B8FF}
+button,input,select,textarea{font:inherit;color:inherit}
+</style>
+</helmet>
+<div style="min-height: 940px; background: #0D0E10; color: #E8E9EC; font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 13px; line-height: 1.45; display: flex; flex-direction: column">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 8px 14px; border-bottom: 1px solid #25282E; background: #111215">
+  <a href="Main.dc.html" style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #A4AAB5; text-decoration: none">repo-cloak</a>
+  <span style="color: #4A4F58">/</span>
+  <span style="font-weight: 600">Profiles</span>
+  <div style="margin-left: auto; display: flex; gap: 6px">
+    <button type="button" style="height: 28px; padding: 0 10px; border: 1px solid #30343B; border-radius: 6px; background: transparent; font-size: 12px; cursor: pointer">Import</button>
+    <button type="button" style="height: 28px; padding: 0 10px; border: 1px solid #30343B; border-radius: 6px; background: transparent; font-size: 12px; cursor: pointer">Check conflicts</button>
+    <button type="button" style="height: 28px; padding: 0 12px; border: 0; border-radius: 6px; background: #E8E9EC; color: #0D0E10; font-weight: 600; font-size: 12px; cursor: pointer">+ Profile</button>
+  </div>
+</header>
+
+<div style="display: flex; flex-wrap: wrap; flex: 1; min-height: 0">
+
+  <!-- List -->
+  <nav aria-label="Profiles" style="flex: 1 1 220px; max-width: 260px; border-right: 1px solid #25282E; padding: 8px; display: flex; flex-direction: column; gap: 2px; background: #0F1013">
+    <sc-for list="{{profiles}}" as="p" hint-placeholder-count="4">
+      <a href="#" style="{{p.style}}">
+        <span style="display: flex; justify-content: space-between; gap: 8px"><span style="font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: #E8E9EC">{{p.name}}</span><span style="font-size: 11px; color: #7F8794">{{p.scope}}</span></span>
+        <span style="font-size: 11px; color: #7F8794">{{p.meta}}</span>
+      </a>
+    </sc-for>
+    <div style="margin: 14px 8px 4px; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #7F8794">Exclusion presets</div>
+    <sc-for list="{{presets}}" as="x" hint-placeholder-count="4">
+      <label style="display: flex; align-items: center; gap: 8px; padding: 4px 8px; font-size: 12px; color: #A4AAB5"><input type="checkbox" checked="{{x.on}}" style="accent-color: #A992FF"> {{x.n}}</label>
+    </sc-for>
+  </nav>
+
+  <!-- Editor -->
+  <main style="flex: 999 1 620px; min-width: 0; display: flex; flex-direction: column">
+    <div style="display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid #25282E; flex-wrap: wrap">
+      <h1 style="margin: 0; font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 500">contoso</h1>
+      <span style="font-size: 11.5px; color: #A4AAB5">global · used by 4 workspaces</span>
+      <div role="group" aria-label="Editor mode" style="margin-left: auto; display: flex; border: 1px solid #30343B; border-radius: 5px; overflow: hidden; font-size: 11.5px">
+        <button type="button" style="padding: 3px 10px; border: 0; background: #22252B; cursor: pointer">Form</button>
+        <button type="button" style="padding: 3px 10px; border: 0; border-left: 1px solid #30343B; background: transparent; color: #A4AAB5; cursor: pointer">JSON</button>
+      </div>
+      <button type="button" style="height: 28px; padding: 0 12px; border: 0; border-radius: 6px; background: #A992FF; color: #0D0E10; font-weight: 600; font-size: 12px; cursor: pointer">Save</button>
+    </div>
+
+    <div style="padding: 12px 16px; display: flex; flex-direction: column; gap: 12px">
+      <!-- Rules -->
+      <section style="border: 1px solid #25282E; border-radius: 8px; background: #121316">
+        <div style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid #25282E; flex-wrap: wrap">
+          <h2 style="margin: 0; font-size: 12.5px; font-weight: 600">Rules</h2>
+          <span style="font-size: 11.5px; color: #7F8794">applied to file contents and paths, longest match first</span>
+          <span style="margin-left: auto; display: flex; gap: 4px; flex-wrap: wrap">
+            <sc-for list="{{kinds}}" as="k" hint-placeholder-count="5">
+              <button type="button" style="height: 22px; padding: 0 8px; border: 1px dashed #30343B; border-radius: 5px; background: transparent; font-size: 11px; color: #A4AAB5; cursor: pointer">+ {{k}}</button>
+            </sc-for>
+          </span>
+        </div>
+        <div style="display: grid; grid-template-columns: 90px minmax(0, 1fr) minmax(0, 1fr) 70px 50px 28px; gap: 8px; padding: 5px 12px; font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: #7F8794; border-bottom: 1px solid #1D1F24">
+          <span>Type</span><span>Find</span><span>Replace with</span><span>Case</span><span style="text-align: right">Hits</span><span></span>
+        </div>
+        <sc-for list="{{rules}}" as="r" hint-placeholder-count="7">
+          <div style="display: grid; grid-template-columns: 90px minmax(0, 1fr) minmax(0, 1fr) 70px 50px 28px; gap: 8px; padding: 4px 12px; align-items: center; border-bottom: 1px solid #1D1F24">
+            <span style="{{r.kindStyle}}">{{r.kind}}</span>
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 3px 6px; border: 1px solid #25282E; border-radius: 4px; background: #0D0E10; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{r.find}}</span>
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 3px 6px; border: 1px solid #25282E; border-radius: 4px; background: #0D0E10; color: #C7B8FF; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{r.repl}}</span>
+            <span style="font-size: 11px; color: #A4AAB5">{{r.cs}}</span>
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #7F8794; text-align: right">{{r.hits}}</span>
+            <button type="button" aria-label="Remove rule" style="width: 24px; height: 24px; border: 0; background: transparent; color: #7F8794; cursor: pointer; display: flex; align-items: center; justify-content: center">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.7 8.5h5.6l.7-8.5"/></svg>
+            </button>
+          </div>
+        </sc-for>
+      </section>
+
+      <!-- Exclusions -->
+      <section style="border: 1px solid #25282E; border-radius: 8px; background: #121316">
+        <div style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid #25282E">
+          <h2 style="margin: 0; font-size: 12.5px; font-weight: 600">Never pull</h2>
+          <span style="font-size: 11.5px; color: #7F8794">glob patterns · global ones are inherited and locked</span>
+        </div>
+        <div style="padding: 8px 12px; display: flex; flex-wrap: wrap; gap: 6px">
+          <sc-for list="{{excl}}" as="e" hint-placeholder-count="8">
+            <span style="{{e.style}}">{{e.p}}<span style="color: #7F8794; font-family: 'IBM Plex Sans', sans-serif; font-size: 10.5px">{{e.tag}}</span></span>
+          </sc-for>
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 11.5px; padding: 2px 8px; border-radius: 4px; border: 1px dashed #30343B; color: #A4AAB5">+ pattern</span>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Tester -->
+  <aside style="flex: 1 1 320px; max-width: 380px; border-left: 1px solid #25282E; background: #0F1013; display: flex; flex-direction: column">
+    <div style="padding: 10px 14px; border-bottom: 1px solid #25282E">
+      <div style="font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #7F8794">Try it</div>
+      <label style="display: block; margin-top: 6px; font-size: 11px; color: #7F8794">Paste source text
+        <textarea rows="5" style="display: block; width: 100%; box-sizing: border-box; margin-top: 3px; padding: 8px; border: 1px solid #30343B; border-radius: 6px; background: #0D0E10; font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: #A4AAB5; resize: vertical">using Contoso.Health.Claims;
+// ContosoHealth claim CH-004211
+var tier = "Medicaid Tier 2";
+var url = "https://api.contoso-health.com";</textarea>
+      </label>
+      <div style="font-size: 11px; color: #7F8794; margin-top: 8px">Cloaked</div>
+      <div style="margin-top: 3px; padding: 8px; border: 1px solid #3A3352; border-radius: 6px; background: #15131D; font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: #C7B8FF; white-space: pre-wrap">using Acme.Care.Claims;
+// AcmeCare claim CLM-000001
+var tier = "Plan Tier 2";
+var url = "https://api.acme-care.example";</div>
+      <div style="font-size: 11px; color: #7F8794; margin-top: 8px">Round trip back</div>
+      <div style="margin-top: 3px; font-size: 12px; color: #5CC98E">✓ identical to source</div>
+    </div>
+    <div style="padding: 10px 14px; border-bottom: 1px solid #25282E">
+      <div style="font-size: 12px; font-weight: 600; margin-bottom: 6px">Suggestions from last scan</div>
+      <sc-for list="{{sugg}}" as="s" hint-placeholder-count="3">
+        <div style="display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 12px">
+          <span style="font-family: 'JetBrains Mono', monospace; color: #F0B455">{{s.t}}</span>
+          <span style="font-size: 11px; color: #7F8794">{{s.w}}</span>
+          <a href="#" style="margin-left: auto; font-size: 11.5px">add rule</a>
+        </div>
+      </sc-for>
+    </div>
+    <div style="padding: 10px 14px; font-size: 11.5px; color: #7F8794">
+      Profile file is sealed at rest. Export writes plain JSON on purpose, with a warning.
+    </div>
+  </aside>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":940}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const item = (on) => 'display: flex; flex-direction: column; gap: 1px; padding: 7px 8px; border-radius: 5px; text-decoration: none; background: ' + (on ? '#1A1C20' : 'transparent') + '; border-left: 2px solid ' + (on ? '#A992FF' : 'transparent');
+    const profiles = [
+      { name: 'contoso', scope: 'global', meta: '38 rules · 9 exclusions', style: item(true) },
+      { name: 'secrets', scope: 'global', meta: '8 rules · values in OS keychain', style: item(false) },
+      { name: 'contoso-billing', scope: 'repo', meta: 'extends contoso · +6 rules', style: item(false) },
+      { name: 'healthcare-terms', scope: 'global', meta: '22 business terms', style: item(false) }
+    ];
+    const presets = [
+      { n: 'EF Core: DbContext, Migrations', on: true },
+      { n: 'Snapshots: *.snap, schema.json', on: true },
+      { n: 'Lockfiles', on: true },
+      { n: 'Env & secrets: .env*, *.pfx', on: true },
+      { n: 'Infra: terraform, helm values', on: false }
+    ];
+    const kinds = ['Brand', 'Keyword', 'Business term', 'Regex', 'Secret'];
+    const ks = (bg, fg) => 'font-size: 11px; padding: 1px 6px; border-radius: 4px; justify-self: start; background: ' + bg + '; color: ' + fg;
+    const K = { Brand: ks('#2A2340', '#C7B8FF'), Keyword: ks('#1A2230', '#A9CCF5'), Term: ks('#1E2A22', '#A6DDBF'), Regex: ks('#2A2215', '#F0CF95'), Secret: ks('#2A1517', '#F2B1B2') };
+    const rules = [
+      { kind: 'Brand', kindStyle: K.Brand, find: 'Contoso.Health', repl: 'Acme.Care', cs: 'preserve', hits: '212' },
+      { kind: 'Brand', kindStyle: K.Brand, find: 'ContosoHealth', repl: 'AcmeCare', cs: 'preserve', hits: '64' },
+      { kind: 'Brand', kindStyle: K.Brand, find: 'contoso', repl: 'acme', cs: 'preserve', hits: '31' },
+      { kind: 'Keyword', kindStyle: K.Keyword, find: 'contoso-health.com', repl: 'acme-care.example', cs: 'exact', hits: '7' },
+      { kind: 'Term', kindStyle: K.Term, find: 'Medicaid Tier', repl: 'Plan Tier', cs: 'preserve', hits: '4' },
+      { kind: 'Regex', kindStyle: K.Regex, find: '/CH-(\\d{6})/', repl: 'CLM-{seq:6}', cs: 'reversible', hits: '9' },
+      { kind: 'Secret', kindStyle: K.Secret, find: 'ConnectionStrings:*', repl: '••• keychain ref', cs: 'sealed', hits: '2' }
+    ];
+    const ex = (p, tag, locked) => ({ p, tag: tag ? ' ' + tag : '', style: 'font-family: JetBrains Mono, monospace; font-size: 11.5px; padding: 2px 8px; border-radius: 4px; background: ' + (locked ? '#1A1C20' : '#2A1517') + '; color: ' + (locked ? '#A4AAB5' : '#F2B1B2') });
+    const excl = [
+      ex('**/*DbContext.cs', 'global', true), ex('**/Migrations/**', 'global', true), ex('**/*.snap', 'global', true),
+      ex('schema.json', 'global', true), ex('package-lock.json', 'global', true), ex('.env*', 'global', true),
+      ex('src/**/PHI/**', '', false), ex('**/*.Designer.cs', '', false), ex('deploy/**', '', false)
+    ];
+    const sugg = [
+      { t: 'ch-prod-sql01', w: 'host · 1 file' },
+      { t: 'ContosoRx', w: 'PascalCase · 6 hits' },
+      { t: 'NHSN', w: 'business acronym · 3 hits' }
+    ];
+    return { profiles, presets, kinds, rules, excl, sugg };
+  }
+}
+</script>
+</body>
+</html>

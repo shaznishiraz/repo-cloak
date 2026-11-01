@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Repo Cloak — Workspaces</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0D0E10}
+a{color:#A992FF}a:hover{color:#C7B8FF}
+button{font:inherit;color:inherit}
+</style>
+</helmet>
+<div style="min-height: 980px; background: #0D0E10; color: #E8E9EC; font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 13px; line-height: 1.45; display: flex; flex-direction: column">
+
+<!-- Top bar -->
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 8px 14px; border-bottom: 1px solid #25282E; background: #111215">
+  <div style="display: flex; align-items: center; gap: 8px">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{accent}}" stroke-width="1.8" aria-hidden="true"><path d="M3 12c2-5 5.5-7.5 9-7.5S19 7 21 12c-2 5-5.5 7.5-9 7.5S5 17 3 12z"/><path d="M8 12h8" stroke-dasharray="2 2"/></svg>
+    <span style="font-family: 'JetBrains Mono', monospace; font-weight: 500; font-size: 13px">repo-cloak</span>
+    <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #7F8794">v2.0</span>
+  </div>
+  <div style="display: flex; align-items: center; gap: 6px; padding: 3px 8px; border: 1px solid #25282E; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: #A4AAB5; min-width: 0">
+    <span style="color: #7F8794">opened from</span>
+    <span style="color: #E8E9EC">contoso-health-api/.worktrees/claims-export</span>
+    <span style="color: #7F8794">·</span>
+    <span style="color: #6CB6FF">feat/claims-export</span>
+  </div>
+  <div style="flex: 1 1 200px; display: flex; justify-content: flex-end; align-items: center; gap: 8px; flex-wrap: wrap">
+    <label style="display: flex; align-items: center; gap: 8px; padding: 0 10px; height: 30px; border: 1px solid #25282E; border-radius: 6px; background: #0D0E10; min-width: 260px">
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="#7F8794" stroke-width="1.6" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
+      <span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Search</span>
+      <input type="text" placeholder="Jump to workspace, file, command…" style="flex: 1; background: transparent; border: 0; outline: none; color: #E8E9EC; font: inherit; font-size: 12.5px">
+      <span style="font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: #7F8794; border: 1px solid #30343B; border-radius: 4px; padding: 0 4px">⌘K</span>
+    </label>
+    <span style="display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: #5CC98E; padding: 0 8px; height: 30px; border-radius: 6px; background: #12201A">
+      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 015 0v2"/></svg>
+      Store sealed · key 3f9a
+    </span>
+    <a href="NewCloak.dc.html" style="height: 30px; padding: 0 12px; border-radius: 6px; background: #E8E9EC; color: #0D0E10; font-weight: 600; font-size: 12.5px; text-decoration: none; display: flex; align-items: center; gap: 6px">
+      + Cloak <span style="font-family: 'JetBrains Mono', monospace; font-size: 10.5px; opacity: 0.6">N</span>
+    </a>
+  </div>
+</header>
+
+<div style="display: flex; flex-wrap: wrap; flex: 1; min-height: 0">
+
+  <!-- Rail -->
+  <nav aria-label="Primary" style="flex: 1 1 200px; max-width: 216px; border-right: 1px solid #25282E; padding: 10px 8px; display: flex; flex-direction: column; gap: 2px; background: #0F1013">
+    <sc-for list="{{nav}}" as="n" hint-placeholder-count="6">
+      <a href="{{n.href}}" style="{{n.style}}">
+        <span>{{n.label}}</span>
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: {{n.countColor}}">{{n.count}}</span>
+      </a>
+    </sc-for>
+    <div style="margin: 14px 8px 4px; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #7F8794">Groups</div>
+    <sc-for list="{{groups}}" as="g" hint-placeholder-count="3">
+      <a href="GroupSync.dc.html" style="display: flex; justify-content: space-between; align-items: center; padding: 5px 8px; border-radius: 5px; color: #A4AAB5; text-decoration: none; font-size: 12.5px">
+        <span style="display: flex; align-items: center; gap: 6px">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 4.5h4l1.5 1.5H14v6.5H2z"/></svg>
+          {{g.name}}
+        </span>
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #7F8794">{{g.count}}</span>
+      </a>
+    </sc-for>
+    <div style="margin-top: auto; padding: 10px 8px 2px; border-top: 1px solid #25282E; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: #7F8794; line-height: 1.6">
+      ~/cloaks · 5 workspaces<br>ui 127.0.0.1:41873
+    </div>
+  </nav>
+
+  <!-- Workspace list -->
+  <section aria-label="Workspaces" style="flex: 1 1 360px; max-width: 440px; border-right: 1px solid #25282E; display: flex; flex-direction: column; min-width: 0">
+    <div style="display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-bottom: 1px solid #25282E; flex-wrap: wrap">
+      <span style="font-weight: 600; font-size: 12.5px; margin-right: auto">Workspaces</span>
+      <button type="button" style="height: 24px; padding: 0 8px; border: 1px solid #30343B; border-radius: 5px; background: transparent; font-size: 11.5px; color: #A4AAB5; cursor: pointer">Needs action</button>
+      <button type="button" style="height: 24px; padding: 0 8px; border: 1px solid #30343B; border-radius: 5px; background: transparent; font-size: 11.5px; color: #A4AAB5; cursor: pointer">↓ Pull all</button>
+      <button type="button" style="height: 24px; padding: 0 8px; border: 1px solid #30343B; border-radius: 5px; background: transparent; font-size: 11.5px; color: #A4AAB5; cursor: pointer">↑ Push all</button>
+    </div>
+    <div style="overflow: auto; flex: 1">
+      <sc-for list="{{groups}}" as="g" hint-placeholder-count="3">
+        <div style="display: flex; align-items: center; gap: 8px; padding: 10px 12px 4px; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #7F8794">
+          <span>{{g.name}}</span>
+          <span style="text-transform: none; letter-spacing: 0; font-family: 'JetBrains Mono', monospace">{{g.note}}</span>
+        </div>
+        <sc-for list="{{g.items}}" as="w" hint-placeholder-count="2">
+          <button type="button" onClick="{{w.pick}}" style="{{w.rowStyle}}">
+            <span style="display: flex; align-items: center; gap: 8px; width: 100%">
+              <span style="width: 7px; height: 7px; border-radius: 50%; background: {{w.dot}}; flex: none"></span>
+              <span style="font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: #E8E9EC; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{w.name}}</span>
+              <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #7F8794">{{w.suffix}}</span>
+              <span style="margin-left: auto; font-size: 11px; color: #7F8794; white-space: nowrap">{{w.when}}</span>
+            </span>
+            <span style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding-left: 15px">
+              <span style="display: inline-flex; align-items: center; gap: 4px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #A4AAB5">
+                <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="4" cy="3" r="1.6"/><circle cx="4" cy="13" r="1.6"/><circle cx="12" cy="5" r="1.6"/><path d="M4 4.6v6.8M12 6.6c0 3-4 2.4-7.4 5"/></svg>
+                {{w.branch}}
+              </span>
+              <sc-for list="{{w.badges}}" as="b" hint-placeholder-count="1">
+                <span style="{{b.style}}">{{b.label}}</span>
+              </sc-for>
+            </span>
+          </button>
+        </sc-for>
+      </sc-for>
+    </div>
+  </section>
+
+  <!-- Detail -->
+  <main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column">
+    <div style="padding: 12px 18px 10px; border-bottom: 1px solid #25282E; display: flex; flex-direction: column; gap: 10px">
+      <div style="display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap">
+        <div style="min-width: 0; flex: 1 1 280px">
+          <div style="display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap">
+            <h1 style="margin: 0; font-family: 'JetBrains Mono', monospace; font-size: 17px; font-weight: 500">{{sel.name}}<span style="color: #7F8794">-{{sel.suffix}}</span></h1>
+            <span style="font-size: 11.5px; color: #A4AAB5">group <span style="color: #E8E9EC">{{sel.group}}</span> · profile <span style="color: {{accent}}">{{sel.profile}}</span></span>
+          </div>
+          <div style="font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: #7F8794; margin-top: 2px">{{sel.path}}  ·  <a href="#">open in editor</a>  ·  <a href="#">copy path</a></div>
+        </div>
+
+        <!-- Pull split -->
+        <div style="position: relative; display: flex">
+          <button type="button" style="height: 30px; padding: 0 12px; border: 1px solid #30343B; border-right: 0; border-radius: 6px 0 0 6px; background: #1A1C20; font-size: 12.5px; cursor: pointer; display: flex; align-items: center; gap: 6px">↓ Pull <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #6CB6FF">{{sel.driftLabel}}</span></button>
+          <button type="button" aria-label="Pull options" aria-expanded="{{pullOpen}}" onClick="{{togglePull}}" style="height: 30px; width: 26px; border: 1px solid #30343B; border-radius: 0 6px 6px 0; background: #1A1C20; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #A4AAB5">
+            <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>
+          </button>
+          <sc-if value="{{pullOpen}}" hint-placeholder-val="{{false}}">
+            <div role="menu" style="position: absolute; top: 34px; right: 0; width: 300px; z-index: 5; background: #1A1C20; border: 1px solid #30343B; border-radius: 8px; padding: 6px; box-shadow: 0 12px 32px rgba(0,0,0,0.5)">
+              <div style="padding: 4px 8px 6px; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #7F8794">Pull from</div>
+              <sc-for list="{{pullTargets}}" as="t" hint-placeholder-count="3">
+                <button type="button" role="menuitem" style="{{t.style}}">
+                  <span style="width: 14px; color: #5CC98E">{{t.mark}}</span>
+                  <span style="display: flex; flex-direction: column; text-align: left; min-width: 0">
+                    <span style="font-size: 12.5px; color: #E8E9EC">{{t.label}}</span>
+                    <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #7F8794">{{t.sub}}</span>
+                  </span>
+                </button>
+              </sc-for>
+              <div style="height: 1px; background: #30343B; margin: 6px 4px"></div>
+              <button type="button" role="menuitem" style="width: 100%; text-align: left; padding: 7px 8px 7px 30px; border: 0; background: transparent; border-radius: 5px; font-size: 12.5px; cursor: pointer">Add files / commits to this cloak…</button>
+            </div>
+          </sc-if>
+        </div>
+
+        <!-- Push split -->
+        <div style="position: relative; display: flex">
+          <button type="button" style="height: 30px; padding: 0 12px; border: 0; border-radius: 6px 0 0 6px; background: {{accent}}; color: #0D0E10; font-weight: 600; font-size: 12.5px; cursor: pointer; display: flex; align-items: center; gap: 6px">↑ Push {{sel.pushCount}}</button>
+          <button type="button" aria-label="Push target options" aria-expanded="{{pushOpen}}" onClick="{{togglePush}}" style="height: 30px; width: 26px; border: 0; border-left: 1px solid rgba(13,14,16,0.35); border-radius: 0 6px 6px 0; background: {{accent}}; color: #0D0E10; cursor: pointer; display: flex; align-items: center; justify-content: center">
+            <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>
+          </button>
+          <sc-if value="{{pushOpen}}" hint-placeholder-val="{{false}}">
+            <div role="menu" style="position: absolute; top: 34px; right: 0; width: 320px; z-index: 5; background: #1A1C20; border: 1px solid #30343B; border-radius: 8px; padding: 6px; box-shadow: 0 12px 32px rgba(0,0,0,0.5)">
+              <div style="padding: 4px 8px 6px; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #7F8794">Restore into</div>
+              <sc-for list="{{pushTargets}}" as="t" hint-placeholder-count="3">
+                <button type="button" role="menuitem" style="{{t.style}}">
+                  <span style="width: 14px; color: #5CC98E">{{t.mark}}</span>
+                  <span style="display: flex; flex-direction: column; text-align: left; min-width: 0">
+                    <span style="font-size: 12.5px; color: #E8E9EC">{{t.label}}</span>
+                    <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #7F8794">{{t.sub}}</span>
+                  </span>
+                </button>
+              </sc-for>
+              <div style="height: 1px; background: #30343B; margin: 6px 4px"></div>
+              <button type="button" role="menuitem" style="width: 100%; text-align: left; padding: 7px 8px 7px 30px; border: 0; background: transparent; border-radius: 5px; font-size: 12.5px; cursor: pointer">Export restored .patch</button>
+              <button type="button" role="menuitem" style="width: 100%; text-align: left; padding: 7px 8px 7px 30px; border: 0; background: transparent; border-radius: 5px; font-size: 12.5px; cursor: pointer">Dry run — show restored diff only</button>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+
+      <!-- Lineage -->
+      <div style="display: flex; align-items: center; gap: 0; flex-wrap: wrap; font-family: 'JetBrains Mono', monospace; font-size: 11.5px">
+        <sc-for list="{{lineage}}" as="l" hint-placeholder-count="3">
+          <span style="display: inline-flex; align-items: center">
+            <span style="{{l.style}}">
+              <span style="font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: #7F8794; font-family: 'IBM Plex Sans', sans-serif">{{l.kind}}</span>
+              <span style="color: #E8E9EC">{{l.name}}</span>
+              <span style="color: {{l.refColor}}">{{l.ref}}</span>
+            </span>
+            <span style="color: #4A4F58; padding: 0 6px">{{l.arrow}}</span>
+          </span>
+        </sc-for>
+      </div>
+
+      <!-- Stat strip -->
+      <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border: 1px solid #25282E; border-radius: 6px; overflow: hidden">
+        <sc-for list="{{stats}}" as="s" hint-placeholder-count="7">
+          <div style="padding: 6px 10px; border-right: 1px solid #25282E; min-width: 0">
+            <div style="font-size: 10.5px; color: #7F8794; white-space: nowrap">{{s.k}}</div>
+            <div style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: {{s.color}}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{s.v}}</div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="padding: 12px 18px 18px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-content: start">
+
+      <!-- Pending changes -->
+      <section style="grid-column: 1 / -1; border: 1px solid #25282E; border-radius: 8px; background: #121316">
+        <div style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid #25282E">
+          <h2 style="margin: 0; font-size: 12.5px; font-weight: 600">Pending changes</h2>
+          <span style="font-size: 11.5px; color: #7F8794">cloaked path → where it restores</span>
+          <a href="PushReview.dc.html" style="margin-left: auto; font-size: 12px">Review push →</a>
+        </div>
+        <sc-if value="{{sel.hasChanges}}" hint-placeholder-val="{{true}}">
+          <sc-for list="{{sel.changes}}" as="c" hint-placeholder-count="4">
+            <div style="display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 8px; padding: 6px 12px; border-bottom: 1px solid #1D1F24; align-items: start">
+              <span style="font-family: 'JetBrains Mono', monospace; font-size: 11.5px; font-weight: 500; color: {{c.color}}">{{c.st}}</span>
+              <span style="min-width: 0">
+                <span style="display: block; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #E8E9EC; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{c.path}}</span>
+                <span style="display: block; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #7F8794; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">→ {{c.restored}}</span>
+              </span>
+              <span style="font-family: 'JetBrains Mono', monospace; font-size: 11.5px; white-space: nowrap"><span style="color: #5CC98E">{{c.plus}}</span> <span style="color: #F2777A">{{c.minus}}</span></span>
+            </div>
+          </sc-for>
+        </sc-if>
+        <sc-if value="{{sel.isClean}}" hint-placeholder-val="{{false}}">
+          <div style="padding: 14px 12px; color: #A4AAB5; font-size: 12.5px">Nothing to push. Cloak matches what was last pulled or pushed.</div>
+        </sc-if>
+      </section>
+
+      <!-- Guard -->
+      <section style="border: 1px solid #25282E; border-radius: 8px; background: #121316">
+        <div style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid #25282E">
+          <h2 style="margin: 0; font-size: 12.5px; font-weight: 600">Guard</h2>
+          <span style="font-size: 11.5px; color: #7F8794">checked 12s ago</span>
+        </div>
+        <sc-for list="{{guard}}" as="g" hint-placeholder-count="5">
+          <div style="display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 8px; padding: 6px 12px; align-items: start">
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: {{g.color}}">{{g.icon}}</span>
+            <span style="min-width: 0">
+              <span style="display: block; font-size: 12.5px; color: #E8E9EC">{{g.title}}</span>
+              <span style="display: block; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #7F8794">{{g.sub}}</span>
+            </span>
+          </div>
+        </sc-for>
+      </section>
+
+      <!-- Agent requests -->
+      <section style="border: 1px solid #25282E; border-radius: 8px; background: #121316">
+        <div style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid #25282E">
+          <h2 style="margin: 0; font-size: 12.5px; font-weight: 600">Agent requests</h2>
+          <span style="font-size: 11px; font-family: 'JetBrains Mono', monospace; padding: 0 6px; border-radius: 4px; background: #2A2340; color: #C7B8FF">2 waiting</span>
+        </div>
+        <div style="padding: 8px 12px; border-bottom: 1px solid #1D1F24">
+          <div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #E8E9EC">src/Acme.Care.Claims/IClaimRepository.cs</div>
+          <div style="font-size: 11.5px; color: #A4AAB5; margin: 2px 0 6px">Claude: “Export needs the repository interface to page claims.”</div>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap">
+            <button type="button" style="height: 24px; padding: 0 10px; border: 0; border-radius: 5px; background: #E8E9EC; color: #0D0E10; font-size: 11.5px; font-weight: 600; cursor: pointer">Approve &amp; pull</button>
+            <button type="button" style="height: 24px; padding: 0 10px; border: 1px solid #30343B; border-radius: 5px; background: transparent; font-size: 11.5px; cursor: pointer">Deny</button>
+            <span style="font-size: 11px; color: #7F8794; align-self: center">1 file · 84 lines · passes profile</span>
+          </div>
+        </div>
+        <div style="padding: 8px 12px">
+          <div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #E8E9EC">src/Acme.Care.Data/AcmeCareDbContext.cs</div>
+          <div style="font-size: 11.5px; color: #F2777A; margin: 2px 0 6px">Blocked: matches exclusion <span style="font-family: 'JetBrains Mono', monospace">**/*DbContext.cs</span> (global)</div>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap">
+            <button type="button" style="height: 24px; padding: 0 10px; border: 1px solid #30343B; border-radius: 5px; background: transparent; font-size: 11.5px; cursor: pointer">Send stub instead</button>
+            <button type="button" style="height: 24px; padding: 0 10px; border: 1px solid #4A2A2C; border-radius: 5px; background: transparent; color: #F2777A; font-size: 11.5px; cursor: pointer">Override once…</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- History -->
+      <section style="grid-column: 1 / -1; border: 1px solid #25282E; border-radius: 8px; background: #121316">
+        <div style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid #25282E">
+          <h2 style="margin: 0; font-size: 12.5px; font-weight: 600">History</h2>
+          <span style="font-size: 11.5px; color: #7F8794">sealed manifest · tamper-checked</span>
+          <a href="#" style="margin-left: auto; font-size: 12px">Full trail</a>
+        </div>
+        <sc-for list="{{history}}" as="h" hint-placeholder-count="4">
+          <div style="display: grid; grid-template-columns: 92px 56px minmax(0, 1fr); gap: 10px; padding: 5px 12px; font-size: 12px; align-items: baseline">
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #7F8794">{{h.t}}</span>
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: {{h.color}}">{{h.op}}</span>
+            <span style="color: #A4AAB5; min-width: 0">{{h.text}}</span>
+          </div>
+        </sc-for>
+      </section>
+    </div>
+  </main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#A992FF","options":["#A992FF","#4FD1A5","#F0B455","#6CB6FF"]},"$preview":{"width":1440,"height":980}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { sel: 'api', pushOpen: true, pullOpen: false };
+  }
+  renderVals() {
+    const accent = this.props.accent ?? '#A992FF';
+    const C = { push: '#F0B455', drift: '#6CB6FF', clean: '#5CC98E', block: '#F2777A', muted: '#7F8794' };
+    const badge = (label, color, bg) => ({ label, style: 'font-family: JetBrains Mono, monospace; font-size: 11px; padding: 0 5px; border-radius: 4px; color: ' + color + '; background: ' + bg });
+    const ws = [
+      { id: 'api', group: 'claims', name: 'acme-care-api', suffix: '7c1e', repo: 'contoso-health-api', worktree: '.worktrees/claims-export', branch: 'feat/claims-export', mainSha: '9f2c1e0', wtSha: 'a41d2b7', path: '~/cloaks/claims/acme-care-api', profile: 'contoso + secrets', files: '42', mod: 3, add: 1, del: 0, drift: 2, lastPull: '2h ago', lastPush: 'never', when: '2h', dot: C.push,
+        badges: [badge('↑4 to push', C.push, '#2A2215'), badge('↓2 source moved', C.drift, '#152233')],
+        changes: [
+          { st: 'M', path: 'src/Acme.Care.Claims/ExportService.cs', restored: 'src/Contoso.Health.Claims/ExportService.cs', plus: '+48', minus: '−12' },
+          { st: 'M', path: 'src/Acme.Care.Claims/ClaimCsvWriter.cs', restored: 'src/Contoso.Health.Claims/ClaimCsvWriter.cs', plus: '+19', minus: '−3' },
+          { st: 'M', path: 'src/Acme.Care.Api/Controllers/ClaimsController.cs', restored: 'src/Contoso.Health.Api/Controllers/ClaimsController.cs', plus: '+11', minus: '−0' },
+          { st: 'A', path: 'src/Acme.Care.Claims/AcmeCareExportJob.cs', restored: 'src/Contoso.Health.Claims/ContosoHealthExportJob.cs', plus: '+72', minus: '' }
+        ] },
+      { id: 'web', group: 'claims', name: 'acme-care-web', suffix: '91ad', repo: 'contoso-health-web', worktree: '.worktrees/claims-export', branch: 'feat/claims-export', mainSha: 'e01b77c', wtSha: '5c2e9a0', path: '~/cloaks/claims/acme-care-web', profile: 'contoso', files: '18', mod: 0, add: 0, del: 0, drift: 0, lastPull: '3h ago', lastPush: '40m ago', when: '40m', dot: C.clean,
+        badges: [badge('clean', C.clean, '#12201A')], changes: [] },
+      { id: 'bill', group: 'billing', name: 'acme-billing-svc', suffix: '3b7d', repo: 'contoso-billing', worktree: '', branch: 'main', mainSha: '77be031', wtSha: '', path: '~/cloaks/billing/acme-billing-svc', profile: 'contoso-billing', files: '27', mod: 2, add: 0, del: 1, drift: 5, lastPull: 'yesterday', lastPush: 'never', when: '1d', dot: C.push,
+        badges: [badge('↑3 to push', C.push, '#2A2215'), badge('↓5 source moved', C.drift, '#152233')],
+        changes: [
+          { st: 'M', path: 'src/Billing/InvoiceRounding.cs', restored: 'src/Billing/InvoiceRounding.cs', plus: '+6', minus: '−6' },
+          { st: 'M', path: 'src/Billing/AcmeTaxRules.cs', restored: 'src/Billing/ContosoTaxRules.cs', plus: '+22', minus: '−9' },
+          { st: 'D', path: 'src/Billing/LegacyRounding.cs', restored: 'src/Billing/LegacyRounding.cs', plus: '', minus: '−41' }
+        ] },
+      { id: 'auth', group: 'Ungrouped', name: 'acme-portal-auth', suffix: 'c4f0', repo: 'contoso-portal', worktree: '.worktrees/sso-fix', branch: 'fix/sso-timeout', mainSha: '1a9d2f3', wtSha: 'b8c04e1', path: '~/cloaks/acme-portal-auth', profile: 'contoso', files: '6', mod: 1, add: 0, del: 0, drift: 0, lastPull: '5h ago', lastPush: 'never', when: '5h', dot: C.push,
+        badges: [badge('↑1 to push', C.push, '#2A2215')],
+        changes: [ { st: 'M', path: 'src/Auth/AcmeSsoHandler.ts', restored: 'src/Auth/ContosoSsoHandler.ts', plus: '+4', minus: '−2' } ] },
+      { id: 'rep', group: 'Ungrouped', name: 'acme-reports-legacy', suffix: '0e12', repo: 'contoso-reports', worktree: '', branch: 'release/4.2', mainSha: '44f1aa9', wtSha: '', path: '~/cloaks/acme-reports-legacy', profile: 'contoso', files: '11', mod: 0, add: 0, del: 0, drift: 0, lastPull: '6d ago', lastPush: '6d ago', when: '6d', dot: C.block,
+        badges: [badge('folder missing', C.block, '#2A1517')], changes: [] }
+    ];
+    const selId = this.state.sel;
+    const items = ws.map((w) => {
+      const active = w.id === selId;
+      return Object.assign({}, w, {
+        pick: () => this.setState({ sel: w.id }),
+        rowStyle: 'display: flex; flex-direction: column; gap: 3px; width: 100%; text-align: left; padding: 7px 12px 7px 10px; border: 0; border-left: 2px solid ' + (active ? accent : 'transparent') + '; background: ' + (active ? '#1A1C20' : 'transparent') + '; cursor: pointer'
+      });
+    });
+    const groupNames = ['claims', 'billing', 'Ungrouped'];
+    const notes = { claims: '2 repos · bulk sync', billing: '1 repo', Ungrouped: '' };
+    const groups = groupNames.map((g) => {
+      const its = items.filter((w) => w.group === g);
+      return { name: g, note: notes[g], items: its, count: String(its.length) };
+    });
+    const s = items.find((w) => w.id === selId) || items[0];
+    const pushCount = s.changes.length;
+    const sel = Object.assign({}, s, {
+      pushCount: pushCount ? String(pushCount) : '',
+      driftLabel: s.drift ? '↓' + s.drift : '',
+      hasChanges: pushCount > 0,
+      isClean: pushCount === 0,
+      changes: s.changes.map((c) => Object.assign({}, c, { color: c.st === 'A' ? C.clean : c.st === 'D' ? C.block : C.push }))
+    });
+    const node = (kind, name, ref, refColor, hi) => ({ kind, name, ref, refColor, arrow: '→', style: 'display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; border: 1px solid ' + (hi ? '#3A3352' : '#25282E') + '; border-radius: 5px; background: ' + (hi ? '#1B1826' : '#121316') });
+    const lineage = [ node('main repo', s.repo, 'main@' + s.mainSha, '#A4AAB5', false) ];
+    if (s.worktree) lineage.push(node('worktree', s.worktree, s.branch + '@' + s.wtSha, '#6CB6FF', false));
+    else lineage[0].ref = s.branch + '@' + s.mainSha;
+    lineage.push(node('cloak', s.name + '-' + s.suffix, s.files + ' files', accent, true));
+    lineage[lineage.length - 1].arrow = '';
+    const stats = [
+      { k: 'Tracked', v: s.files, color: '#E8E9EC' },
+      { k: 'Modified', v: String(s.mod), color: s.mod ? C.push : C.muted },
+      { k: 'Added', v: String(s.add), color: s.add ? C.clean : C.muted },
+      { k: 'Deleted', v: String(s.del), color: s.del ? C.block : C.muted },
+      { k: 'Source moved', v: String(s.drift), color: s.drift ? C.drift : C.muted },
+      { k: 'Last pull', v: s.lastPull, color: '#E8E9EC' },
+      { k: 'Last push', v: s.lastPush, color: s.lastPush === 'never' ? C.push : '#E8E9EC' }
+    ];
+    const mi = (on) => 'display: flex; align-items: flex-start; gap: 8px; width: 100%; padding: 7px 8px; border: 0; border-radius: 5px; background: ' + (on ? '#22252B' : 'transparent') + '; cursor: pointer';
+    const pushTargets = [
+      { mark: '✓', label: 'Worktree it came from', sub: (s.worktree || 'main checkout') + ' · ' + s.branch, style: mi(true) },
+      { mark: '', label: 'Main repo checkout', sub: s.repo + ' · main@' + s.mainSha, style: mi(false) },
+      { mark: '', label: 'Another worktree…', sub: '3 more worktrees found', style: mi(false) },
+      { mark: '', label: 'New worktree from main', sub: 'git worktree add · cloak/' + s.name, style: mi(false) }
+    ];
+    const pullTargets = [
+      { mark: '✓', label: 'Worktree it came from', sub: (s.worktree || 'main checkout') + ' · ' + s.branch, style: mi(true) },
+      { mark: '', label: 'Main repo checkout', sub: s.repo + ' · main', style: mi(false) },
+      { mark: '', label: 'Another worktree or commit…', sub: 'pick branch, worktree or sha', style: mi(false) }
+    ];
+    const guard = [
+      { icon: '✓', color: C.clean, title: 'All 46 replaced terms reverse cleanly', sub: 'profile contoso + secrets · 0 collisions' },
+      { icon: '↓', color: C.drift, title: s.drift ? s.drift + ' source files changed since pull' : 'Source unchanged since pull', sub: s.drift ? 'push will 3-way merge · ClaimsController.cs overlaps' : 'safe to push straight through' },
+      { icon: '!', color: C.push, title: 'AI added 1 new cloaked name', sub: 'AcmeCareExportJob → ContosoHealthExportJob' },
+      { icon: '✓', color: C.clean, title: 'No excluded or sensitive files touched', sub: '0 secrets · 0 schema/migration files' },
+      { icon: '✓', color: C.clean, title: 'No real names found in the cloak', sub: 'scanned 42 files for contoso, Contoso.Health, ch-prod' }
+    ];
+    const history = [
+      { t: 'today 14:05', op: 'pull', color: C.drift, text: '42 files from claims-export @ a41d2b7 · 1 uncommitted + 2 commits + 3 folders' },
+      { t: 'today 14:05', op: 'run', color: C.muted, text: 'post-cloak: npm ci --ignore-scripts && code {dest}' },
+      { t: 'today 13:58', op: 'create', color: accent, text: 'cloak acme-care-api-7c1e in group claims · profile contoso + secrets' },
+      { t: 'yesterday', op: 'request', color: C.muted, text: 'denied AcmeCareDbContext.cs (exclusion)' }
+    ];
+    const hrefs = { 'Workspaces': 'Main.dc.html', 'Known repos': 'KnownRepos.dc.html', 'Agent requests': 'AgentRequests.dc.html', 'Profiles': 'Profiles.dc.html', 'History': 'History.dc.html', 'Settings': 'Settings.dc.html' };
+    const navItem = (label, count, active, countColor) => ({ label, count, href: hrefs[label], countColor: countColor || '#7F8794', style: 'display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; border-radius: 5px; text-decoration: none; font-size: 12.5px; color: ' + (active ? '#E8E9EC' : '#A4AAB5') + '; background: ' + (active ? '#1A1C20' : 'transparent') });
+    const nav = [
+      navItem('Workspaces', '5', true),
+      navItem('Known repos', '7', false),
+      navItem('Agent requests', '2', false, '#C7B8FF'),
+      navItem('Profiles', '4', false),
+      navItem('History', '', false),
+      navItem('Settings', '', false)
+    ];
+    return {
+      accent, nav, groups, sel, lineage, stats, guard, history, pushTargets, pullTargets,
+      pushOpen: this.state.pushOpen, pullOpen: this.state.pullOpen,
+      togglePush: () => this.setState({ pushOpen: !this.state.pushOpen, pullOpen: false }),
+      togglePull: () => this.setState({ pullOpen: !this.state.pullOpen, pushOpen: false })
+    };
+  }
+}
+</script>
+</body>
+</html>

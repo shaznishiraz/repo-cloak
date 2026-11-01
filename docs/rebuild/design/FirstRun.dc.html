@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Repo Cloak — First run</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0D0E10}
+a{color:#A992FF}a:hover{color:#C7B8FF}
+button,input,select{font:inherit;color:inherit}
+</style>
+</helmet>
+<div style="min-height: 900px; background: #0D0E10; color: #E8E9EC; font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 13px; line-height: 1.45; display: flex; align-items: flex-start; justify-content: center; padding: 56px 16px; box-sizing: border-box">
+  <div style="width: 100%; max-width: 640px; display: flex; flex-direction: column; gap: 14px">
+    <div style="display: flex; align-items: center; gap: 10px">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#A992FF" stroke-width="1.8" aria-hidden="true"><path d="M3 12c2-5 5.5-7.5 9-7.5S19 7 21 12c-2 5-5.5 7.5-9 7.5S5 17 3 12z"/><path d="M8 12h8" stroke-dasharray="2 2"/></svg>
+      <h1 style="margin: 0; font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 500">repo-cloak</h1>
+      <span style="font-size: 12px; color: #7F8794">first run on this machine · 4 quick choices</span>
+    </div>
+    <p style="margin: 0; color: #A4AAB5; font-size: 13.5px">Pull a slice of a private repo, rename what gives it away, let an AI work on it, push the changes back. Everything stays on this computer.</p>
+
+    <sc-for list="{{steps}}" as="s" hint-placeholder-count="4">
+      <section style="border: 1px solid {{s.border}}; border-radius: 8px; background: #121316; padding: 12px 14px; display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 10px; align-items: start">
+        <span style="width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-size: 11.5px; background: {{s.dotBg}}; color: {{s.dotFg}}">{{s.mark}}</span>
+        <span>
+          <span style="display: block; font-size: 13px; font-weight: 600">{{s.t}}</span>
+          <span style="display: block; font-size: 12px; color: #A4AAB5">{{s.d}}</span>
+          <span style="display: block; font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: #7F8794; margin-top: 3px">{{s.v}}</span>
+        </span>
+        <span style="font-size: 12px; padding: 3px 10px; border: 1px solid #30343B; border-radius: 5px; color: #E8E9EC; white-space: nowrap">{{s.btn}}</span>
+      </section>
+    </sc-for>
+
+    <div style="display: flex; align-items: center; gap: 10px; margin-top: 4px">
+      <a href="NewCloak.dc.html" style="height: 34px; padding: 0 16px; display: flex; align-items: center; border-radius: 6px; background: #A992FF; color: #0D0E10; font-weight: 600; text-decoration: none">Finish &amp; cloak this worktree</a>
+      <a href="Main.dc.html" style="font-size: 12.5px">Skip to home</a>
+      <span style="margin-left: auto; font-size: 11.5px; color: #7F8794">Change any of this later in Settings</span>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const done = { border: '#25282E', dotBg: '#12201A', dotFg: '#5CC98E', mark: '✓' };
+    const cur = { border: '#3A3352', dotBg: '#2A2340', dotFg: '#C7B8FF' };
+    const todo = { border: '#25282E', dotBg: '#1A1C20', dotFg: '#7F8794' };
+    const steps = [
+      Object.assign({ t: 'Create your key', d: 'Encrypts manifests, profiles and history. Stored in the OS keychain.', v: 'key 3f9a…c21 · macOS Keychain', btn: 'Recovery key' }, done),
+      Object.assign({ t: 'Where cloaks live', d: 'One folder for every cloak, outside your source repos.', v: '~/cloaks', btn: 'Change' }, done),
+      Object.assign({ t: 'Never pull these', d: 'Safe defaults for schemas, migrations, lockfiles, env files and keys.', v: '11 patterns · 4 presets on', btn: 'Review', mark: '3' }, cur),
+      Object.assign({ t: 'First profile', d: 'What to rename. Start blank, import JSON, or let it suggest names from this repo.', v: 'suggested: Contoso → ?, ContosoHealth → ?', btn: 'Set up', mark: '4' }, todo)
+    ];
+    return { steps };
+  }
+}
+</script>
+</body>
+</html>

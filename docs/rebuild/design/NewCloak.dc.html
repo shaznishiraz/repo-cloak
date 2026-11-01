@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Repo Cloak — New cloak</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0D0E10}
+a{color:#A992FF}a:hover{color:#C7B8FF}
+button,input,select{font:inherit;color:inherit}
+</style>
+</helmet>
+<div style="min-height: 980px; background: #0D0E10; color: #E8E9EC; font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 13px; line-height: 1.45; display: flex; flex-direction: column">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 8px 14px; border-bottom: 1px solid #25282E; background: #111215">
+  <a href="Main.dc.html" style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #A4AAB5; text-decoration: none">repo-cloak</a>
+  <span style="color: #4A4F58">/</span>
+  <span style="font-weight: 600">New cloak</span>
+  <span style="margin-left: auto; font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: #7F8794">esc to cancel · ⌘↵ to create</span>
+</header>
+
+<!-- Context banner -->
+<div style="margin: 12px 16px 0; padding: 10px 12px; border: 1px solid #253247; border-radius: 8px; background: #111925; display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center">
+  <span style="font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #6CB6FF">Detected</span>
+  <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px">worktree <span style="color: #E8E9EC">.worktrees/claims-export</span> <span style="color: #7F8794">of</span> contoso-health-api <span style="color: #7F8794">·</span> <span style="color: #6CB6FF">feat/claims-export@a41d2b7</span> <span style="color: #7F8794">· 3 ahead of main</span></span>
+  <span style="margin-left: auto; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; color: #A4AAB5">
+    Already cloaked as <span style="font-family: 'JetBrains Mono', monospace; color: #E8E9EC">acme-care-api-7c1e</span>
+    <a href="Main.dc.html" style="padding: 3px 10px; border: 1px solid #30343B; border-radius: 5px; color: #E8E9EC; text-decoration: none">Open it</a>
+    <span style="padding: 3px 10px; border-radius: 5px; background: #1A1C20; color: #E8E9EC">Add to it</span>
+    <span style="padding: 3px 10px; border-radius: 5px; background: #2A2340; color: #C7B8FF">New cloak ✓</span>
+  </span>
+</div>
+
+<div style="display: flex; flex-wrap: wrap; gap: 14px; padding: 12px 16px 18px; align-items: flex-start">
+
+  <!-- Left: builder -->
+  <div style="flex: 999 1 600px; min-width: 0; display: flex; flex-direction: column; gap: 12px">
+
+    <!-- 1 Select -->
+    <section style="border: 1px solid #25282E; border-radius: 8px; background: #121316">
+      <div style="display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-bottom: 1px solid #25282E; flex-wrap: wrap">
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #7F8794">1</span>
+        <h2 style="margin: 0; font-size: 13px; font-weight: 600">What to pull</h2>
+        <span style="font-size: 11.5px; color: #7F8794">mix any of the three, they merge and dedupe</span>
+        <span style="margin-left: auto; font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: #E8E9EC">14 files</span>
+      </div>
+
+      <!-- Uncommitted -->
+      <div style="padding: 8px 12px; border-bottom: 1px solid #1D1F24">
+        <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 500">
+          <input type="checkbox" checked style="accent-color: #A992FF">
+          Uncommitted changes <span style="font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: #7F8794">6 of 6</span>
+          <span style="margin-left: auto; font-size: 11.5px; color: #7F8794; font-weight: 400">from git status, no disk scan</span>
+        </label>
+        <div style="display: flex; flex-wrap: wrap; gap: 4px 6px; margin: 6px 0 0 24px">
+          <sc-for list="{{uncommitted}}" as="u" hint-placeholder-count="6">
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 1px 6px; border-radius: 4px; background: #1A1C20; color: #A4AAB5"><span style="color: {{u.c}}">{{u.s}}</span> {{u.p}}</span>
+          </sc-for>
+        </div>
+      </div>
+
+      <!-- Commits -->
+      <div style="padding: 8px 12px; border-bottom: 1px solid #1D1F24">
+        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap">
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 500">
+            <input type="checkbox" checked style="accent-color: #A992FF">
+            Commits <span style="font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: #7F8794">2 picked · 5 files</span>
+          </label>
+          <label style="margin-left: auto; display: flex; align-items: center; gap: 6px; height: 26px; padding: 0 8px; border: 1px solid #25282E; border-radius: 5px; background: #0D0E10; min-width: 240px">
+            <span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Search commits</span>
+            <input type="text" placeholder="Search older commits: sha, message, author…" style="flex: 1; border: 0; background: transparent; outline: none; font-size: 12px">
+          </label>
+        </div>
+        <div style="margin: 6px 0 0 24px; display: flex; flex-direction: column">
+          <sc-for list="{{commits}}" as="c" hint-placeholder-count="4">
+            <label style="display: grid; grid-template-columns: 18px 64px minmax(0, 1fr) 72px 54px; gap: 8px; align-items: center; padding: 3px 0; font-size: 12px">
+              <input type="checkbox" checked="{{c.on}}" style="accent-color: #A992FF">
+              <span style="font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: #6CB6FF">{{c.sha}}</span>
+              <span style="color: #E8E9EC; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{c.msg}}</span>
+              <span style="font-size: 11px; color: #7F8794">{{c.when}}</span>
+              <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #7F8794; text-align: right">{{c.files}}</span>
+            </label>
+          </sc-for>
+        </div>
+      </div>
+
+      <!-- Files -->
+      <div style="padding: 8px 12px">
+        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap">
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 500">
+            <input type="checkbox" checked style="accent-color: #A992FF">
+            Files &amp; folders <span style="font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: #7F8794">3 picked · 7 files</span>
+          </label>
+          <span style="margin-left: auto; font-size: 11.5px; color: #7F8794">git ls-files · 1,284 tracked</span>
+        </div>
+        <div style="margin: 6px 0 0 24px; font-family: 'JetBrains Mono', monospace; font-size: 12px; border-left: 1px solid #25282E; padding-left: 8px">
+          <sc-for list="{{tree}}" as="t" hint-placeholder-count="8">
+            <div style="display: flex; align-items: center; gap: 6px; padding: 2px 0; padding-left: {{t.indent}}">
+              <span style="width: 12px; color: {{t.boxColor}}">{{t.box}}</span>
+              <span style="color: {{t.color}}">{{t.name}}</span>
+              <span style="font-size: 11px; color: {{t.noteColor}}">{{t.note}}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2 Profile / 3 Destination / 4 Group: compact row -->
+    <section style="border: 1px solid #25282E; border-radius: 8px; background: #121316; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr))">
+      <div style="padding: 10px 12px; border-right: 1px solid #25282E; min-width: 0">
+        <div style="display: flex; gap: 8px; align-items: baseline"><span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #7F8794">2</span><h2 style="margin: 0; font-size: 13px; font-weight: 600">Profiles</h2></div>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px">
+          <span style="font-size: 12px; padding: 2px 8px; border-radius: 5px; background: #2A2340; color: #C7B8FF">contoso ✓</span>
+          <span style="font-size: 12px; padding: 2px 8px; border-radius: 5px; background: #2A2340; color: #C7B8FF">secrets ✓</span>
+          <span style="font-size: 12px; padding: 2px 8px; border-radius: 5px; border: 1px dashed #30343B; color: #A4AAB5">+ add</span>
+        </div>
+        <div style="font-size: 11.5px; color: #7F8794; margin-top: 6px">46 rules · 11 exclusions · no conflicts</div>
+      </div>
+      <div style="padding: 10px 12px; border-right: 1px solid #25282E; min-width: 0">
+        <div style="display: flex; gap: 8px; align-items: baseline"><span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #7F8794">3</span><h2 style="margin: 0; font-size: 13px; font-weight: 600">Name &amp; place</h2></div>
+        <label style="display: block; margin-top: 8px; font-size: 11px; color: #7F8794">Name
+          <input type="text" value="acme-care-api-e5a2" style="display: block; width: 100%; box-sizing: border-box; margin-top: 2px; height: 26px; padding: 0 8px; border: 1px solid #30343B; border-radius: 5px; background: #0D0E10; font-family: 'JetBrains Mono', monospace; font-size: 12px">
+        </label>
+        <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #7F8794; margin-top: 6px">→ ~/cloaks/claims/acme-care-api-e5a2 <span style="font-family: 'IBM Plex Sans', sans-serif">· fixed in Settings</span></div>
+      </div>
+      <div style="padding: 10px 12px; min-width: 0">
+        <div style="display: flex; gap: 8px; align-items: baseline"><span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #7F8794">4</span><h2 style="margin: 0; font-size: 13px; font-weight: 600">Group</h2></div>
+        <label style="display: block; margin-top: 8px; font-size: 11px; color: #7F8794">Join group
+          <select style="display: block; width: 100%; margin-top: 2px; height: 26px; padding: 0 6px; border: 1px solid #30343B; border-radius: 5px; background: #0D0E10; font-size: 12px">
+            <option>claims (api, web)</option>
+            <option>billing</option>
+            <option>No group</option>
+            <option>New group…</option>
+          </select>
+        </label>
+        <div style="font-size: 11.5px; color: #7F8794; margin-top: 6px">Same feature branch as acme-care-web: bulk pull/push together.</div>
+      </div>
+    </section>
+
+    <!-- Advanced -->
+    <section style="border: 1px solid #25282E; border-radius: 8px; background: #121316">
+      <div style="display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-bottom: 1px solid #25282E">
+        <span style="color: #A4AAB5">▾</span>
+        <h2 style="margin: 0; font-size: 13px; font-weight: 600">After create</h2>
+        <span style="font-size: 11.5px; color: #7F8794">commands run in the cloak folder, never in source</span>
+      </div>
+      <div style="padding: 8px 12px; display: flex; flex-direction: column; gap: 6px">
+        <sc-for list="{{cmds}}" as="c" hint-placeholder-count="2">
+          <div style="display: flex; align-items: center; gap: 8px">
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #7F8794">$</span>
+            <span style="flex: 1; min-width: 0; font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 4px 8px; border: 1px solid #25282E; border-radius: 5px; background: #0D0E10">{{c}}</span>
+          </div>
+        </sc-for>
+        <div style="display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; font-size: 11.5px; color: #7F8794">
+          variables
+          <sc-for list="{{vars}}" as="v" hint-placeholder-count="5">
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 0 5px; border-radius: 4px; background: #1A1C20; color: #A4AAB5">{{v}}</span>
+          </sc-for>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Right: review -->
+  <aside style="flex: 1 1 340px; max-width: 420px; min-width: 0; border: 1px solid #30343B; border-radius: 10px; background: #15161A; display: flex; flex-direction: column">
+    <div style="padding: 12px 14px; border-bottom: 1px solid #25282E">
+      <div style="font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #7F8794">Review</div>
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 8px">
+        <div><div style="font-family: 'JetBrains Mono', monospace; font-size: 18px">14</div><div style="font-size: 11px; color: #7F8794">files out</div></div>
+        <div><div style="font-family: 'JetBrains Mono', monospace; font-size: 18px">2.9k</div><div style="font-size: 11px; color: #7F8794">lines</div></div>
+        <div><div style="font-family: 'JetBrains Mono', monospace; font-size: 18px; color: #F2777A">3</div><div style="font-size: 11px; color: #7F8794">held back</div></div>
+      </div>
+    </div>
+
+    <div style="padding: 10px 14px; border-bottom: 1px solid #25282E">
+      <div style="font-size: 12px; font-weight: 600; margin-bottom: 6px">Held back by exclusions</div>
+      <sc-for list="{{blocked}}" as="b" hint-placeholder-count="3">
+        <div style="display: flex; justify-content: space-between; gap: 8px; padding: 2px 0; font-size: 11.5px">
+          <span style="font-family: 'JetBrains Mono', monospace; color: #F2777A; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{b.p}}</span>
+          <span style="font-family: 'JetBrains Mono', monospace; color: #7F8794; white-space: nowrap">{{b.r}}</span>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="padding: 10px 14px; border-bottom: 1px solid #25282E">
+      <div style="display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; margin-bottom: 6px"><span>Replacements that will hit</span><span style="font-weight: 400; color: #7F8794">hits</span></div>
+      <sc-for list="{{maps}}" as="m" hint-placeholder-count="5">
+        <div style="display: grid; grid-template-columns: minmax(0, 1fr) 14px minmax(0, 1fr) 34px; gap: 6px; padding: 2px 0; font-family: 'JetBrains Mono', monospace; font-size: 11.5px; align-items: center">
+          <span style="color: #A4AAB5; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{m.a}}</span>
+          <span style="color: #4A4F58">→</span>
+          <span style="color: #C7B8FF; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{m.b}}</span>
+          <span style="color: #7F8794; text-align: right">{{m.n}}</span>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="padding: 10px 14px; border-bottom: 1px solid #25282E">
+      <div style="font-size: 12px; font-weight: 600; margin-bottom: 6px">Path preview</div>
+      <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #7F8794; line-height: 1.6">src/Contoso.Health.Claims/ExportService.cs<br><span style="color: #C7B8FF">src/Acme.Care.Claims/ExportService.cs</span></div>
+    </div>
+
+    <div style="padding: 10px 14px; border-bottom: 1px solid #25282E; display: flex; gap: 8px; align-items: flex-start">
+      <span style="font-family: 'JetBrains Mono', monospace; color: #F0B455">!</span>
+      <span style="font-size: 11.5px; color: #A4AAB5">1 leftover: <span style="font-family: 'JetBrains Mono', monospace; color: #E8E9EC">ch-prod-sql01</span> in appsettings.Development.json has no rule. <a href="Profiles.dc.html">Add rule</a> · <a href="#">Ignore</a></span>
+    </div>
+
+    <div style="padding: 10px 14px">
+      <div style="font-size: 11px; color: #7F8794; margin-bottom: 4px">Same thing from the CLI</div>
+      <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #A4AAB5; padding: 6px 8px; border-radius: 5px; background: #0D0E10; border: 1px solid #25282E; word-break: break-all">repo-cloak pull --working --commits a41d2b7,77be031 --paths src/Contoso.Health.Claims -p contoso,secrets --group claims</div>
+    </div>
+
+    <div style="margin-top: auto; padding: 12px 14px; border-top: 1px solid #25282E; display: flex; gap: 8px; align-items: center">
+      <a href="Main.dc.html" style="flex: 1; height: 34px; display: flex; align-items: center; justify-content: center; border-radius: 6px; background: #A992FF; color: #0D0E10; font-weight: 600; text-decoration: none">Create cloak · 14 files</a>
+      <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #7F8794">⌘↵</span>
+    </div>
+  </aside>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":980}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const M = '#F0B455', A = '#5CC98E', D = '#F2777A';
+    const uncommitted = [
+      { s: 'M', c: M, p: 'Claims/ExportService.cs' },
+      { s: 'M', c: M, p: 'Claims/ClaimCsvWriter.cs' },
+      { s: 'M', c: M, p: 'Api/Controllers/ClaimsController.cs' },
+      { s: 'A', c: A, p: 'Claims/ExportOptions.cs' },
+      { s: 'M', c: M, p: 'Api/appsettings.Development.json' },
+      { s: 'M', c: D, p: 'Data/ContosoHealthDbContext.cs' }
+    ];
+    const commits = [
+      { on: true, sha: 'a41d2b7', msg: 'claims: stream export rows instead of buffering', when: '2h ago', files: '3 f' },
+      { on: true, sha: '77be031', msg: 'claims: add csv writer with locale-safe decimals', when: 'yesterday', files: '2 f' },
+      { on: false, sha: 'e9c1f04', msg: 'chore: bump EF Core to 8.0.10', when: '2d ago', files: '9 f' },
+      { on: false, sha: '1d0a5b2', msg: 'api: version claims endpoints', when: '4d ago', files: '4 f' }
+    ];
+    const n = (depth, box, name, note, opts) => Object.assign({ indent: (depth * 14) + 'px', box, name, note, boxColor: box === '■' ? '#A992FF' : box === '×' ? D : '#7F8794', color: '#E8E9EC', noteColor: '#7F8794' }, opts || {});
+    const tree = [
+      n(0, '◪', 'src/', ''),
+      n(1, '■', 'Contoso.Health.Claims/', '5 files', {}),
+      n(1, '◪', 'Contoso.Health.Api/', ''),
+      n(2, '■', 'Controllers/ClaimsController.cs', ''),
+      n(2, '□', 'Program.cs', '', { color: '#A4AAB5' }),
+      n(1, '◪', 'Contoso.Health.Data/', ''),
+      n(2, '■', 'Repositories/ClaimRepository.cs', ''),
+      n(2, '×', 'ContosoHealthDbContext.cs', 'excluded · *DbContext.cs', { color: '#7F8794', noteColor: D }),
+      n(2, '×', 'Migrations/', 'excluded · **/Migrations/**', { color: '#7F8794', noteColor: D })
+    ];
+    const cmds = ['git init -q && git add -A && git commit -qm "cloak {name}"', 'code {dest}'];
+    const vars = ['{dest}', '{source}', '{branch}', '{name}', '{group}', '{sha}'];
+    const blocked = [
+      { p: 'Data/ContosoHealthDbContext.cs', r: '*DbContext.cs' },
+      { p: 'Data/Migrations/ (12)', r: '**/Migrations/**' },
+      { p: 'package-lock.json', r: 'global' }
+    ];
+    const maps = [
+      { a: 'Contoso.Health', b: 'Acme.Care', n: '212' },
+      { a: 'ContosoHealth', b: 'AcmeCare', n: '64' },
+      { a: 'contoso', b: 'acme', n: '31' },
+      { a: '/CH-\\d{6}/', b: 'CLM-######', n: '9' },
+      { a: 'Medicaid Tier', b: 'Plan Tier', n: '4' },
+      { a: 'secret: ConnStr', b: '••• vault ref', n: '2' }
+    ];
+    return { uncommitted, commits, tree, cmds, vars, blocked, maps };
+  }
+}
+</script>
+</body>
+</html>

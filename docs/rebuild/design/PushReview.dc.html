@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Repo Cloak — Push review</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0D0E10}
+a{color:#A992FF}a:hover{color:#C7B8FF}
+button,input,select{font:inherit;color:inherit}
+</style>
+</helmet>
+<div style="min-height: 940px; background: #0D0E10; color: #E8E9EC; font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 13px; line-height: 1.45; display: flex; flex-direction: column">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding: 8px 14px; border-bottom: 1px solid #25282E; background: #111215">
+  <a href="Main.dc.html" style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #A4AAB5; text-decoration: none">repo-cloak</a>
+  <span style="color: #4A4F58">/</span>
+  <span style="font-family: 'JetBrains Mono', monospace">acme-care-api-7c1e</span>
+  <span style="color: #4A4F58">/</span>
+  <span style="font-weight: 600">Push</span>
+  <div style="display: flex; align-items: center; gap: 8px; margin-left: 16px; font-family: 'JetBrains Mono', monospace; font-size: 12px; flex-wrap: wrap">
+    <span style="padding: 3px 8px; border: 1px solid #3A3352; border-radius: 5px; background: #1B1826">cloak · 4 changes</span>
+    <span style="color: #4A4F58">→</span>
+    <label style="display: flex; align-items: center; gap: 6px; padding: 0 4px 0 8px; height: 26px; border: 1px solid #30343B; border-radius: 5px; background: #1A1C20">
+      <span style="font-family: 'IBM Plex Sans', sans-serif; font-size: 10.5px; color: #7F8794; text-transform: uppercase; letter-spacing: 0.06em">into</span>
+      <select style="height: 24px; border: 0; background: transparent; font-family: 'JetBrains Mono', monospace; font-size: 12px">
+        <option>.worktrees/claims-export · feat/claims-export (pulled from)</option>
+        <option>contoso-health-api · main</option>
+        <option>.worktrees/hotfix-4-2 · release/4.2</option>
+        <option>new worktree from main…</option>
+      </select>
+    </label>
+  </div>
+  <span style="margin-left: auto; font-size: 11.5px; color: #7F8794">target is clean · HEAD a41d2b7 → 3 new upstream commits</span>
+</header>
+
+<div style="display: flex; flex-wrap: wrap; flex: 1; min-height: 0">
+
+  <!-- File list -->
+  <section aria-label="Files" style="flex: 1 1 280px; max-width: 340px; border-right: 1px solid #25282E; display: flex; flex-direction: column">
+    <div style="display: flex; align-items: center; padding: 8px 12px; border-bottom: 1px solid #25282E; font-size: 12px">
+      <label style="display: flex; align-items: center; gap: 8px"><input type="checkbox" checked style="accent-color: #A992FF"> 4 of 4 files</label>
+      <span style="margin-left: auto; font-family: 'JetBrains Mono', monospace; font-size: 11.5px"><span style="color: #5CC98E">+150</span> <span style="color: #F2777A">−15</span></span>
+    </div>
+    <sc-for list="{{files}}" as="f" hint-placeholder-count="4">
+      <label style="{{f.rowStyle}}">
+        <input type="checkbox" checked style="accent-color: #A992FF; margin-top: 2px">
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: {{f.color}}; width: 12px">{{f.st}}</span>
+        <span style="min-width: 0; flex: 1">
+          <span style="display: block; font-family: 'JetBrains Mono', monospace; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{f.name}}</span>
+          <span style="display: block; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: #7F8794; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{f.dir}}</span>
+          <span style="display: block; font-size: 11px; color: {{f.flagColor}}">{{f.flag}}</span>
+        </span>
+      </label>
+    </sc-for>
+  </section>
+
+  <!-- Diff -->
+  <main style="flex: 999 1 640px; min-width: 0; display: flex; flex-direction: column">
+    <div style="display: flex; align-items: center; gap: 10px; padding: 8px 14px; border-bottom: 1px solid #25282E; flex-wrap: wrap">
+      <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px">ExportService.cs</span>
+      <span style="font-size: 11.5px; color: #7F8794">hunk 2 of 3</span>
+      <div role="group" aria-label="Diff view" style="margin-left: auto; display: flex; border: 1px solid #30343B; border-radius: 5px; overflow: hidden; font-size: 11.5px">
+        <button type="button" style="padding: 3px 10px; border: 0; background: #22252B; cursor: pointer">Cloak ↔ restored</button>
+        <button type="button" style="padding: 3px 10px; border: 0; border-left: 1px solid #30343B; background: transparent; color: #A4AAB5; cursor: pointer">Restored diff only</button>
+      </div>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-bottom: 1px solid #25282E">
+      <div style="padding: 5px 14px; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #C7B8FF; border-right: 1px solid #25282E">What Claude edited · cloak</div>
+      <div style="padding: 5px 14px; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #A4AAB5">What lands in source · restored</div>
+    </div>
+    <div style="overflow-x: auto">
+      <div style="min-width: 640px; font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.7">
+        <sc-for list="{{diff}}" as="d" hint-placeholder-count="12">
+          <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr))">
+            <div style="{{d.lStyle}}"><span style="display: inline-block; width: 30px; color: #4A4F58; text-align: right; margin-right: 10px">{{d.ln}}</span>{{d.l}}</div>
+            <div style="{{d.rStyle}}"><span style="display: inline-block; width: 30px; color: #4A4F58; text-align: right; margin-right: 10px">{{d.ln}}</span>{{d.r}}</div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <!-- Merge note -->
+    <div style="margin: 12px 14px 0; padding: 10px 12px; border: 1px solid #253247; border-radius: 8px; background: #111925; display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap">
+      <span style="font-family: 'JetBrains Mono', monospace; color: #6CB6FF">↓</span>
+      <div style="flex: 1 1 360px; min-width: 0">
+        <div style="font-size: 12.5px">ClaimsController.cs changed in the source after you pulled</div>
+        <div style="font-size: 11.5px; color: #A4AAB5">Upstream commit <span style="font-family: 'JetBrains Mono', monospace; color: #6CB6FF">c33e8f1</span> touched lines 40–52. Your edit is at 61–72, so a 3-way merge applies cleanly.</div>
+      </div>
+      <div style="display: flex; gap: 6px">
+        <button type="button" style="height: 26px; padding: 0 10px; border: 1px solid #30343B; border-radius: 5px; background: #1A1C20; font-size: 12px; cursor: pointer">Merge (recommended)</button>
+        <button type="button" style="height: 26px; padding: 0 10px; border: 1px solid #30343B; border-radius: 5px; background: transparent; font-size: 12px; cursor: pointer">Pull first</button>
+        <button type="button" style="height: 26px; padding: 0 10px; border: 1px solid #30343B; border-radius: 5px; background: transparent; font-size: 12px; cursor: pointer">Overwrite</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- Checks + commit -->
+  <aside style="flex: 1 1 300px; max-width: 340px; border-left: 1px solid #25282E; display: flex; flex-direction: column; background: #0F1013">
+    <div style="padding: 10px 14px; border-bottom: 1px solid #25282E">
+      <div style="font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #7F8794; margin-bottom: 6px">Before it lands</div>
+      <sc-for list="{{checks}}" as="c" hint-placeholder-count="5">
+        <div style="display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 8px; padding: 4px 0">
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: {{c.color}}">{{c.icon}}</span>
+          <span>
+            <span style="display: block; font-size: 12.5px">{{c.t}}</span>
+            <span style="display: block; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #7F8794">{{c.s}}</span>
+          </span>
+        </div>
+      </sc-for>
+    </div>
+    <div style="padding: 10px 14px; border-bottom: 1px solid #25282E">
+      <div style="font-size: 12px; font-weight: 600; margin-bottom: 6px">New name Claude introduced</div>
+      <div style="display: grid; grid-template-columns: minmax(0, 1fr) 14px minmax(0, 1fr); gap: 6px; font-family: 'JetBrains Mono', monospace; font-size: 11.5px; align-items: center">
+        <span style="color: #C7B8FF; overflow: hidden; text-overflow: ellipsis">AcmeCareExportJob</span><span style="color: #4A4F58">→</span><span style="overflow: hidden; text-overflow: ellipsis">ContosoHealthExportJob</span>
+      </div>
+      <div style="font-size: 11px; color: #7F8794; margin-top: 4px">Derived from rule AcmeCare ↔ ContosoHealth. <a href="#">Edit</a></div>
+    </div>
+    <div style="padding: 10px 14px; border-bottom: 1px solid #25282E; display: flex; flex-direction: column; gap: 6px">
+      <div style="font-size: 12px; font-weight: 600">In the target</div>
+      <label style="display: flex; gap: 8px; align-items: center; font-size: 12.5px"><input type="radio" name="mode" style="accent-color: #A992FF"> Write files only</label>
+      <label style="display: flex; gap: 8px; align-items: center; font-size: 12.5px"><input type="radio" name="mode" checked style="accent-color: #A992FF"> Write + stage</label>
+      <label style="display: flex; gap: 8px; align-items: center; font-size: 12.5px"><input type="radio" name="mode" style="accent-color: #A992FF"> Write + commit</label>
+      <label style="font-size: 11px; color: #7F8794">Commit message (restored, never cloaked)
+        <input type="text" value="claims: stream export, add ContosoHealthExportJob" style="display: block; width: 100%; box-sizing: border-box; margin-top: 2px; height: 26px; padding: 0 8px; border: 1px solid #30343B; border-radius: 5px; background: #0D0E10; font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: #A4AAB5">
+      </label>
+    </div>
+    <div style="padding: 10px 14px; display: flex; flex-direction: column; gap: 6px">
+      <label style="display: flex; gap: 8px; align-items: center; font-size: 12px; color: #A4AAB5"><input type="checkbox" checked style="accent-color: #A992FF"> Re-pull these 4 files after push</label>
+      <label style="display: flex; gap: 8px; align-items: center; font-size: 12px; color: #A4AAB5"><input type="checkbox" style="accent-color: #A992FF"> Also push acme-care-web (group claims)</label>
+    </div>
+    <div style="margin-top: auto; padding: 12px 14px; border-top: 1px solid #25282E; display: flex; flex-direction: column; gap: 6px">
+      <a href="Main.dc.html" style="height: 34px; display: flex; align-items: center; justify-content: center; border-radius: 6px; background: #A992FF; color: #0D0E10; font-weight: 600; text-decoration: none">Push 4 files to claims-export</a>
+      <span style="font-size: 11px; color: #7F8794; text-align: center">Backup of overwritten source files kept for 7 days · <a href="#">undo</a></span>
+    </div>
+  </aside>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":940}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const row = (on) => 'display: flex; gap: 8px; align-items: flex-start; padding: 7px 12px; border-bottom: 1px solid #1D1F24; cursor: pointer; background: ' + (on ? '#1A1C20' : 'transparent') + '; border-left: 2px solid ' + (on ? '#A992FF' : 'transparent');
+    const files = [
+      { st: 'M', color: '#F0B455', name: 'ExportService.cs', dir: 'Contoso.Health.Claims/', flag: '+48 −12 · clean', flagColor: '#7F8794', rowStyle: row(true) },
+      { st: 'M', color: '#F0B455', name: 'ClaimCsvWriter.cs', dir: 'Contoso.Health.Claims/', flag: '+19 −3 · clean', flagColor: '#7F8794', rowStyle: row(false) },
+      { st: 'M', color: '#F0B455', name: 'ClaimsController.cs', dir: 'Contoso.Health.Api/Controllers/', flag: '↓ source moved · auto-merge', flagColor: '#6CB6FF', rowStyle: row(false) },
+      { st: 'A', color: '#5CC98E', name: 'ContosoHealthExportJob.cs', dir: 'Contoso.Health.Claims/ · new', flag: '! new name derived', flagColor: '#F0B455', rowStyle: row(false) }
+    ];
+    const base = 'padding: 0 14px; white-space: pre; overflow: hidden; text-overflow: ellipsis; ';
+    const ctx = base + 'color: #A4AAB5;';
+    const add = base + 'background: #12201A; color: #CDEBDB;';
+    const del = base + 'background: #2A1517; color: #F2C4C5;';
+    const sepL = 'border-right: 1px solid #25282E; ';
+    const L = (ln, l, r, kind) => {
+      const s = kind === '+' ? add : kind === '-' ? del : ctx;
+      return { ln: String(ln), l: (kind || ' ') + ' ' + l, r: (kind || ' ') + ' ' + r, lStyle: sepL + s, rStyle: s };
+    };
+    const diff = [
+      L(38, 'namespace Acme.Care.Claims;', 'namespace Contoso.Health.Claims;'),
+      L(39, '', ''),
+      L(40, 'public sealed class ExportService : IExportService', 'public sealed class ExportService : IExportService'),
+      L(41, '{', '{'),
+      L(42, '    private readonly IAcmeCareClaimRepository _claims;', '    private readonly IContosoHealthClaimRepository _claims;'),
+      L(43, '    public async Task<byte[]> ExportAsync(Filter f)', '    public async Task<byte[]> ExportAsync(Filter f)', '-'),
+      L(43, '    public async Task ExportAsync(Filter f, Stream output,', '    public async Task ExportAsync(Filter f, Stream output,', '+'),
+      L(44, '        CancellationToken ct)', '        CancellationToken ct)', '+'),
+      L(45, '    {', '    {'),
+      L(46, '        var rows = await _claims.ListAsync(f);', '        var rows = await _claims.ListAsync(f);', '-'),
+      L(46, '        await foreach (var c in _claims.StreamAsync(f, ct))', '        await foreach (var c in _claims.StreamAsync(f, ct))', '+'),
+      L(47, '            await _writer.WriteAsync(c, "CLM-" + c.No, ct);', '            await _writer.WriteAsync(c, "CH-" + c.No, ct);', '+'),
+      L(48, '        _metrics.Track("acme.care.export");', '        _metrics.Track("contoso.health.export");', '+'),
+      L(49, '    }', '    }')
+    ];
+    const checks = [
+      { icon: '✓', color: '#5CC98E', t: 'Every cloaked name restores', s: '46 rules · 1 derived · 0 left' },
+      { icon: '✓', color: '#5CC98E', t: 'No cloaked name leaks into source', s: 'acme / Acme.Care: 0 hits after restore' },
+      { icon: '↓', color: '#6CB6FF', t: '1 file auto-merges with upstream', s: 'ClaimsController.cs · no overlap' },
+      { icon: '✓', color: '#5CC98E', t: 'Only files from this cloak', s: 'no paths outside the manifest' },
+      { icon: '✓', color: '#5CC98E', t: 'Builds in cloak', s: 'post-check: dotnet build · 14s' }
+    ];
+    return { files, diff, checks };
+  }
+}
+</script>
+</body>
+</html>

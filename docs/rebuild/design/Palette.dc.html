@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Repo Cloak — Command palette</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#08090A}
+button,input{font:inherit;color:inherit}
+</style>
+</helmet>
+<div style="min-height: 900px; background: #08090A; color: #E8E9EC; font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 13px; line-height: 1.45; display: flex; justify-content: center; padding: 110px 16px 40px; box-sizing: border-box">
+  <div role="dialog" aria-label="Command palette" style="width: 100%; max-width: 640px; align-self: flex-start; background: #15161A; border: 1px solid #30343B; border-radius: 12px; box-shadow: 0 30px 80px rgba(0,0,0,0.6); overflow: hidden">
+    <label style="display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid #25282E">
+      <span style="font-family: 'JetBrains Mono', monospace; color: #A992FF">›</span>
+      <span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Command</span>
+      <input type="text" value="push api" style="flex: 1; border: 0; background: transparent; outline: none; font-size: 15px">
+      <span style="font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: #7F8794; border: 1px solid #30343B; border-radius: 4px; padding: 0 5px">esc</span>
+    </label>
+    <sc-for list="{{groups}}" as="g" hint-placeholder-count="3">
+      <div style="padding: 8px 14px 3px; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #7F8794">{{g.name}}</div>
+      <sc-for list="{{g.items}}" as="i" hint-placeholder-count="3">
+        <div style="{{i.style}}">
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; width: 16px; color: {{i.ic}}">{{i.icon}}</span>
+          <span style="flex: 1; min-width: 0">
+            <span style="display: block; font-size: 13px">{{i.t}}</span>
+            <span style="display: block; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #7F8794; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{i.s}}</span>
+          </span>
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: #7F8794">{{i.k}}</span>
+        </div>
+      </sc-for>
+    </sc-for>
+    <div style="display: flex; gap: 14px; padding: 8px 14px; border-top: 1px solid #25282E; font-size: 11px; color: #7F8794; flex-wrap: wrap">
+      <span>↑↓ move</span><span>↵ run</span><span>⇧↵ run with options</span><span>⌘C copy CLI command</span>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const st = (on) => 'display: flex; align-items: center; gap: 10px; padding: 7px 14px; background: ' + (on ? '#22252B' : 'transparent') + '; border-left: 2px solid ' + (on ? '#A992FF' : 'transparent');
+    const it = (icon, ic, t, s, k, on) => ({ icon, ic, t, s, k, style: st(on) });
+    const groups = [
+      { name: 'Actions', items: [
+        it('↑', '#F0B455', 'Push acme-care-api-7c1e', '4 files → .worktrees/claims-export', '↵', true),
+        it('↑', '#F0B455', 'Push acme-care-api-7c1e to…', 'choose main checkout, another worktree, patch', '⇧↵'),
+        it('↑', '#F0B455', 'Push group claims', 'api 4 · web 0', '')
+      ] },
+      { name: 'Workspaces', items: [
+        it('◆', '#A992FF', 'acme-care-api-7c1e', '~/cloaks/claims/acme-care-api', ''),
+        it('◆', '#A992FF', 'acme-portal-auth-c4f0', '~/cloaks/acme-portal-auth', '')
+      ] },
+      { name: 'Files in cloaks', items: [
+        it('·', '#7F8794', 'ApiClient.ts', 'acme-care-web · src/api/ApiClient.ts', '')
+      ] }
+    ];
+    return { groups };
+  }
+}
+</script>
+</body>
+</html>

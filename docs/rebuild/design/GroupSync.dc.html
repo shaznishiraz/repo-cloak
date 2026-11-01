@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Repo Cloak — Group sync</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0D0E10}
+a{color:#A992FF}a:hover{color:#C7B8FF}
+button,input,select{font:inherit;color:inherit}
+</style>
+</helmet>
+<div style="min-height: 940px; background: #0D0E10; color: #E8E9EC; font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 13px; line-height: 1.45; display: flex; flex-direction: column">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 8px 14px; border-bottom: 1px solid #25282E; background: #111215">
+  <a href="Main.dc.html" style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #A4AAB5; text-decoration: none">repo-cloak</a>
+  <span style="color: #4A4F58">/</span>
+  <span style="color: #A4AAB5">group</span>
+  <span style="font-family: 'JetBrains Mono', monospace; font-weight: 500">claims</span>
+  <span style="font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: #7F8794">~/cloaks/claims · 2 repos · feat/claims-export</span>
+  <div style="margin-left: auto; display: flex; gap: 6px">
+    <button type="button" style="height: 28px; padding: 0 12px; border: 1px solid #30343B; border-radius: 6px; background: #1A1C20; font-size: 12px; cursor: pointer">↓ Pull all <span style="font-family: 'JetBrains Mono', monospace; color: #6CB6FF">2</span></button>
+    <a href="PushReview.dc.html" style="height: 28px; padding: 0 12px; border-radius: 6px; background: #A992FF; color: #0D0E10; font-weight: 600; font-size: 12px; display: flex; align-items: center; text-decoration: none">↑ Push all · 4 files</a>
+  </div>
+</header>
+
+<div style="display: flex; flex-wrap: wrap; gap: 14px; padding: 14px 16px; align-items: flex-start">
+  <div style="flex: 999 1 640px; min-width: 0; display: flex; flex-direction: column; gap: 12px">
+
+    <section style="border: 1px solid #25282E; border-radius: 8px; background: #121316">
+      <div style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid #25282E">
+        <h2 style="margin: 0; font-size: 12.5px; font-weight: 600">Members</h2>
+        <span style="font-size: 11.5px; color: #7F8794">each repo keeps its own folder, source and manifest</span>
+        <a href="NewCloak.dc.html" style="margin-left: auto; font-size: 12px">+ Add repo to group</a>
+      </div>
+      <div style="overflow-x: auto">
+        <div style="min-width: 660px">
+          <div style="display: grid; grid-template-columns: 22px minmax(0, 1.3fr) minmax(0, 1.4fr) 70px 70px minmax(0, 1fr); gap: 10px; padding: 6px 12px; font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: #7F8794; border-bottom: 1px solid #1D1F24">
+            <span></span><span>Cloak folder</span><span>Source · push target</span><span>Push</span><span>Pull</span><span>Plan</span>
+          </div>
+          <sc-for list="{{members}}" as="m" hint-placeholder-count="2">
+            <div style="display: grid; grid-template-columns: 22px minmax(0, 1.3fr) minmax(0, 1.4fr) 70px 70px minmax(0, 1fr); gap: 10px; padding: 8px 12px; border-bottom: 1px solid #1D1F24; align-items: center">
+              <input type="checkbox" checked aria-label="Include in bulk action" style="accent-color: #A992FF">
+              <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px">{{m.folder}}</span>
+              <span style="min-width: 0">
+                <span style="display: block; font-family: 'JetBrains Mono', monospace; font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{m.source}}</span>
+                <span style="display: block; font-size: 11px; color: #7F8794">{{m.target}} <a href="#">change</a></span>
+              </span>
+              <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: {{m.pushColor}}">{{m.push}}</span>
+              <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: {{m.pullColor}}">{{m.pull}}</span>
+              <span style="font-size: 11.5px; color: #A4AAB5">{{m.plan}}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </section>
+
+    <section style="border: 1px solid #25282E; border-radius: 8px; background: #121316">
+      <div style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid #25282E">
+        <h2 style="margin: 0; font-size: 12.5px; font-weight: 600">Shared folder</h2>
+        <span style="font-size: 11.5px; color: #7F8794">what Claude sees when you open ~/cloaks/claims</span>
+      </div>
+      <div style="padding: 8px 14px; font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.75; color: #A4AAB5">
+        <div><span style="color: #E8E9EC">~/cloaks/claims/</span></div>
+        <div style="padding-left: 16px">AGENTS.md <span style="color: #7F8794; font-family: 'IBM Plex Sans', sans-serif; font-size: 11px">generated · explains layout, asks Claude to request files instead of guessing</span></div>
+        <div style="padding-left: 16px"><span style="color: #E8E9EC">acme-care-api/</span> <span style="color: #7F8794">42 files</span></div>
+        <div style="padding-left: 16px"><span style="color: #E8E9EC">acme-care-web/</span> <span style="color: #7F8794">18 files</span></div>
+        <div style="padding-left: 16px"><span style="color: #7F8794">.repo-cloak/</span> <span style="color: #7F8794; font-family: 'IBM Plex Sans', sans-serif; font-size: 11px">sealed manifests only · no real names, no keys</span></div>
+      </div>
+    </section>
+  </div>
+
+  <aside style="flex: 1 1 320px; max-width: 380px; display: flex; flex-direction: column; gap: 12px">
+    <section style="border: 1px solid #25282E; border-radius: 8px; background: #121316; padding: 10px 12px">
+      <h2 style="margin: 0 0 6px; font-size: 12.5px; font-weight: 600">Bulk rules</h2>
+      <label style="display: flex; gap: 8px; align-items: center; font-size: 12px; color: #A4AAB5; padding: 2px 0"><input type="checkbox" checked style="accent-color: #A992FF"> Stop all if any guard check fails</label>
+      <label style="display: flex; gap: 8px; align-items: center; font-size: 12px; color: #A4AAB5; padding: 2px 0"><input type="checkbox" checked style="accent-color: #A992FF"> Same commit message across repos</label>
+      <label style="display: flex; gap: 8px; align-items: center; font-size: 12px; color: #A4AAB5; padding: 2px 0"><input type="checkbox" style="accent-color: #A992FF"> Switch all sources to one branch</label>
+    </section>
+    <section style="border: 1px solid #25282E; border-radius: 8px; background: #121316; padding: 10px 12px">
+      <h2 style="margin: 0 0 6px; font-size: 12.5px; font-weight: 600">Last bulk runs</h2>
+      <sc-for list="{{runs}}" as="r" hint-placeholder-count="3">
+        <div style="display: grid; grid-template-columns: 70px 44px minmax(0, 1fr); gap: 8px; padding: 3px 0; font-size: 12px">
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #7F8794">{{r.t}}</span>
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: {{r.c}}">{{r.op}}</span>
+          <span style="color: #A4AAB5">{{r.x}}</span>
+        </div>
+      </sc-for>
+    </section>
+  </aside>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":940}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const members = [
+      { folder: 'acme-care-api/', source: 'contoso-health-api/.worktrees/claims-export', target: 'push → same worktree', push: '↑4', pushColor: '#F0B455', pull: '↓2', pullColor: '#6CB6FF', plan: 'merge 1 file, then write 4' },
+      { folder: 'acme-care-web/', source: 'contoso-health-web/.worktrees/claims-export', target: 'push → same worktree', push: '—', pushColor: '#7F8794', pull: '—', pullColor: '#7F8794', plan: 'nothing to do' }
+    ];
+    const runs = [
+      { t: '13:20', op: 'push', c: '#F0B455', x: 'web 3 files · api skipped (guard)' },
+      { t: '11:02', op: 'pull', c: '#6CB6FF', x: 'api 42 · web 18' },
+      { t: 'yday', op: 'create', c: '#A992FF', x: 'group claims' }
+    ];
+    return { members, runs };
+  }
+}
+</script>
+</body>
+</html>

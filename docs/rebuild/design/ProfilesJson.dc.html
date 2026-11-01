@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Repo Cloak — Profile JSON</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0D0E10}
+a{color:#A992FF}a:hover{color:#C7B8FF}
+button,input,select{font:inherit;color:inherit}
+</style>
+</helmet>
+<div style="min-height: 940px; background: #0D0E10; color: #E8E9EC; font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 13px; line-height: 1.45; display: flex; flex-direction: column">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 8px 14px; border-bottom: 1px solid #25282E; background: #111215">
+  <a href="Main.dc.html" style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #A4AAB5; text-decoration: none">repo-cloak</a>
+  <span style="color: #4A4F58">/</span>
+  <a href="Profiles.dc.html" style="color: #A4AAB5; text-decoration: none">Profiles</a>
+  <span style="color: #4A4F58">/</span>
+  <span style="font-family: 'JetBrains Mono', monospace">contoso</span>
+  <div role="group" aria-label="Editor mode" style="margin-left: auto; display: flex; border: 1px solid #30343B; border-radius: 5px; overflow: hidden; font-size: 11.5px">
+    <a href="Profiles.dc.html" style="padding: 3px 10px; color: #A4AAB5; text-decoration: none">Form</a>
+    <span style="padding: 3px 10px; border-left: 1px solid #30343B; background: #22252B">JSON</span>
+  </div>
+  <button type="button" style="height: 28px; padding: 0 10px; border: 1px solid #30343B; border-radius: 6px; background: transparent; font-size: 12px; cursor: pointer">Paste from LLM</button>
+  <button type="button" disabled style="height: 28px; padding: 0 12px; border: 0; border-radius: 6px; background: #3A3352; color: #A4AAB5; font-weight: 600; font-size: 12px">Save · fix 1 error</button>
+</header>
+
+<div style="display: flex; flex-wrap: wrap; flex: 1; min-height: 0">
+  <main style="flex: 999 1 640px; min-width: 0; display: flex; flex-direction: column">
+    <div style="display: flex; gap: 14px; padding: 6px 14px; border-bottom: 1px solid #25282E; font-size: 11.5px; color: #7F8794; flex-wrap: wrap">
+      <span>schema <span style="font-family: 'JetBrains Mono', monospace; color: #A4AAB5">repo-cloak/profile@2</span></span>
+      <span>unsaved changes <span style="color: #F0B455">+3 −1</span></span>
+      <span>bulk edit: select rows, ⌥↑↓ to move, ⌘D duplicate</span>
+    </div>
+    <div style="overflow-x: auto; flex: 1">
+      <div style="min-width: 640px; padding: 8px 0; font-family: 'JetBrains Mono', monospace; font-size: 12.5px; line-height: 1.75">
+        <sc-for list="{{lines}}" as="l" hint-placeholder-count="24">
+          <div style="{{l.style}}"><span style="display: inline-block; width: 40px; text-align: right; margin-right: 16px; color: #4A4F58">{{l.n}}</span><span style="white-space: pre; color: {{l.c}}">{{l.t}}</span></div>
+        </sc-for>
+      </div>
+    </div>
+  </main>
+
+  <aside style="flex: 1 1 300px; max-width: 360px; border-left: 1px solid #25282E; background: #0F1013; display: flex; flex-direction: column">
+    <section style="padding: 10px 14px; border-bottom: 1px solid #25282E">
+      <h2 style="margin: 0 0 6px; font-size: 12.5px; font-weight: 600">Problems</h2>
+      <div style="display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 8px; padding: 3px 0">
+        <span style="font-family: 'JetBrains Mono', monospace; color: #F2777A">×</span>
+        <span style="font-size: 12px">Line 16: regex replacement must be reversible. Use <span style="font-family: 'JetBrains Mono', monospace">{seq:6}</span> or <span style="font-family: 'JetBrains Mono', monospace">{map}</span>.</span>
+      </div>
+      <div style="display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 8px; padding: 3px 0">
+        <span style="font-family: 'JetBrains Mono', monospace; color: #F0B455">!</span>
+        <span style="font-size: 12px">Line 13: “Medicaid” also matched by healthcare-terms. Longest match wins.</span>
+      </div>
+    </section>
+    <section style="padding: 10px 14px; border-bottom: 1px solid #25282E">
+      <h2 style="margin: 0 0 6px; font-size: 12.5px; font-weight: 600">Outline</h2>
+      <div style="font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: #A4AAB5; line-height: 1.8">
+        name · scope · extends<br>
+        rules <span style="color: #7F8794">7</span><br>
+        &#160;&#160;brand 3 · keyword 1 · term 1<br>
+        &#160;&#160;regex 1 · secret 1<br>
+        exclude <span style="color: #7F8794">3</span> + 11 inherited<br>
+        allowRoots <span style="color: #7F8794">2</span>
+      </div>
+    </section>
+    <section style="padding: 10px 14px">
+      <h2 style="margin: 0 0 6px; font-size: 12.5px; font-weight: 600">Paste from LLM</h2>
+      <div style="font-size: 11.5px; color: #A4AAB5">Paste a profile an AI wrote. It is validated, diffed against this one and never saved until you accept each change. Secret values in pasted JSON are refused.</div>
+    </section>
+  </aside>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":940}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const src = [
+      ['{', 'p'],
+      ['  "$schema": "repo-cloak/profile@2",', 'k'],
+      ['  "name": "contoso",', 'k'],
+      ['  "scope": "global",', 'k'],
+      ['  "extends": [],', 'k'],
+      ['  "allowRoots": ["src/", "tests/"],', 'k'],
+      ['  "exclude": ["src/**/PHI/**", "**/*.Designer.cs", "deploy/**"],', 'add'],
+      ['  "rules": [', 'p'],
+      ['    { "type": "brand",   "find": "Contoso.Health", "replace": "Acme.Care", "case": "preserve" },', 'k'],
+      ['    { "type": "brand",   "find": "ContosoHealth",  "replace": "AcmeCare",  "case": "preserve" },', 'k'],
+      ['    { "type": "brand",   "find": "contoso",        "replace": "acme",      "case": "preserve" },', 'k'],
+      ['    { "type": "keyword", "find": "contoso-health.com", "replace": "acme-care.example" },', 'k'],
+      ['    { "type": "term",    "find": "Medicaid Tier",  "replace": "Plan Tier", "case": "preserve" },', 'warn'],
+      ['    { "type": "regex",', 'add'],
+      ['      "find": "CH-(\\\\d{6})",', 'add'],
+      ['      "replace": "CLM-$1" },', 'err'],
+      ['    { "type": "secret",  "find": "ConnectionStrings:*", "ref": "keychain:contoso/sql" }', 'k'],
+      ['  ]', 'p'],
+      ['}', 'p']
+    ];
+    const C = { p: '#A4AAB5', k: '#E8E9EC', add: '#CDEBDB', err: '#F2C4C5', warn: '#F0CF95' };
+    const BG = { add: '#12201A', err: '#2A1517', warn: '#221C10' };
+    const lines = src.map((s, i) => ({ n: String(i + 1), t: s[0], c: C[s[1]], style: 'display: flex; padding: 0 14px 0 0; background: ' + (BG[s[1]] || 'transparent') }));
+    return { lines };
+  }
+}
+</script>
+</body>
+</html>

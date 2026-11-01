@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Repo Cloak — Agent requests</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0D0E10}
+a{color:#A992FF}a:hover{color:#C7B8FF}
+button,input,select{font:inherit;color:inherit}
+</style>
+</helmet>
+<div style="min-height: 940px; background: #0D0E10; color: #E8E9EC; font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 13px; line-height: 1.45; display: flex; flex-direction: column">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 8px 14px; border-bottom: 1px solid #25282E; background: #111215">
+  <a href="Main.dc.html" style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #A4AAB5; text-decoration: none">repo-cloak</a>
+  <span style="color: #4A4F58">/</span>
+  <span style="font-weight: 600">Agent requests</span>
+  <span style="font-size: 11.5px; color: #7F8794">files an AI asked for from inside a cloak · nothing leaves source without you</span>
+  <div role="group" aria-label="Filter" style="margin-left: auto; display: flex; border: 1px solid #30343B; border-radius: 5px; overflow: hidden; font-size: 11.5px">
+    <button type="button" style="padding: 3px 10px; border: 0; background: #22252B; cursor: pointer">Waiting 2</button>
+    <button type="button" style="padding: 3px 10px; border: 0; border-left: 1px solid #30343B; background: transparent; color: #A4AAB5; cursor: pointer">Decided</button>
+    <button type="button" style="padding: 3px 10px; border: 0; border-left: 1px solid #30343B; background: transparent; color: #A4AAB5; cursor: pointer">All</button>
+  </div>
+</header>
+
+<div style="display: flex; flex-wrap: wrap; flex: 1; min-height: 0">
+  <section aria-label="Requests" style="flex: 1 1 320px; max-width: 400px; border-right: 1px solid #25282E">
+    <sc-for list="{{reqs}}" as="r" hint-placeholder-count="5">
+      <div style="{{r.rowStyle}}">
+        <span style="display: flex; align-items: center; gap: 8px">
+          <span style="font-size: 11px; padding: 0 6px; border-radius: 4px; background: {{r.stateBg}}; color: {{r.stateFg}}">{{r.state}}</span>
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #7F8794">{{r.ws}}</span>
+          <span style="margin-left: auto; font-size: 11px; color: #7F8794">{{r.when}}</span>
+        </span>
+        <span style="display: block; font-family: 'JetBrains Mono', monospace; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{r.path}}</span>
+      </div>
+    </sc-for>
+  </section>
+
+  <main style="flex: 999 1 560px; min-width: 0; padding: 14px 18px; display: flex; flex-direction: column; gap: 12px">
+    <div>
+      <div style="font-size: 11.5px; color: #7F8794">acme-care-api-7c1e · asked by Claude via MCP tool <span style="font-family: 'JetBrains Mono', monospace">cloak.request_file</span> · 4m ago</div>
+      <h1 style="margin: 2px 0 0; font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 500">src/Acme.Care.Claims/IClaimRepository.cs</h1>
+      <div style="margin-top: 6px; padding: 8px 10px; border-radius: 6px; background: #15131D; border: 1px solid #3A3352; font-size: 12.5px; color: #C7B8FF">“Export needs the repository interface to page claims. I only need method signatures.”</div>
+    </div>
+
+    <section style="border: 1px solid #25282E; border-radius: 8px; background: #121316">
+      <div style="padding: 8px 12px; border-bottom: 1px solid #25282E; font-size: 12.5px; font-weight: 600">Policy check</div>
+      <sc-for list="{{checks}}" as="c" hint-placeholder-count="5">
+        <div style="display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 8px; padding: 5px 12px">
+          <span style="font-family: 'JetBrains Mono', monospace; color: {{c.color}}">{{c.icon}}</span>
+          <span style="font-size: 12.5px">{{c.t}} <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #7F8794">{{c.s}}</span></span>
+        </div>
+      </sc-for>
+    </section>
+
+    <section style="border: 1px solid #25282E; border-radius: 8px; background: #121316">
+      <div style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid #25282E">
+        <h2 style="margin: 0; font-size: 12.5px; font-weight: 600">What Claude would receive</h2>
+        <span style="font-size: 11.5px; color: #7F8794">cloaked preview · first 10 of 84 lines</span>
+      </div>
+      <div style="padding: 8px 12px; font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.7; color: #A4AAB5; white-space: pre; overflow-x: auto">namespace Acme.Care.Claims;
+
+public interface IClaimRepository
+{
+    Task&lt;Claim?&gt; GetAsync(ClaimId id, CancellationToken ct);
+    IAsyncEnumerable&lt;Claim&gt; StreamAsync(ClaimFilter f, CancellationToken ct);
+    Task&lt;int&gt; CountAsync(ClaimFilter f, CancellationToken ct);
+    // Plan Tier rules live in AcmeCarePlanPolicy
+}</div>
+    </section>
+
+    <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center">
+      <button type="button" style="height: 32px; padding: 0 14px; border: 0; border-radius: 6px; background: #A992FF; color: #0D0E10; font-weight: 600; font-size: 12.5px; cursor: pointer">Approve &amp; pull</button>
+      <button type="button" style="height: 32px; padding: 0 12px; border: 1px solid #30343B; border-radius: 6px; background: #1A1C20; font-size: 12.5px; cursor: pointer">Send signatures only</button>
+      <button type="button" style="height: 32px; padding: 0 12px; border: 1px solid #30343B; border-radius: 6px; background: transparent; font-size: 12.5px; cursor: pointer">Deny</button>
+      <label style="display: flex; gap: 6px; align-items: center; font-size: 12px; color: #A4AAB5; margin-left: 8px"><input type="checkbox" style="accent-color: #A992FF"> Auto-approve files matching <span style="font-family: 'JetBrains Mono', monospace">src/Acme.Care.Claims/I*.cs</span> in this cloak</label>
+    </div>
+  </main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":940}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const S = { waiting: ['#2A2340', '#C7B8FF'], blocked: ['#2A1517', '#F2B1B2'], approved: ['#12201A', '#A6DDBF'], denied: ['#1A1C20', '#A4AAB5'] };
+    const row = (on) => 'display: flex; flex-direction: column; gap: 3px; padding: 9px 14px; border-bottom: 1px solid #1D1F24; border-left: 2px solid ' + (on ? '#A992FF' : 'transparent') + '; background: ' + (on ? '#1A1C20' : 'transparent');
+    const r = (state, ws, path, when, on) => ({ state, ws, path, when, stateBg: S[state][0], stateFg: S[state][1], rowStyle: row(on) });
+    const reqs = [
+      r('waiting', 'acme-care-api', 'src/Acme.Care.Claims/IClaimRepository.cs', '4m', true),
+      r('blocked', 'acme-care-api', 'src/Acme.Care.Data/AcmeCareDbContext.cs', '6m', false),
+      r('waiting', 'acme-portal-auth', 'src/Auth/TokenCache.ts', '1h', false),
+      r('approved', 'acme-care-web', 'src/claims/ExportButton.tsx', '3h', false),
+      r('denied', 'acme-billing-svc', 'deploy/values.prod.yaml', '1d', false)
+    ];
+    const checks = [
+      { icon: '✓', color: '#5CC98E', t: 'Inside allowed roots', s: 'src/' },
+      { icon: '✓', color: '#5CC98E', t: 'No exclusion matches', s: '11 patterns checked' },
+      { icon: '✓', color: '#5CC98E', t: 'All real names covered by rules', s: '6 replacements' },
+      { icon: '✓', color: '#5CC98E', t: 'No secrets or keys found', s: 'entropy + pattern scan' },
+      { icon: '!', color: '#F0B455', t: 'References 1 file not in cloak', s: 'AcmeCarePlanPolicy.cs (not requested)' }
+    ];
+    return { reqs, checks };
+  }
+}
+</script>
+</body>
+</html>

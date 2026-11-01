@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Repo Cloak — Known repos</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0D0E10}
+a{color:#A992FF}a:hover{color:#C7B8FF}
+button,input,select{font:inherit;color:inherit}
+</style>
+</helmet>
+<div style="min-height: 940px; background: #0D0E10; color: #E8E9EC; font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 13px; line-height: 1.45; display: flex; flex-direction: column">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 8px 14px; border-bottom: 1px solid #25282E; background: #111215">
+  <a href="Main.dc.html" style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #A4AAB5; text-decoration: none">repo-cloak</a>
+  <span style="color: #4A4F58">/</span>
+  <span style="font-weight: 600">Known repos</span>
+  <span style="font-size: 11.5px; color: #7F8794">source repos this machine has cloaked from · paths stored sealed</span>
+  <div style="margin-left: auto; display: flex; gap: 6px">
+    <button type="button" style="height: 28px; padding: 0 10px; border: 1px solid #30343B; border-radius: 6px; background: transparent; font-size: 12px; cursor: pointer">Scan folder…</button>
+    <button type="button" style="height: 28px; padding: 0 12px; border: 0; border-radius: 6px; background: #E8E9EC; color: #0D0E10; font-weight: 600; font-size: 12px; cursor: pointer">+ Add repo</button>
+  </div>
+</header>
+
+<div style="display: flex; flex-wrap: wrap; flex: 1; min-height: 0">
+  <section aria-label="Repositories" style="flex: 1 1 520px; max-width: 700px; border-right: 1px solid #25282E; min-width: 0">
+    <div style="overflow-x: auto">
+      <div style="min-width: 560px">
+        <div style="display: grid; grid-template-columns: 20px minmax(0, 1.6fr) 70px minmax(0, 1fr) 64px 70px; gap: 10px; padding: 7px 14px; font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: #7F8794; border-bottom: 1px solid #25282E">
+          <span></span><span>Repo</span><span>Worktrees</span><span>Default profile</span><span>Cloaks</span><span>Last used</span>
+        </div>
+        <sc-for list="{{repos}}" as="r" hint-placeholder-count="7">
+          <div style="{{r.rowStyle}}">
+            <span style="color: {{r.starColor}}; font-size: 13px">★</span>
+            <span style="min-width: 0">
+              <span style="display: block; font-family: 'JetBrains Mono', monospace; font-size: 12.5px">{{r.name}}</span>
+              <span style="display: block; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: {{r.pathColor}}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{r.path}}</span>
+            </span>
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #A4AAB5">{{r.wt}}</span>
+            <span style="font-size: 12px; color: #C7B8FF; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{r.profile}}</span>
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #A4AAB5">{{r.cloaks}}</span>
+            <span style="font-size: 11.5px; color: #7F8794">{{r.when}}</span>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </section>
+
+  <main style="flex: 999 1 480px; min-width: 0; padding: 14px 18px; display: flex; flex-direction: column; gap: 12px">
+    <div style="display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap">
+      <div style="flex: 1 1 260px; min-width: 0">
+        <h1 style="margin: 0; font-family: 'JetBrains Mono', monospace; font-size: 17px; font-weight: 500">contoso-health-api</h1>
+        <div style="font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: #7F8794">~/src/contoso-health-api · origin git@contoso:health/api.git</div>
+      </div>
+      <button type="button" style="height: 28px; padding: 0 10px; border: 1px solid #30343B; border-radius: 6px; background: transparent; font-size: 12px; cursor: pointer">Repo profile</button>
+      <button type="button" style="height: 28px; padding: 0 10px; border: 1px solid #30343B; border-radius: 6px; background: transparent; font-size: 12px; cursor: pointer">Forget repo</button>
+    </div>
+
+    <section style="border: 1px solid #25282E; border-radius: 8px; background: #121316">
+      <div style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid #25282E">
+        <h2 style="margin: 0; font-size: 12.5px; font-weight: 600">Worktrees</h2>
+        <span style="font-size: 11.5px; color: #7F8794">from git worktree list · refreshed on open</span>
+      </div>
+      <sc-for list="{{worktrees}}" as="w" hint-placeholder-count="4">
+        <div style="display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) 90px minmax(0, 1fr) 96px; gap: 10px; padding: 7px 12px; border-bottom: 1px solid #1D1F24; align-items: center">
+          <span style="min-width: 0">
+            <span style="display: block; font-family: 'JetBrains Mono', monospace; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{w.path}}</span>
+            <span style="display: block; font-size: 11px; color: #7F8794">{{w.kind}}</span>
+          </span>
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: #6CB6FF; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{w.branch}}</span>
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #A4AAB5">{{w.ab}}</span>
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: {{w.cloakColor}}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{w.cloak}}</span>
+          <a href="{{w.href}}" style="justify-self: end; font-size: 12px; padding: 3px 10px; border: 1px solid #30343B; border-radius: 5px; color: #E8E9EC; text-decoration: none">{{w.action}}</a>
+        </div>
+      </sc-for>
+    </section>
+
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+      <section style="border: 1px solid #25282E; border-radius: 8px; background: #121316; padding: 10px 12px">
+        <h2 style="margin: 0 0 6px; font-size: 12.5px; font-weight: 600">Repo rules</h2>
+        <div style="font-size: 12px; color: #A4AAB5; line-height: 1.7">
+          Default profiles <span style="color: #C7B8FF">contoso, secrets</span><br>
+          Extra exclusions <span style="font-family: 'JetBrains Mono', monospace; color: #F2B1B2">src/**/PHI/**</span><br>
+          Allowed roots <span style="font-family: 'JetBrains Mono', monospace">src/, tests/</span> <span style="color: #7F8794">(nothing else can be pulled)</span>
+        </div>
+      </section>
+      <section style="border: 1px solid #25282E; border-radius: 8px; background: #121316; padding: 10px 12px">
+        <h2 style="margin: 0 0 6px; font-size: 12.5px; font-weight: 600">Exposure so far</h2>
+        <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+          <div><div style="font-family: 'JetBrains Mono', monospace; font-size: 17px">61</div><div style="font-size: 11px; color: #7F8794">files ever cloaked</div></div>
+          <div><div style="font-family: 'JetBrains Mono', monospace; font-size: 17px">4.8%</div><div style="font-size: 11px; color: #7F8794">of tracked files</div></div>
+          <div><div style="font-family: 'JetBrains Mono', monospace; font-size: 17px">0</div><div style="font-size: 11px; color: #7F8794">excluded overrides</div></div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":940}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const row = (on) => 'display: grid; grid-template-columns: 20px minmax(0, 1.6fr) 70px minmax(0, 1fr) 64px 70px; gap: 10px; padding: 8px 14px; align-items: center; border-bottom: 1px solid #1D1F24; border-left: 2px solid ' + (on ? '#A992FF' : 'transparent') + '; background: ' + (on ? '#1A1C20' : 'transparent');
+    const r = (name, path, wt, profile, cloaks, when, star, on, missing) => ({ name, path, wt, profile, cloaks, when, starColor: star ? '#F0B455' : '#30343B', pathColor: missing ? '#F2777A' : '#7F8794', rowStyle: row(on) });
+    const repos = [
+      r('contoso-health-api', '~/src/contoso-health-api', '4', 'contoso, secrets', '2', '2h', true, true),
+      r('contoso-health-web', '~/src/contoso-health-web', '2', 'contoso', '1', '40m', true, false),
+      r('contoso-billing', '~/src/contoso-billing', '1', 'contoso-billing', '1', '1d', true, false),
+      r('contoso-portal', '~/src/contoso-portal', '3', 'contoso', '1', '5h', false, false),
+      r('contoso-reports', '~/src/old/contoso-reports — not found', '1', 'contoso', '1', '6d', false, false, true),
+      r('contoso-identity', '~/src/contoso-identity', '1', 'contoso, secrets', '0', '3w', false, false),
+      r('shared-ui-kit', '~/src/shared-ui-kit', '1', 'none', '0', '2mo', false, false)
+    ];
+    const w = (path, kind, branch, ab, cloak, action, href) => ({ path, kind, branch, ab, cloak: cloak || 'no cloak', cloakColor: cloak ? '#C7B8FF' : '#7F8794', action, href });
+    const worktrees = [
+      w('~/src/contoso-health-api', 'main checkout', 'main', 'up to date', '', 'Cloak', 'NewCloak.dc.html'),
+      w('.worktrees/claims-export', 'linked worktree', 'feat/claims-export', '↑3 ↓0', 'acme-care-api-7c1e', 'Open', 'Main.dc.html'),
+      w('.worktrees/sso-fix', 'linked worktree', 'fix/sso-timeout', '↑1 ↓4', '', 'Cloak', 'NewCloak.dc.html'),
+      w('.worktrees/hotfix-4-2', 'linked worktree', 'release/4.2', '↑0 ↓0', '', 'Cloak', 'NewCloak.dc.html')
+    ];
+    return { repos, worktrees };
+  }
+}
+</script>
+</body>
+</html>

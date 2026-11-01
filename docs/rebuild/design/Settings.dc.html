@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Repo Cloak — Settings</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0D0E10}
+a{color:#A992FF}a:hover{color:#C7B8FF}
+button,input,select{font:inherit;color:inherit}
+</style>
+</helmet>
+<div style="min-height: 1240px; background: #0D0E10; color: #E8E9EC; font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 13px; line-height: 1.45; display: flex; flex-direction: column">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 8px 14px; border-bottom: 1px solid #25282E; background: #111215">
+  <a href="Main.dc.html" style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #A4AAB5; text-decoration: none">repo-cloak</a>
+  <span style="color: #4A4F58">/</span>
+  <span style="font-weight: 600">Settings</span>
+  <span style="font-size: 11.5px; color: #F0B455; padding: 2px 8px; border-radius: 5px; background: #2A2215">3 fields set by org policy · locked</span>
+  <button type="button" style="margin-left: auto; height: 28px; padding: 0 12px; border: 0; border-radius: 6px; background: #A992FF; color: #0D0E10; font-weight: 600; font-size: 12px; cursor: pointer">Save</button>
+</header>
+
+<div style="display: flex; flex-wrap: wrap; flex: 1; min-height: 0">
+  <nav aria-label="Settings sections" style="flex: 1 1 180px; max-width: 200px; border-right: 1px solid #25282E; padding: 10px 8px; display: flex; flex-direction: column; gap: 2px; background: #0F1013">
+    <sc-for list="{{sections}}" as="s" hint-placeholder-count="7">
+      <a href="{{s.href}}" style="{{s.style}}">{{s.label}}</a>
+    </sc-for>
+  </nav>
+
+  <main style="flex: 999 1 640px; min-width: 0; padding: 14px 18px 24px; display: flex; flex-direction: column; gap: 12px; max-width: 920px">
+
+    <section id="general" style="border: 1px solid #25282E; border-radius: 8px; background: #121316">
+      <h2 style="margin: 0; padding: 8px 12px; border-bottom: 1px solid #25282E; font-size: 12.5px; font-weight: 600">Workspaces</h2>
+      <div style="padding: 10px 12px; display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 10px 14px; align-items: center">
+        <span style="font-size: 12.5px">Cloak root</span>
+        <span style="display: flex; gap: 6px"><input type="text" value="~/cloaks" aria-label="Cloak root" style="flex: 1; height: 26px; padding: 0 8px; border: 1px solid #30343B; border-radius: 5px; background: #0D0E10; font-family: 'JetBrains Mono', monospace; font-size: 12px"><button type="button" style="height: 26px; padding: 0 10px; border: 1px solid #30343B; border-radius: 5px; background: transparent; font-size: 12px; cursor: pointer">Browse</button></span>
+        <span style="font-size: 12.5px">Destination</span>
+        <span style="display: flex; gap: 14px; font-size: 12.5px; color: #A4AAB5; flex-wrap: wrap">
+          <label style="display: flex; gap: 6px; align-items: center"><input type="radio" name="dest" checked style="accent-color: #A992FF"> Always cloak root (skip step)</label>
+          <label style="display: flex; gap: 6px; align-items: center"><input type="radio" name="dest" style="accent-color: #A992FF"> Ask each time</label>
+        </span>
+        <span style="font-size: 12.5px">Folder name</span>
+        <input type="text" value="{group}/{profileBrand}-{repoShort}-{rand4}" aria-label="Folder name pattern" style="height: 26px; padding: 0 8px; border: 1px solid #30343B; border-radius: 5px; background: #0D0E10; font-family: 'JetBrains Mono', monospace; font-size: 12px">
+        <span style="font-size: 12.5px">On repo-cloak in a worktree</span>
+        <select aria-label="Launch behaviour" style="height: 26px; padding: 0 6px; border: 1px solid #30343B; border-radius: 5px; background: #0D0E10; font-size: 12px"><option>Open its cloak if one exists, else New cloak</option><option>Always open home</option></select>
+      </div>
+    </section>
+
+    <section id="security" style="border: 1px solid #25282E; border-radius: 8px; background: #121316">
+      <h2 style="margin: 0; padding: 8px 12px; border-bottom: 1px solid #25282E; font-size: 12.5px; font-weight: 600">Security</h2>
+      <sc-for list="{{security}}" as="s" hint-placeholder-count="7">
+        <div style="display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; padding: 8px 12px; border-bottom: 1px solid #1D1F24; align-items: center">
+          <span>
+            <span style="display: block; font-size: 12.5px">{{s.t}} <span style="font-size: 11px; color: #F0B455">{{s.lock}}</span></span>
+            <span style="display: block; font-size: 11.5px; color: #7F8794">{{s.d}}</span>
+          </span>
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 3px 8px; border-radius: 5px; border: 1px solid #30343B; color: {{s.vc}}; white-space: nowrap">{{s.v}}</span>
+        </div>
+      </sc-for>
+      <div style="padding: 8px 12px; display: flex; gap: 6px; flex-wrap: wrap">
+        <button type="button" style="height: 26px; padding: 0 10px; border: 1px solid #30343B; border-radius: 5px; background: transparent; font-size: 12px; cursor: pointer">Rotate key</button>
+        <button type="button" style="height: 26px; padding: 0 10px; border: 1px solid #30343B; border-radius: 5px; background: transparent; font-size: 12px; cursor: pointer">Export recovery key…</button>
+        <button type="button" style="height: 26px; padding: 0 10px; border: 1px solid #4A2A2C; border-radius: 5px; background: transparent; color: #F2777A; font-size: 12px; cursor: pointer">Lock store now</button>
+      </div>
+    </section>
+
+    <section id="exclusions" style="border: 1px solid #25282E; border-radius: 8px; background: #121316">
+      <h2 style="margin: 0; padding: 8px 12px; border-bottom: 1px solid #25282E; font-size: 12.5px; font-weight: 600">Global exclusions <span style="font-weight: 400; font-size: 11.5px; color: #7F8794">apply to every repo and profile · cannot be loosened by a profile</span></h2>
+      <div style="padding: 10px 12px; display: flex; flex-wrap: wrap; gap: 6px">
+        <sc-for list="{{excl}}" as="e" hint-placeholder-count="10">
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 11.5px; padding: 2px 8px; border-radius: 4px; background: #1A1C20; color: #A4AAB5">{{e}}</span>
+        </sc-for>
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 11.5px; padding: 2px 8px; border-radius: 4px; border: 1px dashed #30343B; color: #A4AAB5">+ pattern</span>
+      </div>
+      <div style="padding: 0 12px 10px; font-size: 11.5px; color: #7F8794">Also blocked: binaries, files over 512 KB, anything git ignores, anything outside a repo's allowed roots.</div>
+    </section>
+
+    <section id="compliance" style="border: 1px solid #25282E; border-radius: 8px; background: #121316">
+      <h2 style="margin: 0; padding: 8px 12px; border-bottom: 1px solid #25282E; font-size: 12.5px; font-weight: 600">Audit &amp; compliance</h2>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr))">
+        <div style="padding: 10px 12px; border-right: 1px solid #25282E; display: flex; flex-direction: column; gap: 6px">
+          <span style="font-size: 12.5px">Audit log</span>
+          <span style="font-size: 11.5px; color: #A4AAB5">Append-only, hash-chained, sealed. Keep <span style="font-family: 'JetBrains Mono', monospace; color: #E8E9EC">365 days</span> <span style="color: #F0B455">(policy)</span></span>
+          <span style="font-size: 11.5px; color: #A4AAB5">Records who, when, which files, which rules, which key. Never file contents.</span>
+          <span style="display: flex; gap: 6px"><button type="button" style="height: 24px; padding: 0 10px; border: 1px solid #30343B; border-radius: 5px; background: transparent; font-size: 11.5px; cursor: pointer">Verify chain</button><button type="button" style="height: 24px; padding: 0 10px; border: 1px solid #30343B; border-radius: 5px; background: transparent; font-size: 11.5px; cursor: pointer">Export for auditor</button></span>
+        </div>
+        <div style="padding: 10px 12px; display: flex; flex-direction: column; gap: 6px">
+          <span style="font-size: 12.5px">Org policy file</span>
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: #A4AAB5">~/.repo-cloak/policy.json · signed by IT</span>
+          <span style="font-size: 11.5px; color: #A4AAB5">Locks: global exclusions, audit retention, override rights.</span>
+          <span style="font-size: 11.5px; color: #5CC98E">✓ signature valid · loaded 14:02</span>
+        </div>
+      </div>
+      <div style="padding: 0 12px 10px; font-size: 11.5px; color: #7F8794">Gives you the evidence for an ISO/IEC 27001 Annex A review (access, logging, cryptography, secure development). The certificate itself belongs to your organisation, not to the tool.</div>
+    </section>
+
+    <section id="supply" style="border: 1px solid #25282E; border-radius: 8px; background: #121316">
+      <h2 style="margin: 0; padding: 8px 12px; border-bottom: 1px solid #25282E; font-size: 12.5px; font-weight: 600">Runs locally · supply chain</h2>
+      <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-bottom: 1px solid #25282E">
+        <sc-for list="{{supply}}" as="s" hint-placeholder-count="4">
+          <div style="padding: 8px 12px; border-right: 1px solid #25282E">
+            <div style="font-family: 'JetBrains Mono', monospace; font-size: 15px; color: {{s.c}}">{{s.v}}</div>
+            <div style="font-size: 11px; color: #7F8794">{{s.k}}</div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="padding: 8px 12px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center">
+        <button type="button" style="height: 24px; padding: 0 10px; border: 1px solid #30343B; border-radius: 5px; background: transparent; font-size: 11.5px; cursor: pointer">View SBOM (CycloneDX)</button>
+        <button type="button" style="height: 24px; padding: 0 10px; border: 1px solid #30343B; border-radius: 5px; background: transparent; font-size: 11.5px; cursor: pointer">Check for advisories</button>
+        <span style="font-size: 11.5px; color: #7F8794">Advisory check is the only outbound call, and only when you click it.</span>
+      </div>
+    </section>
+
+    <section id="integrations" style="border: 1px solid #25282E; border-radius: 8px; background: #121316">
+      <h2 style="margin: 0; padding: 8px 12px; border-bottom: 1px solid #25282E; font-size: 12.5px; font-weight: 600">AI tools &amp; editor</h2>
+      <div style="padding: 10px 12px; display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 10px 14px; align-items: center; font-size: 12.5px">
+        <span>Agent file requests</span>
+        <span style="color: #A4AAB5">MCP server <span style="font-family: 'JetBrains Mono', monospace; color: #E8E9EC">repo-cloak mcp</span> · scoped to the open cloak · <a href="#">copy config for Claude Code</a></span>
+        <span>Generate AGENTS.md</span>
+        <span style="color: #A4AAB5">On create · tells the agent it is in a cloak and how to ask for files</span>
+        <span>Open cloak in</span>
+        <select aria-label="Editor" style="height: 26px; max-width: 240px; padding: 0 6px; border: 1px solid #30343B; border-radius: 5px; background: #0D0E10; font-size: 12px"><option>VS Code</option><option>Cursor</option><option>Terminal</option></select>
+      </div>
+    </section>
+  </main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1240}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const nav = (label, href, on) => ({ label, href, style: 'display: block; padding: 6px 8px; border-radius: 5px; text-decoration: none; font-size: 12.5px; color: ' + (on ? '#E8E9EC' : '#A4AAB5') + '; background: ' + (on ? '#1A1C20' : 'transparent') });
+    const sections = [
+      nav('Workspaces', '#general', true), nav('Security', '#security'), nav('Global exclusions', '#exclusions'),
+      nav('Audit & compliance', '#compliance'), nav('Supply chain', '#supply'), nav('AI tools & editor', '#integrations'),
+      nav('Profiles', 'Profiles.dc.html'), nav('Known repos', 'KnownRepos.dc.html')
+    ];
+    const G = '#5CC98E', W = '#E8E9EC';
+    const security = [
+      { t: 'Master key storage', d: 'AES-256-GCM key kept in the OS keychain, never on disk in plain text', v: 'macOS Keychain', vc: G, lock: '' },
+      { t: 'Auto-lock store', d: 'Real names and paths hide again after idle time', v: '15 min', vc: W, lock: '' },
+      { t: 'Unlock with', d: 'Needed to view real paths, override exclusions, export', v: 'Touch ID', vc: W, lock: '' },
+      { t: 'Override exclusions', d: 'Pull a file a rule blocks, once, with a reason', v: 'off', vc: '#F2777A', lock: 'policy' },
+      { t: 'Network', d: 'Dashboard listens on 127.0.0.1 only, token per session, no telemetry', v: 'loopback only', vc: G, lock: 'policy' },
+      { t: 'Leftover-name scan', d: 'Blocks a pull or push if a real name survives the rules', v: 'block', vc: G, lock: '' },
+      { t: 'Wipe on delete', d: 'Overwrite cloak files before removing a workspace', v: 'on', vc: G, lock: '' }
+    ];
+    const excl = ['**/*DbContext.cs', '**/Migrations/**', '**/*.snap', 'schema.json', '*.lock', 'package-lock.json', '.env*', '**/*.pfx', '**/*.pem', 'appsettings.Production.json', '**/secrets/**'];
+    const supply = [
+      { v: '12', k: 'direct dependencies', c: W },
+      { v: '127', k: 'total in tree', c: W },
+      { v: '0', k: 'install scripts allowed', c: G },
+      { v: 'pinned', k: 'lockfile + integrity hashes', c: G }
+    ];
+    return { sections, security, excl, supply };
+  }
+}
+</script>
+</body>
+</html>

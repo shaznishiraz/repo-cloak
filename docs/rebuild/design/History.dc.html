@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Repo Cloak — History</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0D0E10}
+a{color:#A992FF}a:hover{color:#C7B8FF}
+button,input,select{font:inherit;color:inherit}
+</style>
+</helmet>
+<div style="min-height: 940px; background: #0D0E10; color: #E8E9EC; font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 13px; line-height: 1.45; display: flex; flex-direction: column">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding: 8px 14px; border-bottom: 1px solid #25282E; background: #111215">
+  <a href="Main.dc.html" style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #A4AAB5; text-decoration: none">repo-cloak</a>
+  <span style="color: #4A4F58">/</span>
+  <span style="font-weight: 600">History</span>
+  <span style="display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: #5CC98E; padding: 2px 8px; border-radius: 5px; background: #12201A">✓ chain verified · 1,284 events · since 2026-03-02</span>
+  <div style="margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap">
+    <label style="display: flex; align-items: center; height: 28px; padding: 0 8px; border: 1px solid #25282E; border-radius: 6px; background: #0D0E10; min-width: 220px">
+      <span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Filter history</span>
+      <input type="text" placeholder="Filter: op:push ws:acme-care since:7d" style="flex: 1; border: 0; background: transparent; outline: none; font-family: 'JetBrains Mono', monospace; font-size: 11.5px">
+    </label>
+    <button type="button" style="height: 28px; padding: 0 10px; border: 1px solid #30343B; border-radius: 6px; background: transparent; font-size: 12px; cursor: pointer">Export signed log</button>
+  </div>
+</header>
+
+<div style="display: flex; flex-wrap: wrap; flex: 1; min-height: 0">
+  <section aria-label="Events" style="flex: 999 1 640px; min-width: 0; border-right: 1px solid #25282E">
+    <div style="overflow-x: auto">
+      <div style="min-width: 700px">
+        <div style="display: grid; grid-template-columns: 120px 70px minmax(0, 1fr) minmax(0, 1.4fr) 54px 64px; gap: 10px; padding: 7px 14px; font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: #7F8794; border-bottom: 1px solid #25282E">
+          <span>When</span><span>Op</span><span>Workspace</span><span>Detail</span><span>Files</span><span>Who</span>
+        </div>
+        <sc-for list="{{events}}" as="e" hint-placeholder-count="12">
+          <div style="{{e.rowStyle}}">
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #7F8794">{{e.t}}</span>
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: {{e.c}}">{{e.op}}</span>
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{e.ws}}</span>
+            <span style="font-size: 12px; color: #A4AAB5; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{e.d}}</span>
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: #A4AAB5">{{e.n}}</span>
+            <span style="font-size: 11.5px; color: #7F8794">{{e.who}}</span>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </section>
+
+  <aside style="flex: 1 1 340px; max-width: 420px; padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; background: #0F1013">
+    <div>
+      <div style="font-size: 11px; color: #7F8794">event #1284 · 2026-11-01 14:05:12 +05:30</div>
+      <h2 style="margin: 2px 0 0; font-size: 15px; font-weight: 600">Pull into acme-care-api-7c1e</h2>
+    </div>
+    <dl style="margin: 0; display: grid; grid-template-columns: 100px minmax(0, 1fr); gap: 4px 10px; font-size: 12px">
+      <dt style="color: #7F8794">Source</dt><dd style="margin: 0; font-family: 'JetBrains Mono', monospace; font-size: 11.5px">claims-export @ a41d2b7</dd>
+      <dt style="color: #7F8794">Selection</dt><dd style="margin: 0">6 uncommitted · 2 commits · 3 paths</dd>
+      <dt style="color: #7F8794">Profiles</dt><dd style="margin: 0">contoso v14, secrets v3</dd>
+      <dt style="color: #7F8794">Held back</dt><dd style="margin: 0; color: #F2B1B2">3 files (exclusions)</dd>
+      <dt style="color: #7F8794">Key</dt><dd style="margin: 0; font-family: 'JetBrains Mono', monospace; font-size: 11.5px">3f9a…c21 · keychain</dd>
+      <dt style="color: #7F8794">Hash</dt><dd style="margin: 0; font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: #5CC98E">sha256 7be1…09d ✓ links #1283</dd>
+    </dl>
+    <section style="border: 1px solid #25282E; border-radius: 8px; background: #121316">
+      <div style="padding: 7px 12px; border-bottom: 1px solid #25282E; font-size: 12px; font-weight: 600">Files (42)</div>
+      <sc-for list="{{files}}" as="f" hint-placeholder-count="5">
+        <div style="display: flex; justify-content: space-between; gap: 8px; padding: 3px 12px; font-family: 'JetBrains Mono', monospace; font-size: 11px">
+          <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{f.p}}</span><span style="color: #7F8794">{{f.h}}</span>
+        </div>
+      </sc-for>
+      <div style="padding: 5px 12px 8px; font-size: 11.5px"><a href="#">Show all 42</a></div>
+    </section>
+    <div style="font-size: 11.5px; color: #7F8794">Real paths show only while the store is unlocked. Exports leave out real names unless you choose “include source paths”.</div>
+  </aside>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":940}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const C = { pull: '#6CB6FF', push: '#F0B455', create: '#A992FF', request: '#C7B8FF', deny: '#F2777A', settings: '#A4AAB5', key: '#5CC98E', delete: '#F2777A' };
+    const row = (on) => 'display: grid; grid-template-columns: 120px 70px minmax(0, 1fr) minmax(0, 1.4fr) 54px 64px; gap: 10px; padding: 6px 14px; align-items: baseline; border-bottom: 1px solid #1D1F24; border-left: 2px solid ' + (on ? '#A992FF' : 'transparent') + '; background: ' + (on ? '#1A1C20' : 'transparent');
+    const e = (t, op, ws, d, n, who, on) => ({ t, op, ws, d, n, who, c: C[op], rowStyle: row(on) });
+    const events = [
+      e('today 14:05', 'pull', 'acme-care-api-7c1e', 'from claims-export @ a41d2b7', '42', 'you', true),
+      e('today 14:05', 'request', 'acme-care-api-7c1e', 'IClaimRepository.cs · waiting', '1', 'Claude'),
+      e('today 13:58', 'create', 'acme-care-api-7c1e', 'group claims · contoso + secrets', '—', 'you'),
+      e('today 13:20', 'push', 'acme-care-web-91ad', 'into claims-export · staged', '3', 'you'),
+      e('today 13:19', 'deny', 'acme-care-api-7c1e', 'AcmeCareDbContext.cs · exclusion', '1', 'policy'),
+      e('today 11:02', 'pull', 'group claims', 'bulk · api 42, web 18', '60', 'you'),
+      e('yesterday', 'push', 'acme-billing-svc-3b7d', 'stopped by guard: leftover name', '0', 'you'),
+      e('yesterday', 'settings', '—', 'exclusion preset Infra turned off', '—', 'you'),
+      e('2d ago', 'key', '—', 'key rotated · 1,201 records resealed', '—', 'you'),
+      e('6d ago', 'delete', 'acme-reports-old-11fa', 'cloak removed · files wiped', '9', 'you'),
+      e('6d ago', 'pull', 'acme-reports-legacy-0e12', 'from main @ 44f1aa9', '11', 'you')
+    ];
+    const files = [
+      { p: 'src/Acme.Care.Claims/ExportService.cs', h: '9c1e…' },
+      { p: 'src/Acme.Care.Claims/ClaimCsvWriter.cs', h: '41aa…' },
+      { p: 'src/Acme.Care.Api/Controllers/ClaimsController.cs', h: 'b07d…' },
+      { p: 'src/Acme.Care.Claims/ExportOptions.cs', h: 'e2f9…' },
+      { p: 'src/Acme.Care.Data/Repositories/ClaimRepository.cs', h: '5d30…' }
+    ];
+    return { events, files };
+  }
+}
+</script>
+</body>
+</html>
