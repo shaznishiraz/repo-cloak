@@ -39,3 +39,34 @@ export async function buildUi(destination: string) {
   if (!result.code) throw new Error('UI compression produced no JavaScript');
   await writeFile(script, result.code);
 }
+
+/** Bundles the rebuilt dashboard; Preact and signals are inlined, so nothing ships as a dependency. */
+export async function buildWeb(destination: string) {
+  const source = resolve('src/web');
+  await mkdir(destination, { recursive: true });
+  const html = await readFile(join(source, 'index.html'), 'utf8');
+  await Promise.all([
+    copyFile(join(source, 'favicon.svg'), join(destination, 'favicon.svg')),
+    copyFile(join(source, 'favicon.ico'), join(destination, 'favicon.ico')),
+    writeFile(
+      join(destination, 'index.html'),
+      html
+        .replace(/>\s+</g, '><')
+        .replace(/\s{2,}/g, ' ')
+        .trim(),
+    ),
+    build({
+      config: false,
+      entry: { app: join(source, 'main.tsx') },
+      outDir: destination,
+      format: ['esm'],
+      platform: 'browser',
+      target: 'es2022',
+      tsconfig: join(source, 'tsconfig.json'),
+      outExtension: () => ({ js: '.js' }),
+      clean: false,
+      minify: true,
+      silent: true,
+    }),
+  ]);
+}

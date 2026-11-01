@@ -6,6 +6,7 @@ import { lock } from 'proper-lockfile';
 import { z } from 'zod';
 import { errorCode, writeAtomic } from './atomic.js';
 import { createDashboardServer } from './server.js';
+import type { UiKind } from './server.js';
 import type { Dashboard } from '../application/dashboard.js';
 
 const sessionSchema = z.object({
@@ -20,10 +21,12 @@ export async function startUiSession(
   dashboard: Dashboard,
   port = 0,
   assetRoot?: string,
+  ui: UiKind = 'classic',
 ): Promise<UiSession> {
   await mkdir(root, { recursive: true, mode: 0o700 });
   const metadata = join(root, 'ui.lock');
   let release: (() => Promise<void>) | undefined;
+  let mismatch: UiKind | undefined;
   // A short guard covers startup, shutdown and stale-process recovery.
   for (let attempt = 0; attempt < 65; attempt++) {
     try {
@@ -43,23 +46,36 @@ export async function startUiSession(
           signal: AbortSignal.timeout(300),
           redirect: 'error',
         });
-        const info = (await response.json()) as { app?: string; protocol?: number; pid?: number };
+        const info = (await response.json()) as {
+          app?: string;
+          protocol?: number;
+          pid?: number;
+          ui?: UiKind;
+        };
         if (
           response.ok &&
           info.app === 'repo-cloak' &&
           info.protocol === 1 &&
           info.pid === session.pid
-        )
-          return { ...session, reused: true, close: async () => {} };
+        ) {
+          // One server per machine serves one UI, so a mismatch cannot be reused silently.
+          if ((info.ui ?? 'classic') !== ui) mismatch = info.ui ?? 'classic';
+          else return { ...session, reused: true, close: async () => {} };
+        }
       } catch {
         /* The owner may still be starting, or its guard may be stale. */
       }
+      if (mismatch)
+        throw new Error(
+          `A dashboard with the ${mismatch} UI is already running; stop it (Ctrl+C) before starting the ${ui} UI`,
+          { cause: error },
+        );
       await setTimeout(100);
     }
   }
   if (!release) throw new Error('The dashboard is starting or shutting down; try again shortly');
   const token = randomBytes(32).toString('hex');
-  const server = createDashboardServer(dashboard, token, assetRoot);
+  const server = createDashboardServer(dashboard, token, assetRoot, ui);
   const unlock = release;
   let closing: Promise<void> | undefined;
   const close = () =>

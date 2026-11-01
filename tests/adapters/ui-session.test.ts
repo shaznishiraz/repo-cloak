@@ -1,7 +1,7 @@
 import { mkdtemp, readFile, readdir, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { buildUi } from '../../scripts/build-ui.js';
+import { buildUi, buildWeb } from '../../scripts/build-ui.js';
 import { expect, it } from 'vitest';
 import { createStore } from '../../src/adapters/store.js';
 import { createDashboard } from '../../src/application/dashboard.js';
@@ -98,3 +98,30 @@ it('releases its guard after a busy-port error so the next launch succeeds', asy
     await rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
   }
 });
+
+it('serves the next UI when asked and refuses to silently reuse a classic server', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'cloak ui next '));
+  const out = join(root, 'assets');
+  await buildWeb(out);
+  const store = createStore(join(root, 'store'));
+  const dashboard = createDashboard(store, root);
+  const session = await startUiSession(store.root, dashboard, 0, out, 'next');
+  try {
+    const page = await fetch(`http://127.0.0.1:${session.port}/`);
+    expect(await page.text()).toContain('id="app"');
+    expect(page.headers.get('content-security-policy')).toContain("script-src 'self'");
+    expect(page.headers.get('x-content-type-options')).toBe('nosniff');
+    const info = await fetch(`http://127.0.0.1:${session.port}/api/session`, {
+      headers: { Authorization: `Bearer ${session.token}` },
+    });
+    expect(await info.json()).toMatchObject({ ui: 'next' });
+    const again = await startUiSession(store.root, dashboard, 0, out, 'next');
+    expect(again.reused).toBe(true);
+    await expect(startUiSession(store.root, dashboard, 0, resolve('src/ui'))).rejects.toThrow(
+      /next UI is already running/,
+    );
+  } finally {
+    await session.close();
+    await rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+  }
+}, 60_000);

@@ -25,6 +25,14 @@ describe('dashboard launcher', () => {
     await createProgram(launch).parseAsync(args.flat(), { from: 'user' });
     expect(launch).toHaveBeenCalledWith(expect.any(Function), { port: 4321, open: false });
   });
+  it.each([['--next-ui'], ['ui', '--next-ui']])(
+    'passes the next UI flag for %j',
+    async (...args) => {
+      const launch = vi.fn(async () => {});
+      await createProgram(launch).parseAsync(args.flat(), { from: 'user' });
+      expect(launch).toHaveBeenCalledWith(expect.any(Function), { open: true, nextUi: true });
+    },
+  );
   it.each(['0', '-1', '65536', 'bad'])('rejects invalid port %s', async (port) => {
     const launch = vi.fn(async () => {});
     await expect(

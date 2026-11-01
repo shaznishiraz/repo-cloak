@@ -44,11 +44,16 @@ async function readBody(request: IncomingMessage): Promise<unknown> {
   }
 }
 
+export type UiKind = 'classic' | 'next';
+
 export function createDashboardServer(
   dashboard: Dashboard,
   token: string,
-  assetRoot = fileURLToPath(new URL('./ui/', import.meta.url)),
+  assetRoot?: string,
+  ui: UiKind = 'classic',
 ) {
+  const assetDirectory =
+    assetRoot ?? fileURLToPath(new URL(ui === 'next' ? './web/' : './ui/', import.meta.url));
   function send(response: ServerResponse, status: number, value: unknown) {
     response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
     response.end(JSON.stringify(value));
@@ -146,7 +151,7 @@ export function createDashboardServer(
       const asset = assets.get(url.pathname);
       if (!asset || method !== 'GET') throw new RequestError(404, 'Not found');
       const [name, type] = asset;
-      const bytes = await readFile(join(assetRoot, name ?? ''));
+      const bytes = await readFile(join(assetDirectory, name ?? ''));
       response.writeHead(200, { 'Content-Type': type ?? 'application/octet-stream' });
       response.end(bytes);
       return;
@@ -161,7 +166,7 @@ export function createDashboardServer(
       throw new RequestError(401, 'Session token required');
     let result: unknown;
     if (method === 'GET' && url.pathname === '/api/session')
-      result = { app: 'repo-cloak', protocol: 1, pid: process.pid };
+      result = { app: 'repo-cloak', protocol: 1, pid: process.pid, ui };
     else if (method === 'GET' && url.pathname === '/api/settings')
       result = await dashboard.settings.read();
     else if (method === 'GET' && url.pathname === '/api/desktop')
