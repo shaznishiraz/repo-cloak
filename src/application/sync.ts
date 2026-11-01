@@ -38,6 +38,7 @@ export async function prepareSync(
     result: { ...summary(prepared.plan, setup), postCommands },
     recheck: () => recheck(prepared.files, prepared.workspace),
     apply: prepared.apply,
+    ...(setup.fromCommit ? { sourceCommit: setup.fromCommit } : {}),
   };
 }
 
@@ -69,6 +70,12 @@ async function extraction(
     );
   const setup = await preparePull(services, direction, options);
   const concurrency = setup.config.concurrency ?? 16;
+  // The only place a commit pull differs: everything downstream sees the same SourceFiles.
+  const { fromCommit } = setup;
+  const readSource = () =>
+    fromCommit
+      ? services.worktree.readCommitSource(setup.repo.path, fromCommit, setup.paths, concurrency)
+      : services.files.readSourceFiles(setup.repo.path, setup.paths, concurrency);
 
   const postCommands: PostCommandResult[] = [];
   const recheck = async (
@@ -82,7 +89,7 @@ async function extraction(
     const repo = await services.store.readRepo(setup.repo.repoId);
     if (hashJson(repo?.exclude ?? []) !== hashJson(setup.repoExcludes ?? []))
       throw new Error('Repository exclusions changed while preparing the pull; retry');
-    const source = await services.files.readSourceFiles(setup.repo.path, setup.paths, concurrency);
+    const source = await readSource();
     if (sourceHash(source.files) !== sourceHash(files))
       throw new Error('Source files changed while preparing the pull; retry');
     const current = await services.files.readWorkspace(
@@ -96,7 +103,7 @@ async function extraction(
   const io: import('./pull.js').PullIO = {
     now: services.now,
     newId: services.newId,
-    readSource: () => services.files.readSourceFiles(setup.repo.path, setup.paths, concurrency),
+    readSource,
     readWorkspace: (paths) => services.files.readWorkspace(setup.destination, paths, concurrency),
     async save(plan, files, workspace) {
       const manifest = await services.store.sealManifest(plan);

@@ -11,6 +11,7 @@ export default {
     'admin.e2e.ts',
     'integration.e2e.ts',
     '62-push.e2e.ts',
+    '60-sync-engine.e2e.ts',
   ],
   workers: 1,
   retries: 0,

@@ -4,6 +4,7 @@ import { join, resolve } from 'node:path';
 import { afterEach, expect, it, vi } from 'vitest';
 import { countLines, homeRoutes } from '../../src/adapters/server-v2/home.js';
 import { createDashboardServer } from '../../src/adapters/server.js';
+import { createGroupStore } from '../../src/adapters/groups.js';
 import { createStore } from '../../src/adapters/store.js';
 import { createSyncServices } from '../../src/adapters/sync-services.js';
 import { createDashboard } from '../../src/application/dashboard.js';
@@ -376,6 +377,7 @@ it('pulls from origin, main and a commit', async () => {
     target: { kind: 'commit', ref: sha },
   });
   expect(commit.data.summary.writes).toContain('Third.ts');
+  expect(commit.data.summary.sourceCommit).toBe(sha);
   await call('DELETE', `/api/v2/operations/${commit.data.operationId}`);
 
   const origin = await call<TargetPreview>('POST', `${base}/pull`, {
@@ -384,6 +386,25 @@ it('pulls from origin, main and a commit', async () => {
   await call('POST', `/api/v2/operations/${origin.data.operationId}/apply`, {});
   expect((await settle(origin.data.operationId)).state).toBe('completed');
   expect(await readFile(join(workspace, 'Other.ts'), 'utf8')).toBe('moved\n');
+});
+
+it('pulls committed content over a dirty worktree through the route, and rejects an unknown sha', async () => {
+  const { call, base, git, source, workspace, settle } = await fixture();
+  await writeFile(join(source, 'Other.ts'), 'committed\n');
+  await git('add', '-A');
+  await git(...identity, 'commit', '-qm', 'second');
+  await writeFile(join(source, 'Other.ts'), 'dirty\n');
+  const unknown = await call<{ code: string; error: string }>('POST', `${base}/pull`, {
+    target: { kind: 'commit', ref: '0123456789012345678901234567890123456789' },
+  });
+  expect(unknown.status).toBe(400);
+  expect(unknown.data.error).toContain('Commit not found');
+  const preview = await call<TargetPreview>('POST', `${base}/pull`, {
+    target: { kind: 'commit', ref: 'HEAD' },
+  });
+  await call('POST', `/api/v2/operations/${preview.data.operationId}/apply`, {});
+  expect((await settle(preview.data.operationId)).state).toBe('completed');
+  expect(await readFile(join(workspace, 'Other.ts'), 'utf8')).toBe('committed\n');
 });
 
 it('opens through the desktop adapter and lists its options', async () => {
@@ -521,6 +542,40 @@ it('rejects a stale bulk and cancels a prepared one', async () => {
   expect((await settleGroup(preview.data.operationId)).state).toBe('cancelled');
 });
 
+it('answers 409 busy while another holder has the group lock, and the run stays pending', async () => {
+  const { call, group, store, settleGroup } = await groupFixture();
+  const preview = await call<TargetPreview>('POST', `/api/v2/groups/${group.id}/bulk`, {
+    direction: 'pull',
+    revision: group.revision,
+    stopOnGuardFailure: true,
+  });
+  const held = await createGroupStore(store).acquire();
+  const refused = await call<{ code: string }>(
+    'POST',
+    `/api/v2/group-operations/${preview.data.operationId}/apply`,
+    { members: [] },
+  );
+  expect(refused.status).toBe(409);
+  expect(refused.data.code).toBe('busy');
+  await held.release();
+  const applied = await call('POST', `/api/v2/group-operations/${preview.data.operationId}/apply`, {
+    members: [],
+  });
+  expect(applied.status).toBe(200);
+  expect((await settleGroup(preview.data.operationId)).state).toBe('completed');
+});
+
+it('refuses a member outside the group', async () => {
+  const { call, group } = await groupFixture();
+  const { status } = await call('POST', `/api/v2/groups/${group.id}/bulk`, {
+    direction: 'pull',
+    revision: group.revision,
+    stopOnGuardFailure: true,
+    members: ['0123456789abcdef'],
+  });
+  expect(status).toBe(400);
+});
+
 async function conflictedGroup() {
   const context = await groupFixture();
   const { workspace, secondWorkspace, source, git } = context;
@@ -610,7 +665,7 @@ it('commits every pushed member with the same message', async () => {
 });
 
 it('retries only the failed member and still commits what it wrote', async () => {
-  const { call, group, root, workspace, secondWorkspace, git, second, settleGroup, secondRepoId } =
+  const { call, group, workspace, secondWorkspace, git, second, settleGroup, secondRepoId } =
     await groupFixture();
   await writeFile(join(workspace, 'Northwind.ts'), 'class Northwind { one() {} }\n');
   await writeFile(join(secondWorkspace, 'Northwind.ts'), 'class Northwind { two() {} }\n');
@@ -619,10 +674,8 @@ it('retries only the failed member and still commits what it wrote', async () =>
     await run('config', 'user.name', 't');
     await run('config', 'commit.gpgSign', 'false');
   }
-  const hooks = join(root, 'failing-hooks');
-  await mkdir(hooks);
-  await writeFile(join(hooks, 'pre-commit'), '#!/bin/sh\nexit 1\n', { mode: 0o755 });
-  await second.git('config', 'core.hooksPath', hooks);
+  const indexLock = join(second.source, '.git/index.lock');
+  await writeFile(indexLock, '');
   const { data } = await call<TargetPreview>('POST', `/api/v2/groups/${group.id}/bulk`, {
     direction: 'push',
     revision: group.revision,
@@ -633,7 +686,7 @@ it('retries only the failed member and still commits what it wrote', async () =>
   const failed = await settleGroup(data.operationId);
   expect(failed.state).toBe('failed');
   expect(failed.members.find((member) => member.repoId === secondRepoId)?.state).toBe('failed');
-  await second.git('config', '--unset', 'core.hooksPath');
+  await rm(indexLock);
   const retried = await call<GroupOperationView>(
     'POST',
     `/api/v2/group-operations/${data.operationId}/retry`,

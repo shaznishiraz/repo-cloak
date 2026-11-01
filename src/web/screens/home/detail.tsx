@@ -324,7 +324,7 @@ function WorktreePicker({
         >
           <Field
             label="Or pull the files changed by a commit"
-            hint="A branch, tag or sha. Contents come from the worktree it came from."
+            hint="A branch, tag or sha. Contents come from that commit, not the worktree."
             value={ref}
             onInput={(event) => setRef(event.currentTarget.value)}
           />

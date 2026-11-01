@@ -40,6 +40,7 @@ export async function preparePullRun(setup: PullSetup, io: PullIO, version: stri
     version,
   };
   if (setup.previous) input.previous = setup.previous;
+  if (setup.fromCommit) input.fromCommit = setup.fromCommit;
   const plan = planPull(input);
   plan.warnings.push(...source.warnings);
   return {

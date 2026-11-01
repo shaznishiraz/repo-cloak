@@ -38,6 +38,11 @@ export function PreviewSummary({ preview }: { preview: OperationPreview }) {
         <Mono muted>{summary.source.path}</Mono> → <Mono>{summary.destination.path}</Mono>
         {summary.destination.branch && <Mono muted> · {summary.destination.branch}</Mono>}
       </p>
+      {summary.sourceCommit && (
+        <p class="op-commit">
+          From commit <Mono>{summary.sourceCommit.slice(0, 12)}</Mono>, not the worktree.
+        </p>
+      )}
       {nothing && <p>Nothing to change.</p>}
       <PathList title="Conflicts" paths={summary.conflicts} tone="blocked" />
       <PathList title="Writes" paths={summary.writes} />
