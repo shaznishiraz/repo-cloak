@@ -1,3 +1,4 @@
+import type { ComponentChildren } from 'preact';
 import type { GuardCheck, PushApply, PushBackup, PushReview } from '../../api/contracts.js';
 import { Button, Checkbox, Field, Radio } from '../../shell/ui/index.js';
 import { checkIcon, listedChecks } from './model.js';
@@ -39,6 +40,7 @@ export function PushAside({
   backup,
   onUndo,
   message,
+  children,
 }: {
   review: PushReview | undefined;
   form: PushForm;
@@ -52,6 +54,7 @@ export function PushAside({
   backup: PushBackup | undefined;
   onUndo: () => void;
   message: string | undefined;
+  children?: ComponentChildren;
 }) {
   const files = fileCount === 1 ? 'this file' : `these ${fileCount} files`;
   const radio = (value: PushApply['mode'], label: string) => (
@@ -118,6 +121,7 @@ export function PushAside({
           />
         )}
       </div>
+      {children}
       <div class="push-foot">
         <Button
           variant="primary"

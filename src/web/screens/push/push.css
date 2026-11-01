@@ -499,3 +499,39 @@
     margin-top: 0;
   }
 }
+.push-files-head .check {
+  font-size: 12px;
+}
+.push-row {
+  display: flex;
+  align-items: flex-start;
+}
+.push-row > input {
+  flex: none;
+  margin: 10px 0 0 12px;
+}
+.push-row > .row {
+  flex: 1;
+  min-width: 0;
+}
+.push-post-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.push-post-state {
+  font-size: 12px;
+  font-weight: 600;
+}
+.push-output {
+  max-height: 240px;
+  margin: 6px 0 0;
+  padding: 8px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

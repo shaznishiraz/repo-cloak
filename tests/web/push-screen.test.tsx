@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { render } from 'preact';
 import { act } from 'preact/test-utils';
-import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   DiffLine,
   Overview,
@@ -499,4 +499,151 @@ it('leaves the main option out when the cloak was pulled from the main checkout'
   );
   expect(options.map((item) => item.value)).toEqual(['origin', 'new', 'dry-run']);
   expect(options[0]?.label).toBe('api · main (pulled from)');
+});
+
+const include = (name: string) =>
+  root.querySelector<HTMLInputElement>(`input[aria-label="Include ${name}"]`);
+
+it('sends only the selected files, and confirms only the selected deletions', async () => {
+  const gone = file({ path: 'gone.cs', restoredPath: 'gone.cs', status: 'deleted' });
+  review = reviewOf({ files: [file(), gone] });
+  await show();
+  expect(root.querySelector('.push-files-head')?.textContent).toContain('2 of 2 files');
+
+  await click(include('gone.cs'));
+  expect(root.querySelector('.push-files-head')?.textContent).toContain('1 of 2 files');
+  expect(pushButton()?.textContent).toContain('Push 1 file');
+  // Selecting does not change which file's diff is showing.
+  expect(root.querySelector('.row-selected')?.textContent).toContain('Acme.cs');
+  await click(pushButton());
+  expect(root.querySelector('dialog[open]')).toBeNull();
+  expect(applied[0]).toMatchObject({ paths: ['src/Northwind.cs'] });
+  expect(applied[0]).not.toHaveProperty('confirmDeletes');
+  // What was left out is selected again for the next push.
+  expect(include('gone.cs')?.checked).toBe(true);
+
+  await click(pushButton());
+  expect(root.querySelector('dialog[open]')?.textContent).toContain('gone.cs');
+  await click(button('Delete and push'));
+  expect(applied[1]).toMatchObject({ confirmDeletes: ['gone.cs'] });
+  expect(applied[1]).not.toHaveProperty('paths');
+});
+
+it('blocks an empty selection, and ignores a conflict outside the selection', async () => {
+  const moved = file({
+    path: 'moved.cs',
+    restoredPath: 'moved.cs',
+    flags: ['source-moved', 'conflict'],
+  });
+  review = reviewOf({ files: [file(), moved] });
+  await show();
+  expect(pushButton()?.disabled).toBe(true);
+  await click(include('moved.cs'));
+  expect(pushButton()?.disabled).toBe(false);
+  await click(root.querySelector('.push-files-head input'));
+  expect(include('src/Acme.cs')?.checked).toBe(true);
+  await click(root.querySelector('.push-files-head input'));
+  expect(include('src/Acme.cs')?.checked).toBe(false);
+  expect(pushButton()?.disabled).toBe(true);
+  expect(root.textContent).toContain('Select at least one file');
+});
+
+it('names the overwritten files when it asks, and sends exactly those', async () => {
+  const moved = file({
+    path: 'moved.cs',
+    restoredPath: 'moved.cs',
+    flags: ['source-moved', 'conflict'],
+  });
+  review = reviewOf({
+    files: [file(), moved],
+    checks: [
+      ...reviewOf().checks,
+      { id: 'merge:moved.cs', state: 'blocked', title: 'moved', detail: 'overlaps' },
+    ],
+  });
+  await show();
+  await click(button('Overwrite'));
+  expect(root.querySelector('dialog[open]')?.textContent).toContain('moved.cs');
+  await click(button('Overwrite source files'));
+  await click(pushButton());
+  expect(applied[0]).toMatchObject({ mergeMode: 'overwrite', confirmOverwrites: ['moved.cs'] });
+});
+
+describe('post-check', () => {
+  type Saved = { command: string | null; timeoutSeconds: number; canRun: boolean; run: unknown };
+  let saved: Saved;
+  let runs: unknown[];
+  let puts: unknown[];
+  beforeEach(() => {
+    saved = { command: 'npm test', timeoutSeconds: 600, canRun: false, run: null };
+    runs = [];
+    puts = [];
+    const fallback = call.getMockImplementation();
+    call.mockImplementation(async (route, options) => {
+      const body = (options as { body?: unknown } | undefined)?.body;
+      if (route === 'GET /api/v2/push/:repoId/:id/post-check') return saved;
+      if (route === 'PUT /api/v2/push/:repoId/:id/post-check') {
+        puts.push(body);
+        saved = { ...saved, ...(body as Partial<Saved>) };
+        return saved;
+      }
+      if (route === 'POST /api/v2/push/:repoId/:id/post-check/run') {
+        runs.push(body);
+        saved = {
+          ...saved,
+          run: {
+            state: 'failed',
+            exitCode: 2,
+            durationMs: 5,
+            output: 'it broke',
+            truncated: false,
+          },
+        };
+        return saved.run;
+      }
+      return fallback?.(route, options);
+    });
+  });
+  const runButton = () => button('Run post-check');
+
+  it('is unavailable before a push, and does not run by itself after one', async () => {
+    await show();
+    expect(runButton()?.disabled).toBe(true);
+    expect(root.textContent).toContain('Available after a push.');
+    saved = { ...saved, canRun: true };
+    await click(pushButton());
+    expect(runButton()?.disabled).toBe(false);
+    expect(runs).toEqual([]);
+  });
+
+  it('needs the dialog: cancelling sends nothing, accepting shows the outcome', async () => {
+    saved = { ...saved, canRun: true };
+    await show();
+    await click(runButton());
+    const dialog = root.querySelector('dialog[open]');
+    expect(dialog?.textContent).toContain('npm test');
+    expect(dialog?.textContent).toContain('agent edited');
+    expect(dialog?.textContent).toContain('not sandboxed');
+    await click(button('Cancel'));
+    expect(runs).toEqual([]);
+    await click(runButton());
+    await click(button('Run it'));
+    expect(runs).toEqual([{ confirmed: true, command: 'npm test' }]);
+    expect(root.textContent).toContain('Failed · exit 2');
+    expect(root.querySelector('.push-output')?.textContent).toBe('it broke');
+  });
+
+  it('saves the command and will not run an unsaved one', async () => {
+    saved = { ...saved, canRun: true };
+    await show();
+    const input = [...root.querySelectorAll<HTMLInputElement>('.push-post-check input')];
+    await act(() => {
+      (input[0] as HTMLInputElement).value = 'make check';
+      input[0]?.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    expect(runButton()?.disabled).toBe(true);
+    await click(button('Save'));
+    expect(puts).toEqual([{ command: 'make check', timeoutSeconds: 600 }]);
+    expect(runButton()?.disabled).toBe(false);
+  });
 });

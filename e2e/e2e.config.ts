@@ -10,6 +10,7 @@ export default {
     'profiles.e2e.ts',
     'admin.e2e.ts',
     'integration.e2e.ts',
+    '62-push.e2e.ts',
   ],
   workers: 1,
   retries: 0,
