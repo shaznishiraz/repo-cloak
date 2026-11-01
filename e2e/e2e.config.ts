@@ -10,6 +10,7 @@ export default {
     'profiles.e2e.ts',
     'admin.e2e.ts',
     'integration.e2e.ts',
+    'leak-guard.e2e.ts',
   ],
   workers: 1,
   retries: 0,

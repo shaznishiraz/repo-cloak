@@ -315,6 +315,7 @@ export function scanForLeaks(
     /** Replaced values: they are what a cloak is meant to contain. */
     masks: string[];
     limits?: Partial<LeakLimits>;
+    /** Without a clock, the time limit does not apply. */
     now?: () => number;
   },
 ): LeakScan {

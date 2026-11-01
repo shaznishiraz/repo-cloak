@@ -24,9 +24,11 @@ import type {
   TargetPreview,
   WorkspaceDetailView,
 } from '../../web/api/contracts.js';
+import type { LeakScan } from '../../core/leak-scan.js';
 import { createCommitDiff } from '../commit-diff.js';
 import { readSourceFiles } from '../files.js';
 import { repoState, runGit } from '../git.js';
+import { scanWithRepoIdentity } from './leak-guard.js';
 import { createStatusIO } from '../status.js';
 import { OperationError } from '../ui-operations.js';
 import type { PreparedOperation, PreviewSummary, SyncResult } from '../ui-operations.js';
@@ -282,7 +284,39 @@ function plural(count: number, word: string) {
   return `${count} ${word}${count === 1 ? '' : 's'}`;
 }
 
-function guardChecks(inspection: Inspection, moved: number): GuardCheck[] {
+async function scanWorkspace({ workspaceFiles, target }: Inspection) {
+  const { source, rules, ledger } = target.snapshot.data;
+  const documents = workspaceFiles
+    .filter((file) => file.bytes)
+    .map((file) => ({
+      path: file.path,
+      texts: file.text === undefined ? [file.path] : [file.path, file.text],
+    }));
+  return scanWithRepoIdentity(source.path, documents, rules, ledger);
+}
+
+/** Only ever a warning, and it never calls a quiet result safe. */
+function heuristicGuard(scan: LeakScan): GuardCheck {
+  const covered = scan.partial
+    ? `partial scan, stopped at a limit after ${scan.filesScanned} of ${plural(scan.filesTotal, 'file')}`
+    : `scanned ${plural(scan.filesScanned, 'file')}`;
+  return scan.findings.length
+    ? {
+        id: 'leak-heuristics',
+        state: 'warning',
+        title: `${plural(scan.findings.length, 'possible leftover name')} (heuristic)`,
+        detail: `${covered} · likely names, check each one`,
+        findings: scan.findings,
+      }
+    : {
+        id: 'leak-heuristics',
+        state: 'info',
+        title: 'Heuristic scan spotted no likely leftovers',
+        detail: `${covered} · not proof the cloak is safe`,
+      };
+}
+
+function guardChecks(inspection: Inspection, moved: number, scan: LeakScan): GuardCheck[] {
   const { summary, status, mapping, workspaceFiles, target, plan } = inspection;
   const { snapshot } = target;
   const conflicts = summary.conflicts;
@@ -367,9 +401,10 @@ function guardChecks(inspection: Inspection, moved: number): GuardCheck[] {
       : {
           id: 'leaks',
           state: 'ok',
-          title: 'No real names found in the cloak',
-          detail: `scanned ${plural(scanned, 'file')}`,
+          title: 'No real names from the ledger found in the cloak',
+          detail: `scanned ${plural(scanned, 'file')} · only checks known values`,
         },
+    heuristicGuard(scan),
   ];
 }
 
@@ -452,7 +487,7 @@ async function workspaceDetail(
     return {
       ...base,
       pending: pendingChanges(inspection),
-      guards: guardChecks(inspection, moved),
+      guards: guardChecks(inspection, moved, await scanWorkspace(inspection)),
       profiles: snapshot.data.profiles.map((profile) => profile.name),
       sourceMovedFiles: moved,
     };

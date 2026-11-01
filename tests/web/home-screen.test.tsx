@@ -281,6 +281,31 @@ it('shows lineage, seven stats, pending, guards, requests and four history rows'
   expect(named('Review push →')?.getAttribute('href')).toBe('#/ws/w1/push');
 });
 
+it('lists heuristic findings under their guard, capped', async () => {
+  const findings = Array.from({ length: 10 }, (_, index) => ({
+    path: 'a.ts',
+    name: `host-${index}-prod-sql01`,
+    kind: 'server' as const,
+  }));
+  handlers['GET /api/v2/workspaces/r1/w1'] = () => ({
+    ...detail,
+    guards: [
+      {
+        id: 'leak-heuristics',
+        state: 'warning',
+        title: '10 possible leftover names (heuristic)',
+        findings,
+      },
+    ],
+  });
+  await showHome('w1');
+  const guard = root.querySelector('[data-guard="leak-heuristics"]');
+  expect(guard?.getAttribute('data-state')).toBe('warning');
+  expect(guard?.textContent).toContain('host-0-prod-sql01 · server · a.ts');
+  expect(guard?.textContent).not.toContain('host-9-prod-sql01');
+  expect(guard?.textContent).toContain('and 2 more');
+});
+
 it('previews a push on the origin worktree, applies it and refreshes', async () => {
   handlers['POST /api/v2/workspaces/r1/w1/push'] = () => ({
     operationId: 'op1',

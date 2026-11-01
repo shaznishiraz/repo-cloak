@@ -97,7 +97,9 @@ author's own domain is always found.
 - The scan runs inside the existing guard or review; an exception from it is not expected,
   and Home's existing catch turns any failure into a blocked guard rather than a false clean.
 - Binary files only have their path scanned.
-- Home loads the detail when the workspace changes rather than on each poll, so no cache.
+- Home loads the detail when the workspace changes rather than on each poll, so no cache. The
+  guard panel says "checked on load", and a file edited without the overview changing shows up
+  on the next load.
 
 ## Decisions
 

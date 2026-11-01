@@ -40,6 +40,7 @@ export function ReviewAside({
 }) {
   const held = review?.heldBack ?? [];
   const leftovers = review?.leftovers ?? [];
+  const scan = review?.leakScan;
   // The first entry is the repository folder; the name is suggested from it.
   const paths = review?.pathPreview.slice(1, 4) ?? [];
   const cli = review ? `${review.cli}${group ? ` --group ${group}` : ''}` : '';
@@ -123,11 +124,13 @@ export function ReviewAside({
           </span>
           <div>
             <p class="leftover-line">
-              {leftovers.length} {leftovers.length === 1 ? 'leftover' : 'leftovers'} with no rule:
+              {leftovers.length} possible {leftovers.length === 1 ? 'leftover' : 'leftovers'} with
+              no rule:
             </p>
             {leftovers.slice(0, 5).map((item) => (
               <p class="leftover-line" key={`${item.path}\0${item.name}`}>
-                <span class="mono leftover-name">{item.name}</span> in {item.path}
+                <span class="mono leftover-name">{item.name}</span>
+                {item.kind ? ` · ${item.kind}` : ''} in {item.path}
               </p>
             ))}
             {leftovers.length > 5 && <p class="muted">and {leftovers.length - 5} more</p>}
@@ -141,6 +144,16 @@ export function ReviewAside({
             </p>
           </div>
         </div>
+      )}
+
+      {scan && !adding && (
+        <p class="review-section muted" data-leak-scan>
+          {scan.partial
+            ? `Partial scan: it stopped at a limit after ${scan.filesScanned} of ${scan.filesTotal} files. `
+            : ''}
+          {leftovers.length ? '' : 'Spotted no likely leftovers. '}
+          Leftover checks are heuristic, so a quiet result is not proof of safety.
+        </p>
       )}
 
       {cli && !adding && (

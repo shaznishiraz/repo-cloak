@@ -1,6 +1,6 @@
-import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { join, relative, resolve } from 'node:path';
 import { afterEach, expect, it, vi } from 'vitest';
 import { expandPostCreateCommand, newRoutes } from '../../src/adapters/server-v2/new.js';
 import { createDashboardServer } from '../../src/adapters/server.js';
@@ -426,6 +426,67 @@ it('warns about leftover real names, and create is blocked until they are ignore
   );
   expect((await apply(preview.operationId)).state).toBe('completed');
   expect(await readFile(join(root, 'cloaks/acme-care/notes.ts'), 'utf8')).toContain('health-prod');
+});
+
+it('warns about a server name unrelated to the repository, as a heuristic', async () => {
+  const { call, raw, selection, create, dashboard, apply, root, source } = await fixture();
+  const name = 'ch-prod-sql01';
+  await writeFile(join(source, 'notes.ts'), `const host = "${name}";\n`);
+  const review = await call<NewCloakReview>(
+    '/api/v2/new/review',
+    'POST',
+    selection({ paths: ['notes.ts'] }),
+  );
+  expect(review.leftovers).toEqual([{ path: 'notes.ts', name, kind: 'server' }]);
+  expect(review.leakScan).toEqual({ filesScanned: 1, filesTotal: 1, partial: false });
+  const blocked = await raw(
+    '/api/v2/new/create',
+    'POST',
+    create({ paths: ['notes.ts'], ignoreLeftovers: false }),
+  );
+  expect(blocked.status).toBe(409);
+  expect(await blocked.text()).not.toContain(name);
+  const preview = await call<OperationPreview>(
+    '/api/v2/new/create',
+    'POST',
+    create({ paths: ['notes.ts'], ignoreLeftovers: true }),
+  );
+  expect(JSON.stringify(preview)).not.toContain(name);
+  expect((await apply(preview.operationId)).state).toBe('completed');
+  expect(JSON.stringify(await dashboard.sync.audit.list({ limit: 1000 }))).not.toContain(name);
+  // The file itself was pulled because the user ignored the warning; nothing else repeats it.
+  const cloak = join(root, 'cloaks/acme-care');
+  const holders: string[] = [];
+  for (const entry of await readdir(cloak, { recursive: true, withFileTypes: true })) {
+    if (!entry.isFile()) continue;
+    const path = join(entry.parentPath, entry.name);
+    if ((await readFile(path)).includes(name)) holders.push(relative(cloak, path));
+  }
+  expect(holders).toEqual(['notes.ts']);
+});
+
+it('scans anonymized text and paths, so rules and public names stay quiet', async () => {
+  const { call, selection, source } = await fixture();
+  await writeFile(
+    join(source, 'quiet.ts'),
+    'Contoso-prod-sql01 contoso.com http://localhost:3000 a@example.com https://registry.npmjs.org\n',
+  );
+  await mkdir(join(source, 'hq-prod-sql01'));
+  await writeFile(join(source, 'hq-prod-sql01/x.ts'), 'x\n');
+  const quiet = await call<NewCloakReview>(
+    '/api/v2/new/review',
+    'POST',
+    selection({ paths: ['quiet.ts'] }),
+  );
+  expect(quiet.leftovers).toEqual([]);
+  const named = await call<NewCloakReview>(
+    '/api/v2/new/review',
+    'POST',
+    selection({ paths: ['hq-prod-sql01/x.ts'] }),
+  );
+  expect(named.leftovers).toEqual([
+    { path: 'hq-prod-sql01/x.ts', name: 'hq-prod-sql01', kind: 'server' },
+  ]);
 });
 
 it('flags a near miss the token boundary left unreplaced, but not an excepted word', async () => {

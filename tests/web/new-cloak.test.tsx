@@ -261,6 +261,32 @@ it('blocks create on a leftover until ignored, and ignoring only covers those na
   expect(createButton()?.disabled).toBe(true);
 });
 
+it('labels leftover checks as heuristic and shows the kind and a partial scan', async () => {
+  review = {
+    ...cleanReview,
+    leftovers: [{ path: 'a.ts', name: 'ch-prod-sql01', kind: 'server' }],
+    leakScan: { filesScanned: 2, filesTotal: 9, partial: true },
+  };
+  act(() => root.querySelector<HTMLButtonElement>('.file-chip')?.click());
+  await flush();
+  expect(text()).toContain('1 possible leftover with no rule');
+  expect(text()).toContain('ch-prod-sql01 · server in a.ts');
+  const note = root.querySelector('[data-leak-scan]')?.textContent;
+  expect(note).toContain('stopped at a limit after 2 of 9 files');
+  expect(note).toContain('heuristic');
+  expect(note).not.toContain('Spotted no likely leftovers');
+});
+
+it('does not call a quiet leftover check safe', async () => {
+  review = { ...cleanReview, leakScan: { filesScanned: 2, filesTotal: 2, partial: false } };
+  act(() => root.querySelector<HTMLButtonElement>('.file-chip')?.click());
+  await flush();
+  const note = root.querySelector('[data-leak-scan]')?.textContent;
+  expect(note).toContain('Spotted no likely leftovers');
+  expect(note).toContain('not proof of safety');
+  expect(note).not.toContain('Partial');
+});
+
 it('blocks create with no profile', async () => {
   act(() => root.querySelector<HTMLButtonElement>('.profile-chip-on')?.click());
   await flush();
